@@ -1,0 +1,1103 @@
+<!doctype html>
+<html lang="bn">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>তানহা ফ্যাশন — লুকবুক ও কাস্টমাইজার</title>
+    <meta
+      name="description"
+      content="তানহা ফ্যাশন — ইন্টারেক্টিভ লুকবুক এবং মিক্স-অ্যান্ড-ম্যাচ কাস্টমাইজার।"
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      *,
+      *::before,
+      *::after {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      :root {
+        --bg: #09080d; /* Dark space background */
+        --fg: #f3f3f6;
+        --primary: #e2ba84; /* Metallic Gold */
+        --accent: #e58c6f; /* Soft Sienna */
+        --muted: #9494a3;
+        --glass-bg: rgba(255, 255, 255, 0.03);
+        --glass-border: rgba(255, 255, 255, 0.08);
+        --glass-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+        --font-bn: "Hind Siliguri", sans-serif;
+        --font-en: "Outfit", sans-serif;
+      }
+
+      body {
+        background-color: var(--bg);
+        color: var(--fg);
+        font-family: var(--font-bn);
+        -webkit-font-smoothing: antialiased;
+        overflow-x: hidden;
+        line-height: 1.6;
+        position: relative;
+      }
+
+      /* Background Blur Orbs */
+      .blur-orb {
+        position: absolute;
+        border-radius: 50%;
+        filter: blur(150px);
+        z-index: -1;
+        opacity: 0.45;
+        pointer-events: none;
+      }
+      .orb-1 {
+        width: 30rem;
+        height: 30rem;
+        background: rgba(226, 186, 132, 0.15);
+        top: 5%;
+        left: -10%;
+      }
+      .orb-2 {
+        width: 40rem;
+        height: 40rem;
+        background: rgba(229, 140, 111, 0.12);
+        top: 40%;
+        right: -15%;
+      }
+      .orb-3 {
+        width: 35rem;
+        height: 35rem;
+        background: rgba(148, 148, 163, 0.1);
+        bottom: 10%;
+        left: 10%;
+      }
+
+      /* Utilities */
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 1.5rem;
+      }
+      .glass-panel {
+        background: var(--glass-bg);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid var(--glass-border);
+        border-radius: 12px;
+        box-shadow: var(--glass-shadow);
+      }
+
+      /* Floating Header */
+      .header {
+        position: fixed;
+        top: 1.5rem;
+        left: 1.5rem;
+        right: 1.5rem;
+        z-index: 1000;
+        padding: 0.75rem 2rem;
+      }
+      .nav-container {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .logo {
+        text-decoration: none;
+        color: var(--fg);
+        display: flex;
+        align-items: baseline;
+        gap: 0.35rem;
+      }
+      .logo-main {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #fff;
+      }
+      .logo-sub {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.25em;
+        color: var(--primary);
+      }
+
+      .nav-links {
+        display: flex;
+        gap: 2rem;
+        list-style: none;
+      }
+      .nav-links a {
+        text-decoration: none;
+        color: var(--fg);
+        font-size: 0.9rem;
+        font-weight: 500;
+        opacity: 0.8;
+        transition:
+          opacity 0.3s,
+          color 0.3s;
+      }
+      .nav-links a:hover {
+        opacity: 1;
+        color: var(--primary);
+      }
+
+      /* Hero Section with Split gender Slider */
+      .hero-section {
+        padding: 9rem 0 5rem;
+      }
+      .hero-grid {
+        display: grid;
+        grid-template-columns: 1.2fr 0.8fr;
+        gap: 4rem;
+        align-items: center;
+      }
+
+      .hero-left {
+        max-width: 32rem;
+      }
+      .hero-label {
+        font-family: var(--font-en);
+        font-size: 0.8rem;
+        letter-spacing: 0.3em;
+        text-transform: uppercase;
+        color: var(--primary);
+        margin-bottom: 1rem;
+        display: block;
+      }
+      .hero-title {
+        font-size: clamp(2.5rem, 5vw, 4rem);
+        font-weight: 700;
+        line-height: 1.2;
+        margin-bottom: 1.5rem;
+      }
+      .hero-title span {
+        color: var(--primary);
+        font-style: italic;
+        font-weight: 300;
+      }
+      .hero-desc {
+        color: var(--muted);
+        font-size: 1.1rem;
+        margin-bottom: 2.5rem;
+      }
+
+      /* Outfit Split Slider Switcher */
+      .slider-toggle-box {
+        display: flex;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--glass-border);
+        padding: 0.25rem;
+        border-radius: 99px;
+        width: fit-content;
+        margin-bottom: 2rem;
+      }
+      .slider-toggle-btn {
+        background: transparent;
+        border: none;
+        color: var(--fg);
+        padding: 0.5rem 1.5rem;
+        font-size: 0.9rem;
+        font-weight: 600;
+        border-radius: 99px;
+        cursor: pointer;
+        font-family: var(--font-bn);
+        transition: all 0.3s;
+      }
+      .slider-toggle-btn.active {
+        background: var(--primary);
+        color: #000;
+      }
+
+      .hero-right {
+        position: relative;
+      }
+      .hero-image-frame {
+        aspect-ratio: 3/4;
+        border-radius: 12px;
+        overflow: hidden;
+        border: 1px solid var(--glass-border);
+        position: relative;
+      }
+      .hero-image-frame img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: opacity 0.5s ease;
+      }
+
+      /* Lookbook Hotspot Canvas */
+      .lookbook-section {
+        padding: 5rem 0;
+      }
+      .lookbook-header {
+        text-align: center;
+        margin-bottom: 3.5rem;
+      }
+      .lookbook-header h2 {
+        font-size: 2.2rem;
+        font-weight: 700;
+      }
+      .lookbook-header p {
+        color: var(--muted);
+        margin-top: 0.5rem;
+      }
+
+      .hotspot-canvas {
+        position: relative;
+        max-width: 700px;
+        margin: 0 auto;
+        border-radius: 12px;
+        overflow: hidden;
+        border: 1px solid var(--glass-border);
+      }
+      .hotspot-canvas img {
+        width: 100%;
+        display: block;
+        object-fit: cover;
+      }
+
+      /* Hotspot marker */
+      .hotspot {
+        position: absolute;
+        width: 1.75rem;
+        height: 1.75rem;
+        background: rgba(226, 186, 132, 0.4);
+        border: 2px solid var(--primary);
+        border-radius: 50%;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transform: translate(-50%, -50%);
+        transition: background 0.3s;
+      }
+      .hotspot::after {
+        content: "";
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        border: 2px solid var(--primary);
+        animation: pulse 2s infinite;
+        box-sizing: border-box;
+      }
+      @keyframes pulse {
+        0% {
+          transform: scale(1);
+          opacity: 1;
+        }
+        100% {
+          transform: scale(2.2);
+          opacity: 0;
+        }
+      }
+      .hotspot:hover {
+        background: var(--primary);
+      }
+      .hotspot-inner {
+        width: 0.5rem;
+        height: 0.5rem;
+        background: var(--primary);
+        border-radius: 50%;
+      }
+      .hotspot:hover .hotspot-inner {
+        background: #000;
+      }
+
+      /* Hotspot Cards */
+      .hotspot-card {
+        position: absolute;
+        width: 180px;
+        padding: 1rem;
+        z-index: 10;
+        pointer-events: none;
+        opacity: 0;
+        transform: scale(0.9) translateY(10px);
+        transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      }
+      .hotspot-card.active {
+        opacity: 1;
+        pointer-events: auto;
+        transform: scale(1) translateY(0);
+      }
+      .hotspot-card h4 {
+        font-size: 0.95rem;
+        font-weight: 700;
+        margin-bottom: 0.25rem;
+      }
+      .hotspot-card .price {
+        color: var(--primary);
+        font-family: var(--font-en);
+        font-size: 0.9rem;
+        font-weight: 700;
+      }
+      .hotspot-card a {
+        display: inline-block;
+        margin-top: 0.5rem;
+        font-size: 0.75rem;
+        color: var(--fg);
+        text-decoration: underline;
+      }
+
+      /* Mix and Match Coordinator */
+      .customizer-section {
+        padding: 5rem 0;
+        background: rgba(0, 0, 0, 0.15);
+        border-top: 1px solid var(--glass-border);
+        border-bottom: 1px solid var(--glass-border);
+      }
+      .customizer-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 4rem;
+        align-items: center;
+      }
+
+      .panel-options {
+        display: flex;
+        flex-direction: column;
+        gap: 2rem;
+      }
+      .option-group-title {
+        font-size: 0.85rem;
+        letter-spacing: 0.25em;
+        text-transform: uppercase;
+        color: var(--primary);
+        margin-bottom: 0.75rem;
+        display: block;
+      }
+      .options-row {
+        display: flex;
+        gap: 1rem;
+      }
+
+      .opt-btn {
+        background: var(--glass-bg);
+        border: 1px solid var(--glass-border);
+        color: var(--fg);
+        border-radius: 8px;
+        padding: 0.75rem 1.25rem;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        transition: all 0.3s;
+        font-family: var(--font-bn);
+        flex: 1;
+        text-align: left;
+      }
+      .opt-btn:hover {
+        border-color: var(--primary);
+        background: rgba(255, 255, 255, 0.06);
+      }
+      .opt-btn.active {
+        border-color: var(--primary);
+        background: rgba(226, 186, 132, 0.15);
+      }
+      .opt-circle {
+        width: 0.75rem;
+        height: 0.75rem;
+        border-radius: 50%;
+        border: 1.5px solid var(--muted);
+      }
+      .opt-btn.active .opt-circle {
+        background: var(--primary);
+        border-color: var(--primary);
+      }
+
+      .customizer-preview {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 3rem;
+      }
+      .preview-combo-title {
+        font-size: 1.25rem;
+        font-weight: 700;
+        margin-bottom: 1.5rem;
+        text-align: center;
+      }
+
+      .preview-images-row {
+        display: flex;
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+        justify-content: center;
+      }
+      .preview-card-img {
+        width: 120px;
+        aspect-ratio: 3/4;
+        border-radius: 8px;
+        overflow: hidden;
+        border: 1px solid var(--glass-border);
+        box-shadow: var(--glass-shadow);
+        background: #111;
+      }
+      .preview-card-img img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .combo-price-box {
+        text-align: center;
+      }
+      .combo-price-label {
+        font-size: 0.85rem;
+        color: var(--muted);
+      }
+      .combo-price-val {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: var(--primary);
+        font-family: var(--font-en);
+        margin-bottom: 1rem;
+      }
+
+      .btn-buy-combo {
+        background: var(--primary);
+        color: #000;
+        border: none;
+        padding: 0.8rem 2rem;
+        border-radius: 99px;
+        font-size: 0.95rem;
+        font-weight: 600;
+        cursor: pointer;
+        font-family: var(--font-bn);
+        transition: transform 0.3s;
+      }
+      .btn-buy-combo:hover {
+        transform: scale(1.05);
+      }
+
+      /* Catalog / Promo Banner combo */
+      .catalog-section {
+        padding: 5rem 0;
+      }
+      .catalog-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 2rem;
+        margin-bottom: 4rem;
+      }
+      .glass-prod-card {
+        padding: 1.25rem;
+        display: flex;
+        flex-direction: column;
+        border-radius: 12px;
+        overflow: hidden;
+      }
+      .glass-prod-img-wrap {
+        aspect-ratio: 3/4;
+        border-radius: 8px;
+        overflow: hidden;
+        margin-bottom: 1rem;
+        border: 1px solid var(--glass-border);
+      }
+      .glass-prod-img-wrap img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      .glass-prod-name {
+        font-size: 1.15rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+      }
+      .glass-prod-price {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--primary);
+        margin-top: auto;
+      }
+
+      /* Testimonials & FAQs */
+      .social-section {
+        padding: 0 0 5rem 0;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 4rem;
+      }
+      .review-bubble-stream {
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+      }
+      .review-bubble {
+        padding: 1.5rem;
+        border-radius: 12px;
+      }
+      .review-txt {
+        font-style: italic;
+        margin-bottom: 0.75rem;
+      }
+      .review-user {
+        font-size: 0.85rem;
+        color: var(--primary);
+        font-weight: 600;
+      }
+
+      .faq-container {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+      }
+      .faq-card {
+        border-radius: 8px;
+      }
+      .faq-btn {
+        width: 100%;
+        background: none;
+        border: none;
+        padding: 1.25rem 1.5rem;
+        color: #fff;
+        font-family: var(--font-bn);
+        font-size: 1.05rem;
+        font-weight: 600;
+        text-align: left;
+        cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+      }
+      .faq-content {
+        max-height: 0;
+        overflow: hidden;
+        transition: all 0.3s;
+        padding: 0 1.5rem;
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+      .faq-card.open .faq-content {
+        max-height: 6rem;
+        padding-bottom: 1.25rem;
+      }
+
+      /* Footer */
+      .footer {
+        border-top: 1px solid var(--glass-border);
+        background: rgba(0, 0, 0, 0.3);
+        padding: 4rem 0 2rem;
+      }
+      .footer-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 3rem;
+        margin-bottom: 3rem;
+      }
+      .foot-logo {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #fff;
+        margin-bottom: 0.75rem;
+      }
+      .foot-col-title {
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.2em;
+        color: var(--muted);
+        margin-bottom: 1rem;
+      }
+      .foot-info-list {
+        list-style: none;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+
+      /* Responsive */
+      @media (max-width: 900px) {
+        .hero-grid {
+          grid-template-columns: 1fr;
+          gap: 2rem;
+          text-align: center;
+        }
+        .hero-left {
+          max-width: 100%;
+        }
+        .slider-toggle-box {
+          margin: 0 auto 2rem;
+        }
+        .customizer-grid {
+          grid-template-columns: 1fr;
+          gap: 2rem;
+        }
+        .catalog-grid {
+          grid-template-columns: 1fr;
+          gap: 1.5rem;
+        }
+        .social-section {
+          grid-template-columns: 1fr;
+          gap: 2rem;
+        }
+        .footer-grid {
+          grid-template-columns: 1fr;
+          gap: 2rem;
+        }
+        .header {
+          padding: 0.75rem 1rem;
+          left: 1rem;
+          right: 1rem;
+        }
+        .nav-links {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Background Glowing Orbs -->
+    <div class="blur-orb orb-1"></div>
+    <div class="blur-orb orb-2"></div>
+    <div class="blur-orb orb-3"></div>
+
+    <!-- Header -->
+    <header class="header glass-panel">
+      <div class="nav-container">
+        <a href="#" class="logo">
+          <span class="logo-main">তানহা</span>
+          <span class="logo-sub">ফ্যাশন</span>
+        </a>
+        <ul class="nav-links">
+          <li><a href="#lookbook">লুকবুক</a></li>
+          <li><a href="#customizer">কাস্টমাইজার</a></li>
+          <li><a href="#catalog">সংগ্রহ</a></li>
+        </ul>
+      </div>
+    </header>
+
+    <!-- Hero with Outfit Slider toggle -->
+    <section class="hero-section">
+      <div class="container hero-grid">
+        <div class="hero-left">
+          <span class="hero-label">লুকবুক সংস্করণ ২০২৬</span>
+          <h1 class="hero-title" id="hero-heading">সুতোয় বোনা শাড়ির <span>গল্পচিত্র</span></h1>
+          <p class="hero-desc" id="hero-paragraph">
+            প্রতিটি জামদানি ও তসর সুতি শাড়িতে জড়িয়ে আছে ঢাকার রূপগঞ্জের দক্ষ কারিগর তাঁতিদের আবেগ ও
+            মেহনত।
+          </p>
+
+          <!-- Toggle Slider -->
+          <div class="slider-toggle-box">
+            <button
+              class="slider-toggle-btn active"
+              id="btn-female"
+              onclick="toggleGenderHero('female')"
+            >
+              শাড়ি সংগ্রহ
+            </button>
+            <button class="slider-toggle-btn" id="btn-male" onclick="toggleGenderHero('male')">
+              পাঞ্জাবি সংগ্রহ
+            </button>
+          </div>
+        </div>
+
+        <div class="hero-right">
+          <div class="hero-image-frame">
+            <img src="src/assets/hero-model.jpg" id="hero-img" alt="Hero Model Image" />
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Hotspots Lookbook Annotation -->
+    <section class="lookbook-section" id="lookbook">
+      <div class="container">
+        <div class="lookbook-header">
+          <h2>লুকবুক স্পটলাইট</h2>
+          <p>ছবিতে থাকা পোশাকটির বিস্তারিত দেখতে ডটগুলোতে টাচ অথবা ক্লিক করুন</p>
+        </div>
+
+        <div class="hotspot-canvas">
+          <img src="src/assets/look-1.jpg" alt="Lookbook Saree Model" />
+
+          <!-- Hotspot 1: Saree -->
+          <div
+            class="hotspot"
+            style="top: 45%; left: 45%"
+            onmouseover="showHotspotCard('card-saree')"
+            onmouseout="hideHotspotCard('card-saree')"
+            onclick="toggleHotspotClick('card-saree')"
+          >
+            <div class="hotspot-inner"></div>
+          </div>
+          <div class="hotspot-card glass-panel" id="card-saree" style="top: 25%; left: 52%">
+            <h4>জামদানি শাড়ি</h4>
+            <span class="price">৳ ১২,৯০০</span><br />
+            <a href="#catalog">সংগ্রহে দেখুন</a>
+          </div>
+
+          <!-- Hotspot 2: Accessories (Earrings/Bag) -->
+          <div
+            class="hotspot"
+            style="top: 75%; left: 35%"
+            onmouseover="showHotspotCard('card-bag')"
+            onmouseout="hideHotspotCard('card-bag')"
+            onclick="toggleHotspotClick('card-bag')"
+          >
+            <div class="hotspot-inner"></div>
+          </div>
+          <div class="hotspot-card glass-panel" id="card-bag" style="top: 78%; left: 42%">
+            <h4>অনুষঙ্গ ব্যাগ</h4>
+            <span class="price">৳ ২,৪০০</span><br />
+            <a href="#catalog">সংগ্রহে দেখুন</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Interactive Mix-and-Match Customizer -->
+    <section class="customizer-section" id="customizer">
+      <div class="container">
+        <div class="lookbook-header">
+          <h2>মিক্স অ্যান্ড ম্যাচ কাস্টমাইজার</h2>
+          <p>আপনার মনমতো সমন্বয় তৈরি করে পোশাকের সেট বেছে নিন</p>
+        </div>
+
+        <div class="customizer-grid">
+          <!-- Panels option -->
+          <div class="panel-options">
+            <!-- Dress Selector -->
+            <div>
+              <span class="option-group-title">ধাপ ০১: পোশাক নির্বাচন</span>
+              <div class="options-row">
+                <button
+                  class="opt-btn active"
+                  id="dress-saree"
+                  onclick="selectOutfitItem('dress', 'saree', 8400, 'জামদানি কথা')"
+                >
+                  <span class="opt-circle"></span>
+                  <span>জামদানি শাড়ি</span>
+                </button>
+                <button
+                  class="opt-btn"
+                  id="dress-kurta"
+                  onclick="selectOutfitItem('dress', 'kurta', 4600, 'মেঘলা পাঞ্জাবি')"
+                >
+                  <span class="opt-circle"></span>
+                  <span>পাঞ্জাবি ক্লাসিক</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Accessories Selector -->
+            <div>
+              <span class="option-group-title">ধাপ ০২: অনুষঙ্গ নির্বাচন</span>
+              <div class="options-row">
+                <button
+                  class="opt-btn active"
+                  id="acc-bag"
+                  onclick="selectOutfitItem('acc', 'bag', 1900, 'হ্যান্ডব্যাগ')"
+                >
+                  <span class="opt-circle"></span>
+                  <span>অনুষঙ্গ ব্যাগ</span>
+                </button>
+                <button
+                  class="opt-btn"
+                  id="acc-earring"
+                  onclick="selectOutfitItem('acc', 'earring', 900, 'জুয়েলারি')"
+                >
+                  <span class="opt-circle"></span>
+                  <span>মেটালিক অনুষঙ্গ</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Preview Column -->
+          <div class="customizer-preview glass-panel">
+            <h3 class="preview-combo-title" id="combo-title">জামদানি শাড়ি + হ্যান্ডব্যাগ</h3>
+
+            <div class="preview-images-row">
+              <div class="preview-card-img">
+                <img src="src/assets/product-1.jpg" id="preview-img-dress" alt="Selected Dress" />
+              </div>
+              <div class="preview-card-img">
+                <img
+                  src="src/assets/cat-accessories.jpg"
+                  id="preview-img-acc"
+                  alt="Selected Accessory"
+                />
+              </div>
+            </div>
+
+            <div class="combo-price-box">
+              <span class="combo-price-label">সমন্বিত মূল্য:</span>
+              <div class="combo-price-val" id="combo-price-display">৳ ১০,৩০০</div>
+              <button class="btn-buy-combo" onclick="buyCombo()">সেটটি বুকিং করুন</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Showcase Catalog -->
+    <section class="catalog-section" id="catalog">
+      <div class="container">
+        <div class="lookbook-header">
+          <h2>উৎসবের সীমিত সংগ্রহশালা</h2>
+        </div>
+
+        <div class="catalog-grid">
+          <!-- Card 1 -->
+          <div class="glass-prod-card glass-panel">
+            <div class="glass-prod-img-wrap">
+              <img src="src/assets/product-1.jpg" alt="জামদানি কথা" />
+            </div>
+            <h3 class="glass-prod-name">জামদানি কথা</h3>
+            <div class="glass-prod-price">৳ ৮,৪০০</div>
+          </div>
+          <!-- Card 2 -->
+          <div class="glass-prod-card glass-panel">
+            <div class="glass-prod-img-wrap">
+              <img src="src/assets/product-2.jpg" alt="রক্তিম সন্ধ্যা" />
+            </div>
+            <h3 class="glass-prod-name">রক্তিম সন্ধ্যা</h3>
+            <div class="glass-prod-price">৳ ১২,৯০০</div>
+          </div>
+          <!-- Card 3 -->
+          <div class="glass-prod-card glass-panel">
+            <div class="glass-prod-img-wrap">
+              <img src="src/assets/product-3.jpg" alt="মেঘলা পাঞ্জাবি" />
+            </div>
+            <h3 class="glass-prod-name">মেঘলা পাঞ্জাবি</h3>
+            <div class="glass-prod-price">৳ ৪,৬০০</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Social Feed reviews & FAQs -->
+    <section class="container social-section">
+      <!-- Reviews Bubble stream -->
+      <div class="review-bubble-stream">
+        <h3 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 1rem">ক্রেতাদের মন্তব্য</h3>
+
+        <div class="review-bubble glass-panel">
+          <p class="review-txt">
+            "শাড়িটির নকশা আর কাপড় দুটিই অসাধারণ। উৎসবের আমেজকে দ্বিগুণ করে দিয়েছে।"
+          </p>
+          <span class="review-user">ফারিয়া আহমেদ, ঢাকা</span>
+        </div>
+
+        <div class="review-bubble glass-panel">
+          <p class="review-txt">
+            "কারুকার্যের নিখুঁত বুনন প্রশংসার যোগ্য। পাঞ্জাবিটি পরিধান করে দারুণ সাচ্ছন্দ্য পেয়েছি।"
+          </p>
+          <span class="review-user">তানভীর রহমান, চট্টগ্রাম</span>
+        </div>
+      </div>
+
+      <!-- FAQ Accordion -->
+      <div class="faq-container">
+        <h3 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 1rem">সচরাচর জিজ্ঞাসা</h3>
+
+        <div class="faq-card glass-panel open">
+          <button class="faq-btn" onclick="toggleFaq(this)">
+            <span>অর্ডার কীভাবে করা যাবে?</span>
+            <span>+</span>
+          </button>
+          <div class="faq-content">
+            <p>
+              পছন্দের পোশাকটি নির্বাচন করে সরাসরি বুকিং করুন। আমাদের টিম ২৪ ঘণ্টার মধ্যে মাপে ও
+              মেইলিং এড্রেস নিশ্চিত করতে যোগাযোগ করবে।
+            </p>
+          </div>
+        </div>
+
+        <div class="faq-card glass-panel">
+          <button class="faq-btn" onclick="toggleFaq(this)">
+            <span>হোম ডেলিভারির চার্জ কত?</span>
+            <span>+</span>
+          </button>
+          <div class="faq-content">
+            <p>
+              সারাদেশে হোম ডেলিভারি ফি সম্পূর্ণ ফ্রি। উৎসব উপলক্ষে কোনো অতিরিক্ত চার্জ গ্রহণ করা হবে
+              না।
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <div class="container footer-grid">
+        <div>
+          <div class="foot-logo">তানহা ফ্যাশন</div>
+          <p style="color: var(--muted); font-size: 0.9rem">
+            বাংলার তাঁতিদের রাত জাগা সাধনায় বোনা ঐতিহ্যবাহী কাপড় আধুনিক স্টাইলে পরিবেশন।
+          </p>
+        </div>
+        <div>
+          <h4 class="foot-col-title">সংগ্রহশালা</h4>
+          <ul class="foot-info-list">
+            <li>শাড়ি সংগ্রহ</li>
+            <li>পাঞ্জাবি সংগ্রহ</li>
+            <li>অনুষঙ্গ জুয়েলারি</li>
+          </ul>
+        </div>
+        <div>
+          <h4 class="foot-col-title">যোগাযোগ</h4>
+          <ul class="foot-info-list">
+            <li>hello@tanhafashion.com</li>
+            <li>+৮৮০ ১৭০০ ০০০ ০০০</li>
+            <li>ধানমন্ডি, ঢাকা</li>
+          </ul>
+        </div>
+      </div>
+      <div
+        class="container"
+        style="
+          display: flex;
+          justify-content: space-between;
+          font-size: 0.8rem;
+          color: var(--muted);
+          padding-top: 1.5rem;
+          border-top: 1px solid var(--glass-border);
+        "
+      >
+        <p>© ২০২৬ তানহা ফ্যাশন। সর্বস্বত্ব সংরক্ষিত।</p>
+        <p>ইনস্টাগ্রাম • ফেইসবুক</p>
+      </div>
+    </footer>
+
+    <script>
+      // Gender Hero toggle
+      function toggleGenderHero(gender) {
+        const btnFemale = document.getElementById("btn-female");
+        const btnMale = document.getElementById("btn-male");
+        const heading = document.getElementById("hero-heading");
+        const paragraph = document.getElementById("hero-paragraph");
+        const img = document.getElementById("hero-img");
+
+        if (gender === "female") {
+          btnFemale.classList.add("active");
+          btnMale.classList.remove("active");
+          heading.innerHTML = "সুতোয় বোনা শাড়ির <span>গল্পচিত্র</span>";
+          paragraph.innerText =
+            "প্রতিটি জামদানি ও তসর সুতি শাড়িতে জড়িয়ে আছে ঢাকার রূপগঞ্জের দক্ষ কারিগর তাঁতিদের আবেগ ও মেহনত।";
+          img.src = "src/assets/hero-model.jpg";
+        } else {
+          btnMale.classList.add("active");
+          btnFemale.classList.remove("active");
+          heading.innerHTML = "পুরুষদের উৎসব <span>সংগ্রহ ২০২৬</span>";
+          paragraph.innerText =
+            "সুতি ও তসর জ্যাকার্ড কাপড়ের সমন্বয়ে তৈরি আরামদায়ক ও আভিজাত্যময় পাঞ্জাবি ও কুর্তা কালেকশন।";
+          img.src = "src/assets/cat-panjabi.jpg";
+        }
+      }
+
+      // Lookbook hotspot functions
+      let activeHotspotId = null;
+
+      function showHotspotCard(id) {
+        if (activeHotspotId) return;
+        document.getElementById(id).classList.add("active");
+      }
+
+      function hideHotspotCard(id) {
+        if (activeHotspotId === id) return;
+        document.getElementById(id).classList.remove("active");
+      }
+
+      function toggleHotspotClick(id) {
+        if (activeHotspotId === id) {
+          document.getElementById(id).classList.remove("active");
+          activeHotspotId = null;
+        } else {
+          if (activeHotspotId) {
+            document.getElementById(activeHotspotId).classList.remove("active");
+          }
+          document.getElementById(id).classList.add("active");
+          activeHotspotId = id;
+        }
+      }
+
+      // Mix and match customizer state
+      let customizerState = {
+        dress: {
+          type: "saree",
+          name: "জামদানি শাড়ি",
+          price: 8400,
+          image: "src/assets/product-1.jpg",
+        },
+        acc: {
+          type: "bag",
+          name: "হ্যান্ডব্যাগ",
+          price: 1900,
+          image: "src/assets/cat-accessories.jpg",
+        },
+      };
+
+      function selectOutfitItem(category, type, price, name) {
+        // Toggle button classes
+        const parentRow = document.getElementById(
+          category === "dress" ? "dress-" + type : "acc-" + type,
+        ).parentNode;
+        parentRow.querySelectorAll(".opt-btn").forEach((btn) => btn.classList.remove("active"));
+
+        const activeBtn = document.getElementById(
+          category === "dress" ? "dress-" + type : "acc-" + type,
+        );
+        activeBtn.classList.add("active");
+
+        // Update State
+        customizerState[category].type = type;
+        customizerState[category].name = name;
+        customizerState[category].price = price;
+
+        if (category === "dress") {
+          customizerState[category].image =
+            type === "saree" ? "src/assets/product-1.jpg" : "src/assets/product-3.jpg";
+        } else {
+          customizerState[category].image =
+            type === "bag" ? "src/assets/cat-accessories.jpg" : "src/assets/cat-kurta.jpg"; // accessory fallback images
+        }
+
+        updateCustomizerUI();
+      }
+
+      function updateCustomizerUI() {
+        // Update Title
+        const title = document.getElementById("combo-title");
+        title.innerText = customizerState.dress.name + " + " + customizerState.acc.name;
+
+        // Update Images
+        document.getElementById("preview-img-dress").src = customizerState.dress.image;
+        document.getElementById("preview-img-acc").src = customizerState.acc.image;
+
+        // Update Total Price
+        const total = customizerState.dress.price + customizerState.acc.price;
+        document.getElementById("combo-price-display").innerText =
+          "৳ " + total.toLocaleString("bn-BD");
+      }
+
+      function buyCombo() {
+        alert(
+          "সফল! " +
+            customizerState.dress.name +
+            " ও " +
+            customizerState.acc.name +
+            " সেটটি বুকিং তালিকাভুক্ত হয়েছে।",
+        );
+      }
+
+      // FAQ Accordions
+      function toggleFaq(btn) {
+        const card = btn.closest(".faq-card");
+        const isOpen = card.classList.contains("open");
+
+        document.querySelectorAll(".faq-card").forEach((c) => c.classList.remove("open"));
+        if (!isOpen) {
+          card.classList.add("open");
+        }
+      }
+    </script>
+  </body>
+</html>

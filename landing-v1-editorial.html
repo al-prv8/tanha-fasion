@@ -1,0 +1,2655 @@
+<!doctype html>
+<html lang="bn">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>তানহা ফ্যাশন — V1 Editorial Magazine</title>
+    <meta
+      name="description"
+      content="তানহা ফ্যাশন — হস্তনির্মিত জামদানি, সিল্ক ও কটনে গড়া আধুনিক বাঙালি পোশাকের ঠিকানা।"
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      *,
+      *::before,
+      *::after {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      :root {
+        --bg: #f5ede4;
+        --fg: #2a1a0e;
+        --primary: #a0522d;
+        --primary-light: #c4845c;
+        --accent: #d4956b;
+        --muted: #8b7355;
+        --card: #ede3d6;
+        --bone: #f9f3ec;
+        --gold: #c9a96e;
+        --font-bn: "Hind Siliguri", sans-serif;
+        --font-en: "Hind Siliguri", sans-serif;
+        --grain: radial-gradient(rgba(42, 26, 14, 0.04) 1px, transparent 1px);
+        --shadow-soft: 0 30px 80px -30px rgba(42, 26, 14, 0.25);
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+      body,
+      h1,
+      h2,
+      h3,
+      h4,
+      h5,
+      h6,
+      a,
+      button,
+      input,
+      select,
+      textarea {
+        font-family: var(--font-bn);
+      }
+      body {
+        background: var(--bg);
+        color: var(--fg);
+        -webkit-font-smoothing: antialiased;
+        overflow-x: hidden;
+        line-height: 1.6;
+      }
+
+      /* ==================== GRAIN TEXTURE ==================== */
+      .grain {
+        background-image: var(--grain);
+        background-size: 3px 3px;
+      }
+
+      /* ==================== INTERACTIVE DOT NAV ==================== */
+      .chapter-nav {
+        position: fixed;
+        left: 2.5rem;
+        top: 50%;
+        transform: translateY(-50%);
+        z-index: 1000;
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+      }
+      .chapter-dot-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        text-decoration: none;
+        color: var(--fg);
+        cursor: pointer;
+      }
+      .chapter-dot {
+        width: 0.5rem;
+        height: 0.5rem;
+        border-radius: 50%;
+        background: rgba(42, 26, 14, 0.2);
+        border: 1px solid var(--fg);
+        transition: all 0.3s;
+      }
+      .chapter-lbl {
+        font-size: 0.8rem;
+        font-weight: 600;
+        opacity: 0;
+        transform: translateX(-10px);
+        transition: all 0.3s;
+        white-space: nowrap;
+        pointer-events: none;
+      }
+      .chapter-dot-wrapper:hover .chapter-lbl {
+        opacity: 0.8;
+        transform: translateX(0);
+      }
+      .chapter-dot-wrapper.active .chapter-dot {
+        background: var(--primary);
+        border-color: var(--primary);
+        transform: scale(1.5);
+      }
+      .chapter-dot-wrapper.active .chapter-lbl {
+        opacity: 1;
+        transform: translateX(0);
+        color: var(--primary);
+      }
+
+      /* ==================== DROPCAP ==================== */
+      .dropcap::first-letter {
+        font-family: var(--font-en);
+        font-size: 3.5rem;
+        font-weight: 700;
+        float: left;
+        margin-right: 0.6rem;
+        line-height: 1;
+        color: var(--primary);
+      }
+
+      /* ==================== SCROLL ANIMATIONS ==================== */
+      .reveal-item {
+        opacity: 0;
+        transform: translateY(30px);
+        transition:
+          opacity 0.8s cubic-bezier(0.2, 0.7, 0.2, 1),
+          transform 0.8s cubic-bezier(0.2, 0.7, 0.2, 1);
+      }
+      .reveal-item.revealed {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      /* ==================== ANIMATIONS ==================== */
+      @keyframes rise {
+        from {
+          opacity: 0;
+          transform: translateY(40px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+        }
+        to {
+          opacity: 1;
+        }
+      }
+      @keyframes marquee {
+        from {
+          transform: translateX(0);
+        }
+        to {
+          transform: translateX(-50%);
+        }
+      }
+      @keyframes float {
+        0%,
+        100% {
+          transform: translateY(0);
+        }
+        50% {
+          transform: translateY(-12px);
+        }
+      }
+      @keyframes scaleIn {
+        from {
+          opacity: 0;
+          transform: scale(0.95);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
+
+      .rise {
+        animation: rise 1s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+      }
+      .rise-d1 {
+        animation-delay: 0.15s;
+      }
+      .rise-d2 {
+        animation-delay: 0.3s;
+      }
+      .rise-d3 {
+        animation-delay: 0.45s;
+      }
+      .fade-in {
+        animation: fadeIn 1.2s ease both;
+      }
+
+      /* ==================== NAV ==================== */
+      .nav {
+        position: relative;
+        z-index: 100;
+        padding: 1.5rem 3rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        max-width: 1440px;
+        margin: 0 auto;
+      }
+      .nav-logo {
+        display: flex;
+        align-items: baseline;
+        gap: 0.5rem;
+        text-decoration: none;
+        color: var(--fg);
+      }
+      .nav-logo-name {
+        font-size: 1.75rem;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+      }
+      .nav-logo-sub {
+        font-size: 0.65rem;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.3em;
+        color: var(--muted);
+      }
+      .nav-links {
+        display: flex;
+        gap: 2.5rem;
+        list-style: none;
+      }
+      .nav-links a {
+        text-decoration: none;
+        color: var(--fg);
+        font-size: 0.875rem;
+        font-weight: 500;
+        transition: color 0.3s;
+      }
+      .nav-links a:hover {
+        color: var(--primary);
+      }
+      .nav-bag {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        border: 1px solid rgba(42, 26, 14, 0.2);
+        padding: 0.5rem 1rem;
+        border-radius: 999px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        background: transparent;
+        color: var(--fg);
+        cursor: pointer;
+        transition: all 0.3s;
+      }
+      .nav-bag:hover {
+        background: var(--fg);
+        color: var(--bg);
+      }
+      .nav-bag-count {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.25rem;
+        height: 1.25rem;
+        border-radius: 50%;
+        background: var(--primary);
+        color: var(--bone);
+        font-size: 0.625rem;
+      }
+
+      /* ==================== HERO ==================== */
+      .hero {
+        position: relative;
+        max-width: 1440px;
+        margin: 0 auto;
+        padding: 2rem 3rem 4rem;
+        display: grid;
+        grid-template-columns: 7fr 5fr;
+        gap: 3rem;
+        align-items: start;
+      }
+      .hero::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background-image: var(--grain);
+        background-size: 3px 3px;
+        opacity: 0.6;
+        pointer-events: none;
+      }
+      .hero-text {
+        position: relative;
+        z-index: 2;
+      }
+      .hero-season {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.4em;
+        color: var(--muted);
+        margin-bottom: 1.5rem;
+      }
+      .hero-season::before {
+        content: "";
+        width: 2.5rem;
+        height: 1px;
+        background: rgba(42, 26, 14, 0.4);
+      }
+      .hero h1 {
+        font-family: var(--font-bn);
+        font-size: clamp(4rem, 9.5vw, 8.5rem);
+        font-weight: 700;
+        line-height: 0.85;
+        letter-spacing: -0.03em;
+        text-wrap: balance;
+      }
+      .hero h1 .accent {
+        font-weight: 700;
+        color: var(--primary);
+      }
+      .hero-desc {
+        margin-top: 2rem;
+        max-width: 28rem;
+        font-size: 1.05rem;
+        line-height: 1.7;
+        color: var(--muted);
+      }
+      .hero-actions {
+        margin-top: 2.5rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        align-items: center;
+      }
+      .btn-primary {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.75rem;
+        background: var(--fg);
+        color: var(--bg);
+        padding: 1rem 2rem;
+        border-radius: 999px;
+        font-size: 0.875rem;
+        font-weight: 600;
+        text-decoration: none;
+        transition: transform 0.3s;
+      }
+      .btn-primary:hover {
+        transform: scale(1.03);
+      }
+      .btn-primary .arrow {
+        display: inline-block;
+        transition: transform 0.3s;
+      }
+      .btn-primary:hover .arrow {
+        transform: translateX(4px);
+      }
+      .btn-text {
+        font-size: 0.875rem;
+        font-weight: 500;
+        text-decoration: none;
+        color: var(--fg);
+        text-underline-offset: 8px;
+      }
+      .btn-text:hover {
+        text-decoration: underline;
+      }
+
+      .hero-stats {
+        margin-top: 4rem;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1.5rem;
+        border-top: 1px solid rgba(42, 26, 14, 0.1);
+        padding-top: 2rem;
+        max-width: 30rem;
+      }
+      .hero-stat-val {
+        font-size: 2rem;
+        font-weight: 700;
+      }
+      .hero-stat-label {
+        margin-top: 0.25rem;
+        font-size: 0.7rem;
+        color: var(--muted);
+      }
+
+      .hero-image {
+        position: relative;
+      }
+      .hero-image-wrap {
+        position: relative;
+        aspect-ratio: 3/4;
+        overflow: hidden;
+        border-radius: 2px;
+        box-shadow: var(--shadow-soft);
+      }
+      .hero-image-wrap img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+      }
+      .hero-image-overlay {
+        position: absolute;
+        bottom: 1.5rem;
+        left: 1.5rem;
+        right: 1.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        color: var(--bone);
+      }
+      .hero-image-overlay-label {
+        font-size: 0.6rem;
+        text-transform: uppercase;
+        letter-spacing: 0.3em;
+        opacity: 0.8;
+      }
+      .hero-image-overlay-title {
+        font-size: 1.125rem;
+        font-weight: 600;
+      }
+      .hero-image-overlay-num {
+        font-size: 0.75rem;
+        opacity: 0.8;
+      }
+      .hero-glow {
+        position: absolute;
+        top: -2.5rem;
+        left: -2.5rem;
+        width: 10rem;
+        height: 10rem;
+        border-radius: 50%;
+        background: rgba(212, 149, 107, 0.3);
+        filter: blur(48px);
+        z-index: -1;
+      }
+
+      /* ==================== MARQUEE ==================== */
+      .marquee-bar {
+        border-top: 1px solid rgba(42, 26, 14, 0.1);
+        border-bottom: 1px solid rgba(42, 26, 14, 0.1);
+        background: var(--fg);
+        color: var(--bg);
+        overflow: hidden;
+      }
+      .marquee-track {
+        display: inline-flex;
+        white-space: nowrap;
+        animation: marquee 40s linear infinite;
+        padding: 1rem 0;
+        font-size: 1.5rem;
+        font-weight: 500;
+        letter-spacing: 0.05em;
+      }
+      .marquee-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 2.5rem;
+        margin: 0 2.5rem;
+      }
+      .marquee-dot {
+        opacity: 0.4;
+      }
+
+      /* ==================== SECTION HEADERS ==================== */
+      .section-label {
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.4em;
+        color: var(--muted);
+        margin-bottom: 0.75rem;
+      }
+      .section-title {
+        font-size: clamp(2.25rem, 5vw, 3.5rem);
+        font-weight: 700;
+        line-height: 1.1;
+        letter-spacing: -0.02em;
+      }
+      .section-title .accent {
+        font-weight: 700;
+        color: var(--primary);
+      }
+
+      /* ==================== CATEGORIES ==================== */
+      .categories {
+        max-width: 1440px;
+        margin: 0 auto;
+        padding: 5rem 3rem 6rem;
+      }
+      .categories-header {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        align-items: flex-end;
+        gap: 1.5rem;
+        margin-bottom: 3rem;
+      }
+      .categories-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1.5rem;
+      }
+      .cat-card {
+        position: relative;
+        display: block;
+        overflow: hidden;
+        border-radius: 2px;
+        background: var(--card);
+        text-decoration: none;
+        color: var(--bg);
+      }
+      .cat-card-img {
+        aspect-ratio: 1;
+        overflow: hidden;
+      }
+      .cat-card-img img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform 0.7s;
+      }
+      .cat-card:hover .cat-card-img img {
+        transform: scale(1.1);
+      }
+      .cat-card-info {
+        position: absolute;
+        inset: auto 0 0 0;
+        padding: 1.25rem;
+        background: linear-gradient(to top, rgba(42, 26, 14, 0.8), transparent);
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+      }
+      .cat-card-name {
+        font-size: 1.375rem;
+        font-weight: 600;
+      }
+      .cat-card-count {
+        font-size: 0.75rem;
+        opacity: 0.8;
+        margin-top: 0.25rem;
+      }
+      .cat-card-arrow {
+        width: 2rem;
+        height: 2rem;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.2);
+        backdrop-filter: blur(8px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: transform 0.3s;
+      }
+      .cat-card:hover .cat-card-arrow {
+        transform: translateX(4px);
+      }
+
+      /* ==================== COLLECTION ==================== */
+      .collection {
+        max-width: 1440px;
+        margin: 0 auto;
+        padding: 6rem 3rem 8rem;
+      }
+      .collection-header {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        align-items: flex-end;
+        gap: 1.5rem;
+        margin-bottom: 4rem;
+      }
+      .collection-header p {
+        max-width: 24rem;
+        color: var(--muted);
+      }
+      .collection-title {
+        font-size: clamp(2.5rem, 6vw, 4.5rem);
+        font-weight: 700;
+        line-height: 1.1;
+        letter-spacing: -0.02em;
+      }
+      .collection-title .accent {
+        font-weight: 700;
+        color: var(--primary);
+      }
+      .collection-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 2rem;
+      }
+      .product-card {
+        position: relative;
+      }
+      .product-card:nth-child(2) {
+        margin-top: 4rem;
+      }
+      .product-card-img {
+        position: relative;
+        aspect-ratio: 3/4;
+        overflow: hidden;
+        border-radius: 2px;
+        background: var(--card);
+      }
+      .product-card-img img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform 0.7s;
+      }
+      .product-card:hover .product-card-img img {
+        transform: scale(1.05);
+      }
+      .product-tag {
+        position: absolute;
+        top: 1rem;
+        left: 1rem;
+        background: rgba(245, 237, 228, 0.9);
+        padding: 0.25rem 0.75rem;
+        border-radius: 999px;
+        font-size: 0.625rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+      }
+      .product-quick {
+        position: absolute;
+        bottom: 1rem;
+        right: 1rem;
+        background: var(--fg);
+        color: var(--bg);
+        padding: 0.5rem 1rem;
+        border-radius: 999px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        opacity: 0;
+        transform: translateY(8px);
+        transition: all 0.3s;
+        border: none;
+        cursor: pointer;
+      }
+      .product-card:hover .product-quick {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      .product-info {
+        margin-top: 1.25rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+      }
+      .product-id {
+        font-size: 0.75rem;
+        color: var(--muted);
+      }
+      .product-name {
+        margin-top: 0.25rem;
+        font-size: 1.25rem;
+        font-weight: 600;
+      }
+      .product-price {
+        font-size: 1.125rem;
+        font-weight: 600;
+      }
+
+      /* ==================== CRAFT ==================== */
+      .craft {
+        background: var(--fg);
+        color: var(--bg);
+        position: relative;
+      }
+      .craft::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background-image: var(--grain);
+        background-size: 3px 3px;
+        opacity: 0.2;
+        pointer-events: none;
+      }
+      .craft-inner {
+        max-width: 1440px;
+        margin: 0 auto;
+        padding: 6rem 3rem 8rem;
+        display: grid;
+        grid-template-columns: 5fr 7fr;
+        gap: 3rem;
+        position: relative;
+      }
+      .craft-text-label {
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.4em;
+        opacity: 0.6;
+        margin-bottom: 1rem;
+      }
+      .craft-title {
+        font-size: clamp(2.5rem, 5vw, 3.75rem);
+        font-weight: 700;
+        line-height: 0.95;
+        letter-spacing: -0.02em;
+      }
+      .craft-title .accent {
+        font-weight: 700;
+        color: #d4a574;
+      }
+      .craft-desc {
+        margin-top: 2rem;
+        max-width: 28rem;
+        line-height: 1.7;
+        opacity: 0.7;
+      }
+      .craft-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-top: 2.5rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: var(--bg);
+        text-decoration: none;
+        border-bottom: 1px solid rgba(245, 237, 228, 0.4);
+        padding-bottom: 0.25rem;
+        transition: border-color 0.3s;
+      }
+      .craft-link:hover {
+        border-color: var(--bg);
+      }
+      .craft-image {
+        aspect-ratio: 7/5;
+        overflow: hidden;
+        border-radius: 2px;
+      }
+      .craft-image img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      .craft-stats {
+        margin-top: 2rem;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 2rem;
+        border-top: 1px solid rgba(245, 237, 228, 0.2);
+        padding-top: 2rem;
+      }
+      .craft-stat-val {
+        font-size: 2.5rem;
+        font-weight: 700;
+      }
+      .craft-stat-label {
+        margin-top: 0.5rem;
+        font-size: 0.875rem;
+        opacity: 0.6;
+      }
+
+      /* ==================== QUOTE ==================== */
+      .quote-section {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 7rem 3rem;
+        text-align: center;
+      }
+      .quote-section blockquote {
+        margin-top: 2rem;
+        font-size: clamp(1.5rem, 4vw, 3rem);
+        font-weight: 500;
+        line-height: 1.25;
+        letter-spacing: -0.015em;
+        text-wrap: balance;
+      }
+      .quote-section blockquote .accent {
+        font-weight: 700;
+        color: var(--primary);
+      }
+      .quote-author {
+        margin-top: 2.5rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 1rem;
+        font-size: 0.875rem;
+        color: var(--muted);
+      }
+      .quote-author-line {
+        width: 3rem;
+        height: 1px;
+        background: rgba(42, 26, 14, 0.3);
+      }
+
+      /* ==================== LOOKBOOK ==================== */
+      .lookbook {
+        max-width: 1440px;
+        margin: 0 auto;
+        padding: 0 3rem 8rem;
+      }
+      .lookbook-header {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        align-items: flex-end;
+        gap: 1.5rem;
+        margin-bottom: 3rem;
+      }
+      .lookbook-header p {
+        max-width: 24rem;
+        color: var(--muted);
+      }
+      .lookbook-grid {
+        display: grid;
+        grid-template-columns: 5fr 7fr;
+        gap: 1.5rem;
+      }
+      .lookbook-tall {
+        aspect-ratio: 3/4;
+        overflow: hidden;
+        border-radius: 2px;
+        cursor: pointer;
+        position: relative;
+      }
+      .lookbook-tall img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform 0.7s;
+      }
+      .lookbook-tall:hover img {
+        transform: scale(1.05);
+      }
+      .lookbook-right {
+        display: grid;
+        grid-template-rows: 1fr 1fr;
+        gap: 1.5rem;
+      }
+      .lookbook-wide {
+        aspect-ratio: 7/4;
+        overflow: hidden;
+        border-radius: 2px;
+        cursor: pointer;
+        position: relative;
+      }
+      .lookbook-wide img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform 0.7s;
+      }
+      .lookbook-wide:hover img {
+        transform: scale(1.05);
+      }
+
+      .lookbook-hover-label {
+        position: absolute;
+        inset: 0;
+        background: rgba(42, 26, 14, 0.4);
+        opacity: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        padding: 1.5rem;
+        color: #fff;
+        transition: opacity 0.3s;
+      }
+      .lookbook-tall:hover .lookbook-hover-label,
+      .lookbook-wide:hover .lookbook-hover-label {
+        opacity: 1;
+      }
+      .lookbook-lbl-title {
+        font-size: 1.25rem;
+        font-weight: 700;
+      }
+      .lookbook-lbl-subtitle {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--accent);
+      }
+
+      /* ==================== LOOKBOOK SPOTLIGHT MODAL ==================== */
+      .spotlight-modal-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(42, 26, 14, 0.6);
+        backdrop-filter: blur(8px);
+        z-index: 10000;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem;
+      }
+      .spotlight-modal-backdrop.active {
+        opacity: 1;
+        pointer-events: auto;
+      }
+      .spotlight-modal {
+        background: var(--bg);
+        border: 1px solid rgba(42, 26, 14, 0.15);
+        border-radius: 4px;
+        max-width: 600px;
+        width: 100%;
+        overflow: hidden;
+        box-shadow: var(--shadow-soft);
+        transform: scale(0.95);
+        transition: transform 0.3s;
+      }
+      .spotlight-modal-backdrop.active .spotlight-modal {
+        transform: scale(1);
+      }
+      .spotlight-img {
+        aspect-ratio: 16/10;
+        width: 100%;
+        object-fit: cover;
+      }
+      .spotlight-body {
+        padding: 2rem;
+      }
+      .spotlight-loc {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.2em;
+        color: var(--primary);
+        margin-bottom: 0.5rem;
+        display: block;
+      }
+      .spotlight-title {
+        font-family: var(--font-bn);
+        font-size: 1.8rem;
+        font-weight: 700;
+        margin-bottom: 1rem;
+        color: var(--fg);
+      }
+      .spotlight-desc {
+        color: var(--muted);
+        font-size: 1rem;
+        line-height: 1.6;
+        margin-bottom: 1.5rem;
+      }
+      .spotlight-close {
+        background: var(--fg);
+        color: var(--bg);
+        border: none;
+        padding: 0.6rem 1.5rem;
+        border-radius: 99px;
+        font-weight: 600;
+        cursor: pointer;
+        font-family: var(--font-bn);
+        transition: background 0.3s;
+      }
+      .spotlight-close:hover {
+        background: var(--primary);
+        color: #fff;
+      }
+
+      /* ==================== FESTIVE OFFER ==================== */
+      .offer {
+        position: relative;
+        overflow: hidden;
+        border-top: 1px solid rgba(42, 26, 14, 0.1);
+        border-bottom: 1px solid rgba(42, 26, 14, 0.1);
+        background: var(--accent);
+        color: var(--bone);
+      }
+      .offer::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background-image: var(--grain);
+        background-size: 3px 3px;
+        opacity: 0.3;
+        pointer-events: none;
+      }
+      .offer-inner {
+        max-width: 1440px;
+        margin: 0 auto;
+        padding: 4rem 3rem 5rem;
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        align-items: center;
+        gap: 2rem;
+        position: relative;
+      }
+      .offer-label {
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.4em;
+        opacity: 0.8;
+        margin-bottom: 0.75rem;
+      }
+      .offer-title {
+        font-size: clamp(2rem, 5vw, 3.5rem);
+        font-weight: 700;
+        line-height: 1.1;
+      }
+      .offer-title .accent {
+        font-weight: 700;
+      }
+      .offer-right {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 1rem;
+      }
+      .offer-coupon-label {
+        font-size: 0.875rem;
+        letter-spacing: 0.3em;
+        opacity: 0.8;
+      }
+      .offer-coupon {
+        border: 2px dashed rgba(249, 243, 236, 0.6);
+        padding: 0.75rem 1.5rem;
+        font-size: 1.5rem;
+        font-weight: 700;
+        letter-spacing: 0.15em;
+        border-radius: 2px;
+        cursor: pointer;
+        transition: background 0.3s;
+      }
+      .offer-coupon:hover {
+        background: rgba(249, 243, 236, 0.1);
+      }
+      .btn-offer {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: var(--bone);
+        color: var(--accent);
+        padding: 0.75rem 1.5rem;
+        border-radius: 99px;
+        font-size: 0.875rem;
+        font-weight: 600;
+        text-decoration: none;
+        transition: transform 0.3s;
+      }
+      .btn-offer:hover {
+        transform: scale(1.03);
+      }
+
+      /* ==================== TESTIMONIALS ==================== */
+      .testimonials {
+        max-width: 1440px;
+        margin: 0 auto;
+        padding: 7rem 3rem 9rem;
+      }
+      .testimonials-header {
+        margin-bottom: 4rem;
+        max-width: 36rem;
+      }
+      .testimonials-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1.5rem;
+      }
+      .test-card {
+        border: 1px solid rgba(42, 26, 14, 0.1);
+        border-radius: 2px;
+        padding: 2rem;
+        background: var(--card);
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        transition: border-color 0.3s;
+      }
+      .test-card:hover {
+        border-color: rgba(42, 26, 14, 0.3);
+      }
+      .test-quote-mark {
+        font-size: 3rem;
+        line-height: 1;
+        color: var(--primary);
+      }
+      .test-quote {
+        margin-top: 1rem;
+        flex: 1;
+        font-size: 0.95rem;
+        line-height: 1.7;
+        color: rgba(42, 26, 14, 0.9);
+      }
+      .test-footer {
+        margin-top: 2rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        border-top: 1px solid rgba(42, 26, 14, 0.1);
+        padding-top: 1.25rem;
+      }
+      .test-avatar {
+        width: 2.5rem;
+        height: 2.5rem;
+        border-radius: 50%;
+        background: rgba(160, 82, 45, 0.1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.875rem;
+        font-weight: 700;
+        color: var(--primary);
+      }
+      .test-name {
+        font-size: 0.875rem;
+        font-weight: 600;
+      }
+      .test-role {
+        font-size: 0.75rem;
+        color: var(--muted);
+      }
+      .test-stars {
+        margin-left: auto;
+        font-size: 0.75rem;
+        color: var(--primary);
+      }
+
+      /* ==================== FAQ ==================== */
+      .faq {
+        max-width: 1440px;
+        margin: 0 auto;
+        padding: 0 3rem 8rem;
+        display: grid;
+        grid-template-columns: 4fr 8fr;
+        gap: 3rem;
+      }
+      .faq-left {
+        position: sticky;
+        top: 3rem;
+        align-self: start;
+      }
+      .faq-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        border: 1px solid rgba(42, 26, 14, 0.2);
+        padding: 0.75rem 1.25rem;
+        border-radius: 999px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        background: transparent;
+        color: var(--fg);
+        cursor: pointer;
+        margin-top: 1.5rem;
+        text-decoration: none;
+        transition: all 0.3s;
+      }
+      .faq-btn:hover {
+        background: var(--fg);
+        color: var(--bg);
+      }
+      .faq-list {
+        border-top: 1px solid rgba(42, 26, 14, 0.1);
+        border-bottom: 1px solid rgba(42, 26, 14, 0.1);
+      }
+      .faq-item {
+        border-bottom: 1px solid rgba(42, 26, 14, 0.1);
+      }
+      .faq-item:last-child {
+        border-bottom: none;
+      }
+      .faq-question {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+        padding: 1.5rem 0;
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-family: var(--font-bn);
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: var(--fg);
+        text-align: left;
+        transition: color 0.3s;
+      }
+      .faq-question:hover {
+        color: var(--primary);
+      }
+      .faq-toggle {
+        width: 2rem;
+        height: 2rem;
+        border-radius: 50%;
+        border: 1px solid rgba(42, 26, 14, 0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.125rem;
+        flex-shrink: 0;
+        transition: all 0.3s;
+      }
+      .faq-item.open .faq-toggle {
+        transform: rotate(45deg);
+        background: var(--fg);
+        color: var(--bg);
+      }
+      .faq-answer {
+        max-height: 0;
+        overflow: hidden;
+        transition:
+          max-height 0.4s ease,
+          padding 0.4s ease;
+      }
+      .faq-item.open .faq-answer {
+        max-height: 12rem;
+        padding-bottom: 1.5rem;
+      }
+      .faq-answer p {
+        max-width: 36rem;
+        line-height: 1.7;
+        color: var(--muted);
+      }
+
+      /* ==================== CTA ==================== */
+      .cta {
+        max-width: 1440px;
+        margin: 0 auto;
+        padding: 0 3rem 6rem;
+      }
+      .cta-inner {
+        position: relative;
+        overflow: hidden;
+        border-radius: 2px;
+        background: var(--primary);
+        color: var(--bone);
+        padding: 4rem 5rem;
+      }
+      .cta-inner::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background-image: var(--grain);
+        background-size: 3px 3px;
+        opacity: 0.3;
+        pointer-events: none;
+      }
+      .cta-grid {
+        position: relative;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 2rem;
+        align-items: flex-end;
+      }
+      .cta-title {
+        font-size: clamp(2rem, 5vw, 3.5rem);
+        font-weight: 700;
+        line-height: 1.1;
+      }
+      .cta-title .accent {
+        font-weight: 700;
+      }
+      .cta-desc {
+        margin-top: 1.5rem;
+        max-width: 28rem;
+        opacity: 0.8;
+      }
+      .cta-form {
+        display: flex;
+        gap: 0.75rem;
+      }
+      .cta-input {
+        flex: 1;
+        border: 1px solid rgba(249, 243, 236, 0.3);
+        background: transparent;
+        padding: 1rem 1.5rem;
+        border-radius: 999px;
+        font-family: var(--font-bn);
+        font-size: 1rem;
+        color: var(--bone);
+        outline: none;
+      }
+      .cta-input::placeholder {
+        color: rgba(249, 243, 236, 0.6);
+      }
+      .cta-input:focus {
+        border-color: var(--bone);
+      }
+      .cta-submit {
+        background: var(--bone);
+        color: var(--primary);
+        padding: 1rem 2rem;
+        border-radius: 999px;
+        border: none;
+        font-family: var(--font-bn);
+        font-size: 0.875rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: transform 0.3s;
+      }
+      .cta-submit:hover {
+        transform: scale(1.03);
+      }
+
+      /* ==================== FOOTER ==================== */
+      .footer {
+        border-top: 1px solid rgba(42, 26, 14, 0.1);
+      }
+      .footer-inner {
+        max-width: 1440px;
+        margin: 0 auto;
+        padding: 4rem 3rem 2rem;
+        display: grid;
+        grid-template-columns: 2fr 1fr 1fr;
+        gap: 2.5rem;
+      }
+      .footer-brand {
+        font-size: 1.5rem;
+        font-weight: 700;
+      }
+      .footer-brand-desc {
+        margin-top: 1rem;
+        font-size: 0.875rem;
+        color: var(--muted);
+        max-width: 20rem;
+      }
+      .footer-col-title {
+        font-size: 0.65rem;
+        text-transform: uppercase;
+        letter-spacing: 0.3em;
+        color: var(--muted);
+        margin-bottom: 1rem;
+      }
+      .footer-col ul {
+        list-style: none;
+      }
+      .footer-col li {
+        margin-bottom: 0.5rem;
+        font-size: 0.875rem;
+      }
+      .footer-col a {
+        text-decoration: none;
+        color: var(--fg);
+        transition: color 0.3s;
+      }
+      .footer-col a:hover {
+        color: var(--primary);
+      }
+      .footer-bottom {
+        border-top: 1px solid rgba(42, 26, 14, 0.1);
+      }
+      .footer-bottom-inner {
+        max-width: 1440px;
+        margin: 0 auto;
+        padding: 1.5rem 3rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.75rem;
+        color: var(--muted);
+      }
+      .footer-bottom-links {
+        display: flex;
+        gap: 1.5rem;
+      }
+      .footer-bottom-links a {
+        text-decoration: none;
+        color: var(--muted);
+        transition: color 0.3s;
+      }
+      .footer-bottom-links a:hover {
+        color: var(--primary);
+      }
+
+      /* ==================== TOAST ALERT ==================== */
+      .toast {
+        position: fixed;
+        bottom: 2rem;
+        left: 50%;
+        transform: translateX(-50%) translateY(100px);
+        background: var(--fg);
+        color: var(--bg);
+        padding: 0.75rem 1.5rem;
+        border-radius: 99px;
+        font-weight: 600;
+        font-size: 0.9rem;
+        box-shadow: var(--shadow-soft);
+        z-index: 20000;
+        transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      }
+      .toast.active {
+        transform: translateX(-50%) translateY(0);
+      }
+
+      /* ==================== RESPONSIVE ==================== */
+      @media (max-width: 992px) {
+        .chapter-nav {
+          display: none;
+        }
+        .nav {
+          padding: 0.75rem 1rem;
+        }
+        .nav-bag {
+          min-height: 44px;
+          min-width: 44px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          padding: 0.5rem 1.25rem;
+        }
+        .nav-links {
+          display: none;
+        }
+
+        .hero {
+          grid-template-columns: 1fr;
+          padding: 1rem 1rem 2rem;
+          gap: 1.5rem;
+        }
+        .hero h1 {
+          font-size: clamp(2.4rem, 11vw, 3.2rem);
+          line-height: 0.95;
+        }
+        .hero-desc {
+          margin-top: 1rem;
+          font-size: 0.95rem;
+        }
+        .dropcap::first-letter {
+          font-size: 2.8rem;
+          margin-right: 0.4rem;
+        }
+        .hero-image {
+          order: -1;
+        }
+        .hero-image-wrap {
+          aspect-ratio: 4/3;
+        }
+        .hero-actions {
+          margin-top: 1.5rem;
+          gap: 0.75rem;
+        }
+        .btn-primary {
+          min-height: 44px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          padding: 0.75rem 1.5rem;
+        }
+        .btn-text {
+          min-height: 44px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          padding: 0.5rem 1rem;
+        }
+        .hero-stats {
+          grid-template-columns: repeat(3, 1fr);
+          max-width: 100%;
+          margin-top: 1.5rem;
+          padding-top: 1.25rem;
+          gap: 0.75rem;
+          text-align: center;
+        }
+        .hero-stat-val {
+          font-size: 1.5rem;
+        }
+        .hero-stat-label {
+          font-size: 0.65rem;
+          margin-top: 0.15rem;
+        }
+        .marquee-track {
+          padding: 0.5rem 0;
+          font-size: 1rem;
+        }
+        .marquee-item {
+          margin: 0 1rem;
+          gap: 1rem;
+        }
+
+        .categories {
+          padding: 2rem 1rem 2.5rem;
+        }
+        .categories-header {
+          margin-bottom: 1.5rem;
+          gap: 1rem;
+        }
+        .categories-grid {
+          grid-template-columns: repeat(2, 1fr);
+          gap: 1rem;
+        }
+        .cat-card-info {
+          padding: 0.75rem;
+        }
+        .cat-card-name {
+          font-size: 1.1rem;
+        }
+        .cat-card-arrow {
+          width: 1.75rem;
+          height: 1.75rem;
+        }
+
+        .collection {
+          padding: 2rem 1rem 3rem;
+        }
+        .collection-header {
+          margin-bottom: 2rem;
+          gap: 1rem;
+        }
+        .collection-grid {
+          grid-template-columns: repeat(2, 1fr);
+          gap: 1.25rem 0.85rem;
+        }
+        .product-card:nth-child(2) {
+          margin-top: 0;
+        }
+        .product-name {
+          font-size: 1.05rem;
+        }
+        .product-price {
+          font-size: 0.95rem;
+        }
+        .product-quick {
+          opacity: 1;
+          transform: translateY(0);
+          bottom: 0.5rem;
+          right: 0.5rem;
+          left: 0.5rem;
+          font-size: 0.8rem;
+          padding: 0.65rem 0.5rem;
+          min-height: 44px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 4px;
+          background: rgba(245, 237, 228, 0.95);
+          color: var(--fg);
+          border: 1px solid rgba(42, 26, 14, 0.15);
+        }
+
+        .craft-inner {
+          grid-template-columns: 1fr;
+          padding: 2rem 1rem;
+          gap: 1.5rem;
+        }
+        .craft-title {
+          font-size: clamp(1.8rem, 8vw, 2.4rem);
+        }
+        .craft-desc {
+          margin-top: 1rem;
+          font-size: 0.95rem;
+        }
+        .craft-stats {
+          margin-top: 1.5rem;
+          padding-top: 1.5rem;
+          gap: 1rem;
+        }
+        .craft-stat-val {
+          font-size: 2rem;
+        }
+        .craft-stat-label {
+          font-size: 0.75rem;
+        }
+
+        .quote-section {
+          padding: 2.5rem 1rem;
+        }
+        .quote-section blockquote {
+          font-size: clamp(1.2rem, 5vw, 1.6rem);
+          line-height: 1.35;
+          margin-top: 1rem;
+        }
+        .quote-author {
+          margin-top: 1.5rem;
+        }
+
+        .lookbook {
+          padding: 0 1rem 3rem;
+        }
+        .lookbook-header {
+          margin-bottom: 1.5rem;
+        }
+        .lookbook-grid {
+          grid-template-columns: 1fr;
+          gap: 1rem;
+        }
+        .lookbook-tall {
+          aspect-ratio: 4/3;
+        }
+        .lookbook-wide {
+          aspect-ratio: 4/3;
+        }
+        .lookbook-hover-label {
+          opacity: 1;
+          background: linear-gradient(to top, rgba(42, 26, 14, 0.8) 0%, transparent 70%);
+        }
+
+        .offer-inner {
+          grid-template-columns: 1fr;
+          padding: 2rem 1rem;
+          gap: 1.5rem;
+          text-align: center;
+        }
+        .offer-title {
+          font-size: clamp(1.5rem, 6vw, 2rem);
+        }
+        .offer-right {
+          align-items: center;
+          gap: 0.75rem;
+        }
+        .offer-coupon {
+          font-size: 1.25rem;
+          padding: 0.6rem 1.25rem;
+          min-height: 44px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .btn-offer {
+          min-height: 44px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          padding: 0.75rem 1.5rem;
+          width: 100%;
+          max-width: 240px;
+        }
+
+        .testimonials {
+          padding: 2.5rem 1rem 3rem;
+        }
+        .testimonials-header {
+          margin-bottom: 2rem;
+        }
+        .testimonials-grid {
+          grid-template-columns: 1fr;
+          gap: 1rem;
+        }
+        .test-card {
+          padding: 1.5rem;
+        }
+
+        .faq {
+          grid-template-columns: 1fr;
+          padding: 0 1rem 3rem;
+          gap: 1.5rem;
+        }
+        .faq-left {
+          position: static;
+          text-align: center;
+        }
+        .faq-btn {
+          min-height: 44px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          padding: 0.75rem 1.5rem;
+          margin-top: 1rem;
+        }
+        .faq-question {
+          padding: 1rem 0;
+          font-size: 1rem;
+          min-height: 44px;
+        }
+        .faq-toggle {
+          width: 44px;
+          height: 44px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .cta {
+          padding: 0 1rem 3rem;
+        }
+        .cta-inner {
+          padding: 2rem 1.25rem;
+          text-align: center;
+        }
+        .cta-grid {
+          grid-template-columns: 1fr;
+          gap: 1.5rem;
+        }
+        .cta-desc {
+          margin-top: 0.75rem;
+        }
+        .cta-form {
+          flex-direction: column;
+          gap: 0.75rem;
+        }
+        .cta-input {
+          min-height: 44px;
+          padding: 0.75rem 1.25rem;
+          font-size: 0.95rem;
+          text-align: center;
+        }
+        .cta-submit {
+          min-height: 44px;
+          padding: 0.75rem 1.5rem;
+          font-size: 0.95rem;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .footer-inner {
+          grid-template-columns: 1fr 1fr;
+          padding: 2rem 1rem 1.5rem;
+          gap: 1.5rem 1rem;
+        }
+        .footer-brand-col {
+          grid-column: 1 / -1;
+          text-align: center;
+        }
+        .footer-brand {
+          text-align: center;
+        }
+        .footer-brand-desc {
+          text-align: center;
+          margin-top: 0.25rem;
+          font-size: 0.85rem;
+          max-width: 100%;
+        }
+        .footer-col {
+          text-align: left;
+        }
+        .footer-col:last-child {
+          text-align: right;
+        }
+        .footer-col:last-child ul {
+          text-align: right;
+        }
+        .footer-col-title {
+          margin-bottom: 0.5rem;
+          font-size: 0.75rem;
+        }
+        .footer-col li {
+          margin-bottom: 0rem;
+        }
+        .footer-col a {
+          display: inline-block;
+          padding: 0.5rem 0;
+          font-size: 0.9rem;
+        }
+        .footer-bottom-inner {
+          flex-direction: column;
+          gap: 0.75rem;
+          text-align: center;
+          padding: 1rem 0;
+        }
+        .footer-bottom-links {
+          display: flex;
+          justify-content: center;
+          gap: 1.25rem;
+          flex-wrap: wrap;
+        }
+        .footer-bottom-links a {
+          display: inline-block;
+          padding: 0.5rem 0.25rem;
+          font-size: 0.8rem;
+        }
+
+        .spotlight-modal {
+          max-width: 95%;
+          margin: 1rem;
+        }
+        .spotlight-body {
+          padding: 1.25rem;
+        }
+        .spotlight-close {
+          min-height: 44px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          padding: 0.75rem 1.5rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Chapter Side navigation -->
+    <nav class="chapter-nav">
+      <a href="#" class="chapter-dot-wrapper active" onclick="scrollToSection(0)">
+        <span class="chapter-dot"></span><span class="chapter-lbl">সূচনা</span>
+      </a>
+      <a href="#categories" class="chapter-dot-wrapper" onclick="scrollToSection(1)">
+        <span class="chapter-dot"></span><span class="chapter-lbl">শ্রেণী</span>
+      </a>
+      <a href="#collection" class="chapter-dot-wrapper" onclick="scrollToSection(2)">
+        <span class="chapter-dot"></span><span class="chapter-lbl">সংগ্রহ</span>
+      </a>
+      <a href="#craft" class="chapter-dot-wrapper" onclick="scrollToSection(3)">
+        <span class="chapter-dot"></span><span class="chapter-lbl">কারিগরি</span>
+      </a>
+      <a href="#lookbook" class="chapter-dot-wrapper" onclick="scrollToSection(4)">
+        <span class="chapter-dot"></span><span class="chapter-lbl">লুকবুক</span>
+      </a>
+      <a href="#testimonials" class="chapter-dot-wrapper" onclick="scrollToSection(5)">
+        <span class="chapter-dot"></span><span class="chapter-lbl">মতামত</span>
+      </a>
+    </nav>
+
+    <!-- NAV -->
+    <header>
+      <nav class="nav rise">
+        <a href="#" class="nav-logo">
+          <span class="nav-logo-name">তানহা</span>
+          <span class="nav-logo-sub">ফ্যাশন</span>
+        </a>
+        <ul class="nav-links">
+          <li><a href="#collection">সংগ্রহ</a></li>
+          <li><a href="#craft">কারুকাজ</a></li>
+          <li><a href="#story">আমাদের গল্প</a></li>
+          <li><a href="#contact">যোগাযোগ</a></li>
+        </ul>
+        <button class="nav-bag">ব্যাগ <span class="nav-bag-count">২</span></button>
+      </nav>
+    </header>
+
+    <!-- HERO -->
+    <section class="hero reveal-item">
+      <div class="hero-text rise">
+        <div class="hero-season">শরৎ সংস্করণ ১৪৩১</div>
+        <h1>সুতোয় বোনা <span class="accent">গল্প</span></h1>
+        <p class="hero-desc dropcap">
+          প্রতিটি পোশাকে লুকিয়ে আছে এক একটি বাংলার তাঁতির রাত জাগা শ্রম, মায়ের আঁচলের গন্ধ আর
+          শতাব্দীর ঐতিহ্য।
+        </p>
+        <div class="hero-actions">
+          <a href="#collection" class="btn-primary">সংগ্রহ দেখুন <span class="arrow">→</span></a>
+          <a href="#craft" class="btn-text">কারুকার্যের কথা</a>
+        </div>
+        <div class="hero-stats rise rise-d2">
+          <div>
+            <div class="hero-stat-val">২৫+</div>
+            <div class="hero-stat-label">বছরের ঐতিহ্য</div>
+          </div>
+          <div>
+            <div class="hero-stat-val">১২০</div>
+            <div class="hero-stat-label">দক্ষ কারিগর</div>
+          </div>
+          <div>
+            <div class="hero-stat-val">১০০%</div>
+            <div class="hero-stat-label">হস্তনির্মিত</div>
+          </div>
+        </div>
+      </div>
+      <div class="hero-image rise rise-d1">
+        <div class="hero-image-wrap">
+          <img
+            src="src/assets/hero-model.jpg"
+            alt="তানহা ফ্যাশনের জামদানি শাড়ি পরিহিতা মডেল"
+            width="1280"
+            height="1600"
+          />
+          <div class="hero-image-overlay">
+            <div>
+              <div class="hero-image-overlay-label">প্রচ্ছদ</div>
+              <div class="hero-image-overlay-title">জামদানি — মৃত্তিকা</div>
+            </div>
+            <div class="hero-image-overlay-num">№ ০১ / ০৩</div>
+          </div>
+        </div>
+        <div class="hero-glow"></div>
+      </div>
+    </section>
+
+    <!-- MARQUEE -->
+    <div class="marquee-bar">
+      <div class="marquee-track">
+        <span class="marquee-item">জামদানি <span class="marquee-dot">✦</span></span>
+        <span class="marquee-item">মসলিন <span class="marquee-dot">✦</span></span>
+        <span class="marquee-item">তসর সিল্ক <span class="marquee-dot">✦</span></span>
+        <span class="marquee-item">খাদি <span class="marquee-dot">✦</span></span>
+        <span class="marquee-item">তাঁতের শাড়ি <span class="marquee-dot">✦</span></span>
+        <span class="marquee-item">পাঞ্জাবি <span class="marquee-dot">✦</span></span>
+        <span class="marquee-item">কুর্তা <span class="marquee-dot">✦</span></span>
+        <span class="marquee-item">জামদানি <span class="marquee-dot">✦</span></span>
+        <span class="marquee-item">মসলিন <span class="marquee-dot">✦</span></span>
+        <span class="marquee-item">তসর সিল্ক <span class="marquee-dot">✦</span></span>
+        <span class="marquee-item">খাদি <span class="marquee-dot">✦</span></span>
+        <span class="marquee-item">তাঁতের শাড়ি <span class="marquee-dot">✦</span></span>
+        <span class="marquee-item">পাঞ্জাবি <span class="marquee-dot">✦</span></span>
+        <span class="marquee-item">কুর্তা <span class="marquee-dot">✦</span></span>
+      </div>
+    </div>
+
+    <!-- CATEGORIES -->
+    <section class="categories reveal-item" id="categories">
+      <div class="categories-header">
+        <div>
+          <div class="section-label">বিভাগ</div>
+          <h2 class="section-title">খুঁজে নিন <span class="accent">আপনার পছন্দ</span></h2>
+        </div>
+        <a href="#collection" class="btn-text">সম্পূর্ণ তালিকা →</a>
+      </div>
+      <div class="categories-grid">
+        <a href="#collection" class="cat-card">
+          <div class="cat-card-img">
+            <img
+              src="src/assets/cat-saree.jpg"
+              alt="শাড়ি"
+              loading="lazy"
+              width="900"
+              height="900"
+            />
+          </div>
+          <div class="cat-card-info">
+            <div>
+              <div class="cat-card-name">শাড়ি</div>
+              <div class="cat-card-count">৪৮টি পোশাক</div>
+            </div>
+            <div class="cat-card-arrow">→</div>
+          </div>
+        </a>
+        <a href="#collection" class="cat-card">
+          <div class="cat-card-img">
+            <img
+              src="src/assets/cat-panjabi.jpg"
+              alt="পাঞ্জাবি"
+              loading="lazy"
+              width="900"
+              height="900"
+            />
+          </div>
+          <div class="cat-card-info">
+            <div>
+              <div class="cat-card-name">পাঞ্জাবি</div>
+              <div class="cat-card-count">৩২টি পোশাক</div>
+            </div>
+            <div class="cat-card-arrow">→</div>
+          </div>
+        </a>
+        <a href="#collection" class="cat-card">
+          <div class="cat-card-img">
+            <img
+              src="src/assets/cat-kurta.jpg"
+              alt="কুর্তা"
+              loading="lazy"
+              width="900"
+              height="900"
+            />
+          </div>
+          <div class="cat-card-info">
+            <div>
+              <div class="cat-card-name">কুর্তা</div>
+              <div class="cat-card-count">২৬টি পোশাক</div>
+            </div>
+            <div class="cat-card-arrow">→</div>
+          </div>
+        </a>
+        <a href="#collection" class="cat-card">
+          <div class="cat-card-img">
+            <img
+              src="src/assets/cat-accessories.jpg"
+              alt="অনুষঙ্গ"
+              loading="lazy"
+              width="900"
+              height="900"
+            />
+          </div>
+          <div class="cat-card-info">
+            <div>
+              <div class="cat-card-name">অনুষঙ্গ</div>
+              <div class="cat-card-count">১৯টি পণ্য</div>
+            </div>
+            <div class="cat-card-arrow">→</div>
+          </div>
+        </a>
+        <a href="#collection" class="cat-card">
+          <div class="cat-card-img">
+            <img
+              src="src/assets/cat-salwar.jpg"
+              alt="সালোয়ার কামিজ"
+              loading="lazy"
+              width="900"
+              height="900"
+            />
+          </div>
+          <div class="cat-card-info">
+            <div>
+              <div class="cat-card-name">সালোয়ার কামিজ</div>
+              <div class="cat-card-count">২৪টি পোশাক</div>
+            </div>
+            <div class="cat-card-arrow">→</div>
+          </div>
+        </a>
+        <a href="#collection" class="cat-card">
+          <div class="cat-card-img">
+            <img
+              src="src/assets/cat-shawl.jpg"
+              alt="চাদর ও ওড়না"
+              loading="lazy"
+              width="900"
+              height="900"
+            />
+          </div>
+          <div class="cat-card-info">
+            <div>
+              <div class="cat-card-name">চাদর ও ওড়না</div>
+              <div class="cat-card-count">১৫টি পোশাক</div>
+            </div>
+            <div class="cat-card-arrow">→</div>
+          </div>
+        </a>
+      </div>
+    </section>
+
+    <!-- COLLECTION -->
+    <section id="collection" class="collection reveal-item">
+      <div class="collection-header">
+        <div>
+          <div class="section-label">সংগ্রহশালা</div>
+          <h2 class="collection-title">নির্বাচিত <span class="accent">পোশাক</span></h2>
+        </div>
+        <p>সীমিত সংস্করণে প্রতিটি পোশাক — যত্নে বোনা, যত্নে নির্বাচিত।</p>
+      </div>
+      <div class="collection-grid">
+        <article
+          class="product-card"
+          onclick="
+            openSpotlight(
+              'রূপগঞ্জের তাঁতশালা',
+              'জামদানি কথা — নির্বাচিত শাড়ি',
+              'খাঁটি সুতোয় বোনা এই ঐতিহ্যবাহী জামদানি শাড়িটিতে রয়েছে সূক্ষ্ম ফুল ও লতার কাজ। এটি তৈরিতে দুই তাঁতি শিল্পীর সময় লেগেছে ৪ দিন। মূল্য: ৳ ৮,৪০০।',
+              'src/assets/product-1.jpg',
+            )
+          "
+        >
+          <div class="product-card-img">
+            <img
+              src="src/assets/product-1.jpg"
+              alt="জামদানি কথা"
+              loading="lazy"
+              width="900"
+              height="1100"
+            />
+            <span class="product-tag">নতুন</span>
+            <button class="product-quick">দ্রুত দেখুন</button>
+          </div>
+          <div class="product-info">
+            <div>
+              <div class="product-id">০১</div>
+              <h3 class="product-name">জামদানি কথা</h3>
+            </div>
+            <div class="product-price">৳ ৮,৪০০</div>
+          </div>
+        </article>
+        <article
+          class="product-card"
+          onclick="
+            openSpotlight(
+              'পাথরাইল, টাঙ্গাইল',
+              'রক্তিম সন্ধ্যা — নির্বাচিত শাড়ি',
+              'উজ্জ্বল লাল তসর সিল্কের উপর সোনালী জরি সুতো দিয়ে নিখুঁত নকশা করা। যেকোনো জমকালো ও মাঙ্গলিক অনুষ্ঠানের জন্য একটি অনুপম পোশাক। মূল্য: ৳ ১২,৯০০।',
+              'src/assets/product-2.jpg',
+            )
+          "
+        >
+          <div class="product-card-img">
+            <img
+              src="src/assets/product-2.jpg"
+              alt="রক্তিম সন্ধ্যা"
+              loading="lazy"
+              width="900"
+              height="1100"
+            />
+            <span class="product-tag">সীমিত</span>
+            <button class="product-quick">দ্রুত দেখুন</button>
+          </div>
+          <div class="product-info">
+            <div>
+              <div class="product-id">০২</div>
+              <h3 class="product-name">রক্তিম সন্ধ্যা</h3>
+            </div>
+            <div class="product-price">৳ ১২,৯০০</div>
+          </div>
+        </article>
+        <article
+          class="product-card"
+          onclick="
+            openSpotlight(
+              'সিরাজগঞ্জের বুননশালা',
+              'মেঘলা পাঞ্জাবি — প্রিমিয়াম উইভিং',
+              'প্রিমিয়াম জ্যাকার্ড সুতির তৈরি রাজকীয় ডিজাইনের পাঞ্জাবি। অত্যন্ত আরামদায়ক ও আভিজাত্যপূর্ণ পোশাক। মূল্য: ৳ ৪,৬০০।',
+              'src/assets/product-3.jpg',
+            )
+          "
+        >
+          <div class="product-card-img">
+            <img
+              src="src/assets/product-3.jpg"
+              alt="মেঘলা পাঞ্জাবি"
+              loading="lazy"
+              width="900"
+              height="1100"
+            />
+            <span class="product-tag">ক্লাসিক</span>
+            <button class="product-quick">দ্রুত দেখুন</button>
+          </div>
+          <div class="product-info">
+            <div>
+              <div class="product-id">০৩</div>
+              <h3 class="product-name">মেঘলা পাঞ্জাবি</h3>
+            </div>
+            <div class="product-price">৳ ৪,৬০০</div>
+          </div>
+        </article>
+        <article
+          class="product-card"
+          onclick="
+            openSpotlight(
+              'কুমিল্লা খাদি ঘর',
+              'নীল কদম কুর্তা — ঐতিহ্য খাদি',
+              'খাদি কাপড়ে তৈরি নকশাদার নীল কুর্তা। গরমে আরামদায়ক ও দৈনন্দিন ব্যবহারের জন্য এটি দারুণ উপযোগী। মূল্য: ৳ ৩,৮০০।',
+              'src/assets/product-4.jpg',
+            )
+          "
+        >
+          <div class="product-card-img">
+            <img
+              src="src/assets/product-4.jpg"
+              alt="নীল কদম কুর্তা"
+              loading="lazy"
+              width="900"
+              height="1100"
+            />
+            <span class="product-tag">নতুন</span>
+            <button class="product-quick">দ্রুত দেখুন</button>
+          </div>
+          <div class="product-info">
+            <div>
+              <div class="product-id">০৪</div>
+              <h3 class="product-name">নীল কদম কুর্তা</h3>
+            </div>
+            <div class="product-price">৳ ৩,৮০০</div>
+          </div>
+        </article>
+        <article
+          class="product-card"
+          onclick="
+            openSpotlight(
+              'রূপগঞ্জ, ঢাকা',
+              'বসন্ত উৎসব সালোয়ার — হস্তশিল্প',
+              'বসন্তের উৎসবমুখর আবহে তৈরি সূক্ষ্ম এমব্রয়ডারি ও চমৎকার সালোয়ার কামিজ সেট। এটি অত্যন্ত মানানসই ও আরামদায়ক। মূল্য: ৳ ৬,৫০০।',
+              'src/assets/product-5.jpg',
+            )
+          "
+        >
+          <div class="product-card-img">
+            <img
+              src="src/assets/product-5.jpg"
+              alt="বসন্ত উৎসব সালোয়ার"
+              loading="lazy"
+              width="900"
+              height="1100"
+            />
+            <span class="product-tag">নতুন</span>
+            <button class="product-quick">দ্রুত দেখুন</button>
+          </div>
+          <div class="product-info">
+            <div>
+              <div class="product-id">০৫</div>
+              <h3 class="product-name">বসন্ত উৎসব সালোয়ার</h3>
+            </div>
+            <div class="product-price">৳ ৬,৫০০</div>
+          </div>
+        </article>
+        <article
+          class="product-card"
+          onclick="
+            openSpotlight(
+              'টাঙ্গাইলের তাঁতঘর',
+              'সোনালী জরি শাল — হেরিটেজ চাদর',
+              'টাঙ্গাইলের ঐতিহ্যবাহী তাঁতে বোনা উজ্জ্বল পান্না সবুজ সিল্কের উপর সূক্ষ্ম সোনালী জরি সুতোর কারুকাজ করা শাল। এটি শীতে দারুণ মানানসই ও জমকালো। মূল্য: ৳ ৫,২০০।',
+              'src/assets/product-6.jpg',
+            )
+          "
+        >
+          <div class="product-card-img">
+            <img
+              src="src/assets/product-6.jpg"
+              alt="সোনালী জরি শাল"
+              loading="lazy"
+              width="900"
+              height="1100"
+            />
+            <span class="product-tag">নতুন</span>
+            <button class="product-quick">দ্রুত দেখুন</button>
+          </div>
+          <div class="product-info">
+            <div>
+              <div class="product-id">০৬</div>
+              <h3 class="product-name">সোনালী জরি শাল</h3>
+            </div>
+            <div class="product-price">৳ ৫,২০০</div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <!-- CRAFT -->
+    <section id="craft" class="craft reveal-item">
+      <div class="craft-inner">
+        <div>
+          <div class="craft-text-label">কারিগরের হাত</div>
+          <h2 class="craft-title">
+            প্রতিটি সুতোয় <br /><span class="accent">এক জীবনের</span> <br />সাধনা।
+          </h2>
+          <p class="craft-desc">
+            ঢাকার রূপগঞ্জ থেকে টাঙ্গাইলের পাথরাইল — আমাদের প্রতিটি কাপড় তৈরি হয় তাঁতির হাতে, পুরনো
+            কাঠের তাঁতে, দিনের আলোয়। মেশিনের শব্দ নেই — আছে শুধু সুতোর ছন্দ।
+          </p>
+          <a href="#story" class="craft-link">আরও জানুন →</a>
+        </div>
+        <div>
+          <div class="craft-image">
+            <img
+              src="src/assets/craft.jpg"
+              alt="জামদানি তাঁতে কারিগরের হাত"
+              loading="lazy"
+              width="1400"
+              height="900"
+            />
+          </div>
+          <div class="craft-stats">
+            <div>
+              <div class="craft-stat-val">৭২ ঘন্টা</div>
+              <div class="craft-stat-label">একটি শাড়ি বুনতে সময় লাগে</div>
+            </div>
+            <div>
+              <div class="craft-stat-val">শূন্য</div>
+              <div class="craft-stat-label">যন্ত্রের ব্যবহার — সম্পূর্ণ হাতে</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- QUOTE -->
+    <section id="story" class="quote-section reveal-item">
+      <div class="section-label">আমাদের দর্শন</div>
+      <blockquote>
+        "ফ্যাশন মানে শুধু পোশাক নয় — এ এক <span class="accent">পরিচয়</span>। যে পরিচয় আমরা বহন
+        করি মায়ের শাড়ির ভাঁজে, বাবার পাঞ্জাবির বোতামে, দাদীর আঁচলের সুবাসে।"
+      </blockquote>
+      <div class="quote-author">
+        <span class="quote-author-line"></span>
+        তানহা রহমান, প্রতিষ্ঠাতা
+        <span class="quote-author-line"></span>
+      </div>
+    </section>
+
+    <!-- LOOKBOOK -->
+    <section class="lookbook reveal-item" id="lookbook">
+      <div class="lookbook-header">
+        <div>
+          <div class="section-label">লুকবুক</div>
+          <h2 class="section-title">শরৎ '২৬ <span class="accent">গল্পচিত্র</span></h2>
+        </div>
+        <p>
+          ঢাকার পুরনো গলি থেকে নদীর ধার — আমাদের ক্যামেরায় ধরা প্রতিটি মুহূর্ত। ছবির উপর কার্সার
+          রেখে লোকেশন ও কাপড়ের গুণাগুণ দেখুন।
+        </p>
+      </div>
+      <div class="lookbook-grid">
+        <div
+          class="lookbook-tall"
+          onclick="
+            openSpotlight(
+              'লালবাগ কেল্লা, ঢাকা',
+              'মৃত্তিকা জামদানি শাড়ি',
+              'পুরনো ঢাকার হেরিটেজ লাল ইটের কেল্লায় ধারণকৃত। মডেলের পরিহিত লাল সুতির জমিনে সোনালী জরি কাজ করা প্রিমিয়াম জামদানি শাড়ি, যা তৈরি করতে বুননশিল্পীদের ৯০ ঘণ্টা সময় লেগেছিল।',
+              'src/assets/look-1.jpg',
+            )
+          "
+        >
+          <img
+            src="src/assets/look-1.jpg"
+            alt="পুরনো ঢাকার গলিতে মেরুন শাড়ি"
+            loading="lazy"
+            width="900"
+            height="1100"
+          />
+          <div class="lookbook-hover-label">
+            <span class="lookbook-lbl-subtitle">Spotlight ০১</span>
+            <span class="lookbook-lbl-title">মৃত্তিকা জামদানি শাড়ি</span>
+          </div>
+        </div>
+        <div class="lookbook-right">
+          <div
+            class="lookbook-wide"
+            onclick="
+              openSpotlight(
+                'রূপগঞ্জের তাঁতশালা',
+                'তাঁতশালার বুননকর্ম',
+                'দিনের আলোয় কাঠের তাঁতে সূক্ষ্ম সুতোর কাজ করছেন রূপগঞ্জের প্রবীণ তাঁতি। মেশিনের কোনো ব্যবহার ছাড়া, সম্পূর্ণ প্রাকৃতিক সুতা দিয়ে বোনা হচ্ছে এই কাপড়।',
+                'src/assets/look-3.jpg',
+              )
+            "
+          >
+            <img
+              src="src/assets/look-3.jpg"
+              alt="হেরিটেজ জানালার পাশে জামদানি"
+              loading="lazy"
+              width="1400"
+              height="900"
+            />
+            <div class="lookbook-hover-label">
+              <span class="lookbook-lbl-subtitle">Spotlight ০২</span>
+              <span class="lookbook-lbl-title">বুননকর্মীদের মেহনত</span>
+            </div>
+          </div>
+          <div
+            class="lookbook-wide"
+            onclick="
+              openSpotlight(
+                'ধানমণ্ডি লেক, ঢাকা',
+                'মেঘলা পাঞ্জাবি লুক',
+                'বিকেলের আলোয় সুতি ও জ্যাকার্ড উইভিং কাজের মেঘলা পাঞ্জাবি। উৎসব ও সান্ধ্যকালীন অনুষ্ঠানের জন্য মানানসই ও অত্যন্ত আরামদায়ক।',
+                'src/assets/look-2.jpg',
+              )
+            "
+          >
+            <img
+              src="src/assets/look-2.jpg"
+              alt="তাঁতের কাপড়ের স্তুপ"
+              loading="lazy"
+              width="900"
+              height="1100"
+            />
+            <div class="lookbook-hover-label">
+              <span class="lookbook-lbl-subtitle">Spotlight ০৩</span>
+              <span class="lookbook-lbl-title">মেঘলা পাঞ্জাবি কালেকশন</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- OFFER -->
+    <section class="offer reveal-item">
+      <div class="offer-inner">
+        <div>
+          <div class="offer-label">পূজা ও ঈদ সংস্করণ</div>
+          <h2 class="offer-title">
+            উৎসবের আগমনে <br /><span class="accent">২০% ছাড়</span> — শুধু এই সপ্তাহে।
+          </h2>
+        </div>
+        <div class="offer-right">
+          <div class="offer-coupon-label">কুপন কোড</div>
+          <div class="offer-coupon" onclick="copyCoupon('TANHA20')">TANHA20</div>
+          <a href="#collection" class="btn-offer">এখনই কিনুন →</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- TESTIMONIALS -->
+    <section class="testimonials reveal-item" id="testimonials">
+      <div class="testimonials-header">
+        <div class="section-label">ক্রেতাদের কথা</div>
+        <h2 class="section-title">
+          যাঁরা পরেছেন — <br /><span class="accent">তাঁরা বলেছেন</span>।
+        </h2>
+      </div>
+      <div class="testimonials-grid">
+        <figure class="test-card">
+          <div class="test-quote-mark">"</div>
+          <blockquote class="test-quote">
+            তানহার শাড়ি পরে যখন বিয়ের অনুষ্ঠানে গিয়েছিলাম, সবাই বলেছিল — এ যেন নকশায় বোনা
+            স্বপ্ন।
+          </blockquote>
+          <figcaption class="test-footer">
+            <div class="test-avatar">ফ</div>
+            <div>
+              <div class="test-name">ফারিয়া আহমেদ</div>
+              <div class="test-role">ঢাকা</div>
+            </div>
+            <div class="test-stars">★★★★★</div>
+          </figcaption>
+        </figure>
+        <figure class="test-card">
+          <div class="test-quote-mark">"</div>
+          <blockquote class="test-quote">
+            মা'র জন্য কিনেছিলাম জামদানি — কাপড়ের মান আর কারুকাজ দেখে মা বললেন এ যেন তার তরুণ বয়সের
+            শাড়ি।
+          </blockquote>
+          <figcaption class="test-footer">
+            <div class="test-avatar">ত</div>
+            <div>
+              <div class="test-name">তানভীর রহমান</div>
+              <div class="test-role">চট্টগ্রাম</div>
+            </div>
+            <div class="test-stars">★★★★★</div>
+          </figcaption>
+        </figure>
+        <figure class="test-card">
+          <div class="test-quote-mark">"</div>
+          <blockquote class="test-quote">
+            প্রতিটি সেলাই, প্রতিটি ভাঁজ — সব কিছুতেই যত্নের ছাপ। বাংলার ঐতিহ্যকে এত সুন্দরভাবে কেউ
+            ধরে রাখেনি।
+          </blockquote>
+          <figcaption class="test-footer">
+            <div class="test-avatar">ন</div>
+            <div>
+              <div class="test-name">нусরাত জাহান</div>
+              <div class="test-role">সিলেট</div>
+            </div>
+            <div class="test-stars">★★★★★</div>
+          </figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="faq reveal-item">
+      <div class="faq-left">
+        <div class="section-label">জিজ্ঞাসা</div>
+        <h2 class="section-title">প্রশ্ন আছে? <br /><span class="accent">উত্তরও আছে</span>।</h2>
+        <p style="margin-top: 1.5rem; color: var(--muted); max-width: 24rem">
+          আপনার আরও কোনো প্রশ্ন থাকলে সরাসরি যোগাযোগ করুন — আমরা পাশে আছি।
+        </p>
+        <a href="#contact" class="faq-btn">সরাসরি কথা বলুন →</a>
+      </div>
+      <div class="faq-list" id="faqList">
+        <div class="faq-item open">
+          <button class="faq-question" onclick="toggleFaq(this)">
+            <span>পোশাক কত দিনে পৌঁছাবে?</span>
+            <span class="faq-toggle">+</span>
+          </button>
+          <div class="faq-answer">
+            <p>ঢাকার ভেতরে ১–২ কর্মদিবস, ঢাকার বাইরে সারা দেশে ৩–৫ কর্মদিবসের মধ্যে পৌঁছে যাবে।</p>
+          </div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-question" onclick="toggleFaq(this)">
+            <span>পোশাকের কাপড় কোথা থেকে আসে?</span>
+            <span class="faq-toggle">+</span>
+          </button>
+          <div class="faq-answer">
+            <p>
+              প্রতিটি কাপড় বাংলাদেশের তাঁতি পরিবারের হাতে সরাসরি তৈরি — রূপগঞ্জ, টাঙ্গাইল, কুমিল্লা
+              ও সিরাজগঞ্জ থেকে আসে।
+            </p>
+          </div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-question" onclick="toggleFaq(this)">
+            <span>ফেরত বা পরিবর্তনের নিয়ম কী?</span>
+            <span class="faq-toggle">+</span>
+          </button>
+          <div class="faq-answer">
+            <p>
+              পণ্য হাতে পাওয়ার ৭ দিনের মধ্যে অক্ষত অবস্থায় ফেরত বা সাইজ পরিবর্তন করা যাবে — কোনো
+              অতিরিক্ত খরচ ছাড়াই।
+            </p>
+          </div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-question" onclick="toggleFaq(this)">
+            <span>মাপ নিয়ে সমস্যা হলে কী করব?</span>
+            <span class="faq-toggle">+</span>
+          </button>
+          <div class="faq-answer">
+            <p>
+              আমাদের সাইজ গাইড অনুসরণ করুন, অথবা সরাসরি হোয়াটসঅ্যাপে আমাদের জানান — আমরা ব্যক্তিগত
+              মাপে তৈরি করে দেব।
+            </p>
+          </div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-question" onclick="toggleFaq(this)">
+            <span>ক্যাশ অন ডেলিভারি আছে কি?</span>
+            <span class="faq-toggle">+</span>
+          </button>
+          <div class="faq-answer">
+            <p>
+              হ্যাঁ, সারা বাংলাদেশে ক্যাশ অন ডেলিভারি সুবিধা রয়েছে — সাথে বিকাশ, নগদ ও কার্ডে
+              পেমেন্টের ব্যবস্থাও আছে।
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA -->
+    <section id="contact" class="cta reveal-item">
+      <div class="cta-inner">
+        <div class="cta-grid">
+          <div>
+            <h2 class="cta-title">নতুন সংগ্রহের <br /><span class="accent">খবর সবার আগে</span>।</h2>
+            <p class="cta-desc">
+              প্রতি ঋতুতে নতুন গল্প, নতুন রং, নতুন বুনন — সরাসরি আপনার ইনবক্সে।
+            </p>
+          </div>
+          <form onsubmit="event.preventDefault()" class="cta-form">
+            <input type="email" required placeholder="আপনার ই-মেইল" class="cta-input" />
+            <button type="submit" class="cta-submit">যুক্ত হোন</button>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+      <div class="footer-inner">
+        <div class="footer-brand-col">
+          <div class="footer-brand">তানহা ফ্যাশন</div>
+          <p class="footer-brand-desc">বাংলার সুতোয় বোনা আধুনিক পোশাকের ঠিকানা। ঢাকা, বাংলাদেশ।</p>
+        </div>
+        <div class="footer-col">
+          <div class="footer-col-title">দোকান</div>
+          <ul>
+            <li><a href="#">শাড়ি</a></li>
+            <li><a href="#">পাঞ্জাবি</a></li>
+            <li><a href="#">কুর্তা</a></li>
+            <li><a href="#">অনুষঙ্গ</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <div class="footer-col-title">যোগাযোগ</div>
+          <ul>
+            <li>hello@tanha.com</li>
+            <li>+৮৮০ ১৭০০ ০০০ ০০০</li>
+            <li>ধানমন্ডি, ঢাকা</li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <div class="footer-bottom-inner">
+          <div>© ২০২৬ তানহা ফ্যাশন। সর্বস্বত্ব সংরক্ষিত।</div>
+          <div class="footer-bottom-links">
+            <a href="#">গোপনীয়তা</a>
+            <a href="#">শর্তাবলী</a>
+            <a href="#">ইনস্টাগ্রাম</a>
+          </div>
+        </div>
+      </div>
+    </footer>
+
+    <!-- Spotlight Modal Backdrop -->
+    <div class="spotlight-modal-backdrop" id="spotlight-backdrop" onclick="closeSpotlight()">
+      <div class="spotlight-modal" onclick="event.stopPropagation()">
+        <img src="" id="spotlight-modal-img" class="spotlight-img" alt="Spotlight image" />
+        <div class="spotlight-body">
+          <span class="spotlight-loc" id="spotlight-modal-loc">লোকেশন</span>
+          <h3 class="spotlight-title" id="spotlight-modal-title">শিরনাম</h3>
+          <p class="spotlight-desc" id="spotlight-modal-desc">বর্ণনা</p>
+          <button class="spotlight-close" onclick="closeSpotlight()">বন্ধ করুন</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast Notification Alert -->
+    <div class="toast" id="toast">কপি করা হয়েছে!</div>
+
+    <script>
+      // Chapter Navigation Highlighting on Scroll
+      const sections = [
+        { id: "body", offset: 0 },
+        { id: "categories", offset: 0 },
+        { id: "collection", offset: 0 },
+        { id: "craft", offset: 0 },
+        { id: "lookbook", offset: 0 },
+        { id: "testimonials", offset: 0 },
+      ];
+
+      window.addEventListener("scroll", () => {
+        const windowHeight = window.innerHeight;
+        const scrollPos = window.scrollY + windowHeight * 0.4;
+        let activeIdx = 0;
+
+        sections.forEach((sec, idx) => {
+          const el = sec.id === "body" ? document.body : document.getElementById(sec.id);
+          if (el) {
+            const top = el.offsetTop;
+            if (scrollPos >= top) {
+              activeIdx = idx;
+            }
+          }
+        });
+
+        const dots = document.querySelectorAll(".chapter-nav .chapter-dot-wrapper");
+        dots.forEach((dot, idx) => {
+          if (idx === activeIdx) dot.classList.add("active");
+          else dot.classList.remove("active");
+        });
+      });
+
+      function scrollToSection(index) {
+        const sec = sections[index];
+        const el = sec.id === "body" ? document.body : document.getElementById(sec.id);
+        if (el) {
+          window.scrollTo({
+            top: el.offsetTop - 50,
+            behavior: "smooth",
+          });
+        }
+      }
+
+      // Intersection Observer Reveal animation
+      const revealItems = document.querySelectorAll(".reveal-item");
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              entry.target.classList.add("revealed");
+            }
+          });
+        },
+        { threshold: 0.1 },
+      );
+
+      revealItems.forEach((item) => observer.observe(item));
+
+      // Spotlight Lookbook details Modal
+      function openSpotlight(location, title, description, imgSrc) {
+        document.getElementById("spotlight-modal-img").src = imgSrc;
+        document.getElementById("spotlight-modal-loc").innerText = location;
+        document.getElementById("spotlight-modal-title").innerText = title;
+        document.getElementById("spotlight-modal-desc").innerText = description;
+
+        document.getElementById("spotlight-backdrop").classList.add("active");
+      }
+
+      function closeSpotlight() {
+        document.getElementById("spotlight-backdrop").classList.remove("active");
+      }
+
+      // Copy Coupon and show toast alert
+      function copyCoupon(code) {
+        navigator.clipboard.writeText(code).then(() => {
+          const toast = document.getElementById("toast");
+          toast.innerText = 'কুপন কোড "' + code + '" কপি করা হয়েছে!';
+          toast.classList.add("active");
+          setTimeout(() => {
+            toast.classList.remove("active");
+          }, 2000);
+        });
+      }
+
+      // Original FAQ Accordion Toggle
+      function toggleFaq(btn) {
+        const item = btn.closest(".faq-item");
+        const wasOpen = item.classList.contains("open");
+        document.querySelectorAll(".faq-item").forEach((i) => i.classList.remove("open"));
+        if (!wasOpen) item.classList.add("open");
+      }
+    </script>
+  </body>
+</html>
