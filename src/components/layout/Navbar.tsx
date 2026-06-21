@@ -1,7 +1,11 @@
+"use client";
+
 import React from "react";
-import { Search, User, ShoppingBag, Menu, Sun, Moon } from "lucide-react";
+import { Search, User, ShoppingBag, Menu } from "lucide-react";
 import Logo from "./Logo";
 import { toBanglaNumber } from "@/lib/products";
+import { usePathname, useRouter } from "next/navigation";
+import Link from "next/link";
  
 interface NavbarProps {
   cartCount: number;
@@ -10,8 +14,6 @@ interface NavbarProps {
   scrollToSection: (index: number) => void;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
-  theme?: "light" | "dark";
-  toggleTheme?: () => void;
 }
  
 export default function Navbar({
@@ -21,9 +23,10 @@ export default function Navbar({
   scrollToSection,
   searchQuery,
   setSearchQuery,
-  theme,
-  toggleTheme,
 }: NavbarProps) {
+  const pathname = usePathname();
+  const router = useRouter();
+
   const categories = [
     { name: "সুতি থ্রি-পিস", sectionIndex: 2 },
     { name: "জর্জেট থ্রি-পিস", sectionIndex: 3 },
@@ -48,7 +51,14 @@ export default function Navbar({
 
         {/* Logo */}
         <div className="flex-shrink-0">
-          <Logo onClick={(e) => { e.preventDefault(); scrollToSection(0); }} />
+          <Logo onClick={(e) => {
+            e.preventDefault();
+            if (pathname === "/") {
+              scrollToSection(0);
+            } else {
+              router.push("/");
+            }
+          }} />
         </div>
 
         {/* Search Bar */}
@@ -67,17 +77,6 @@ export default function Navbar({
 
         {/* Action Buttons */}
         <div className="flex items-center gap-4">
-          {/* Theme Toggle Button */}
-          {toggleTheme && (
-            <button
-              onClick={toggleTheme}
-              className="flex items-center justify-center p-2 rounded-full border border-border text-foreground hover:bg-secondary cursor-pointer transition-all duration-300 shadow-sm active:scale-95"
-              aria-label="Toggle theme"
-            >
-              {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
-            </button>
-          )}
-
           <button className="hidden sm:flex items-center gap-1.5 text-sm font-medium text-foreground hover:text-primary transition-colors cursor-pointer">
             <User size={18} />
             <span>লগইন</span>
@@ -113,7 +112,37 @@ export default function Navbar({
       {/* Bottom Header Row (Categories Nav Links) */}
       <div className="hidden md:block border-t border-border/60 bg-secondary/10">
         <div className="max-w-[1440px] mx-auto px-4 overflow-x-auto">
-          <ul className="flex items-center justify-center min-w-max md:min-w-0 gap-6 md:gap-10 py-3 list-none mx-auto">
+          <ul className="flex items-center justify-center min-w-max md:min-w-0 gap-5 md:gap-7 py-3 list-none mx-auto">
+            <li>
+              <Link 
+                href="/"
+                className={`no-underline hover:text-primary text-xs md:text-sm font-bold transition-colors duration-300 relative pb-1 group cursor-pointer ${pathname === "/" ? "text-primary font-black" : "text-foreground"}`}
+              >
+                হোম
+                <span className={`absolute bottom-0 left-0 w-full h-[1.5px] bg-primary transition-transform duration-300 origin-left ${pathname === "/" ? "scale-x-100" : "scale-x-0 group-hover:scale-x-100"}`} />
+              </Link>
+            </li>
+            <li>
+              <Link 
+                href="/categories"
+                className={`no-underline hover:text-primary text-xs md:text-sm font-bold transition-colors duration-300 relative pb-1 group cursor-pointer ${pathname === "/categories" ? "text-primary font-black" : "text-foreground"}`}
+              >
+                সব পোশাক
+                <span className={`absolute bottom-0 left-0 w-full h-[1.5px] bg-primary transition-transform duration-300 origin-left ${pathname === "/categories" ? "scale-x-100" : "scale-x-0 group-hover:scale-x-100"}`} />
+              </Link>
+            </li>
+            <li>
+              <Link 
+                href="/showroom"
+                className={`no-underline hover:text-primary text-xs md:text-sm font-bold transition-colors duration-300 relative pb-1 group cursor-pointer ${pathname === "/showroom" ? "text-primary font-black" : "text-foreground"}`}
+              >
+                শোরুম আউটলেট
+                <span className={`absolute bottom-0 left-0 w-full h-[1.5px] bg-primary transition-transform duration-300 origin-left ${pathname === "/showroom" ? "scale-x-100" : "scale-x-0 group-hover:scale-x-100"}`} />
+              </Link>
+            </li>
+            
+            <li className="h-4 w-[1px] bg-border/80 self-center"></li>
+
             {categories.map((cat, idx) => (
               <li key={idx}>
                 <a
@@ -121,7 +150,11 @@ export default function Navbar({
                   className="no-underline text-foreground hover:text-primary text-xs md:text-sm font-semibold transition-colors duration-300 relative pb-1 group cursor-pointer"
                   onClick={(e) => {
                     e.preventDefault();
-                    scrollToSection(cat.sectionIndex);
+                    if (pathname === "/") {
+                      scrollToSection(cat.sectionIndex);
+                    } else {
+                      router.push(`/?sec=${cat.sectionIndex}`);
+                    }
                   }}
                 >
                   {cat.name}

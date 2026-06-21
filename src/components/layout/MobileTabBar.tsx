@@ -1,6 +1,9 @@
+"use client";
+
 import React from "react";
 import { Home, Grid, Sparkles, ShoppingBag, User } from "lucide-react";
 import { toBanglaNumber } from "@/lib/products";
+import { usePathname, useRouter } from "next/navigation";
 
 interface MobileTabBarProps {
   activeSection: number;
@@ -19,29 +22,51 @@ export default function MobileTabBar({
   setCartDrawerOpen,
   showToast,
 }: MobileTabBarProps) {
+  const pathname = usePathname();
+  const router = useRouter();
+
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0 h-17 bg-background/85 backdrop-blur-md border-t border-ink/10 flex justify-around items-center z-[9999] pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_20px_rgba(42,26,14,0.05)]" aria-label="Mobile Navigation">
       <button 
         className={`flex flex-col items-center justify-center gap-1 text-[11px] font-medium text-foreground cursor-pointer p-2 transition-colors duration-300 relative flex-1 bg-transparent border-none ${activeSection === 0 ? "text-primary" : ""}`}
-        onClick={() => scrollToSection(0)}
+        onClick={() => {
+          if (pathname === "/") {
+            scrollToSection(0);
+          } else {
+            router.push("/");
+          }
+        }}
       >
         <Home className="w-5 h-5" />
         <span>সূচনা</span>
       </button>
       <button 
         className={`flex flex-col items-center justify-center gap-1 text-[11px] font-medium text-foreground cursor-pointer p-2 transition-colors duration-300 relative flex-1 bg-transparent border-none ${activeSection === 1 ? "text-primary" : ""}`}
-        onClick={() => scrollToSection(1)}
+        onClick={() => {
+          if (pathname === "/") {
+            scrollToSection(1);
+          } else {
+            router.push("/?sec=1");
+          }
+        }}
       >
         <Grid className="w-5 h-5" />
         <span>বিভাগ</span>
       </button>
       <button 
         className={`flex flex-col items-center justify-center gap-1 text-[11px] font-medium text-foreground cursor-pointer p-2 transition-colors duration-300 relative flex-1 bg-transparent border-none ${activeSection === 2 ? "text-primary" : ""}`}
-        onClick={() => scrollToSection(2)}
+        onClick={() => {
+          if (pathname === "/") {
+            scrollToSection(2);
+          } else {
+            router.push("/?sec=2");
+          }
+        }}
       >
         <Sparkles className="w-5 h-5" />
         <span>সংগ্রহ</span>
       </button>
+
       <button 
         className={`flex flex-col items-center justify-center gap-1 text-[11px] font-medium text-foreground cursor-pointer p-2 transition-colors duration-300 relative flex-1 bg-transparent border-none ${cartDrawerOpen ? "text-primary" : ""}`}
         onClick={() => setCartDrawerOpen(true)}

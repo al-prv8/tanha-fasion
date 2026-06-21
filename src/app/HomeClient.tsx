@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { useCart } from "@/lib/cart-context";
 import { Product, PRODUCTS } from "@/lib/products";
+import { useSearchParams, useRouter } from "next/navigation";
+import Link from "next/link";
 
 // Layout Component imports
 import Navbar from "@/components/layout/Navbar";
@@ -10,6 +12,7 @@ import AnnouncementBar from "@/components/layout/AnnouncementBar";
 import MobileTabBar from "@/components/layout/MobileTabBar";
 import MobileMenuDrawer from "@/components/layout/MobileMenuDrawer";
 import CartDrawer from "@/components/layout/CartDrawer";
+
 
 // Section Component imports
 import Hero from "@/components/sections/Hero";
@@ -39,30 +42,50 @@ export default function HomeClient() {
     setCartDrawerOpen,
   } = useCart();
 
-  const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [productsList, setProductsList] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const savedTheme = localStorage.getItem("theme") as "light" | "dark" | null;
-    const systemPrefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const initialTheme = savedTheme || (systemPrefersDark ? "dark" : "light");
-    setTheme(initialTheme);
-    if (initialTheme === "dark") {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
+    document.documentElement.classList.remove("dark");
+    
+    // Fetch products dynamically from Express backend
+    fetch("http://localhost:5000/api/products")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && data.length > 0) {
+          const mapped = data.map((p: any) => {
+            let sizesObj: { [sz: string]: number } = {};
+            try {
+              sizesObj = JSON.parse(p.sizesJson || "{}");
+            } catch (e) {}
+            const sizesKeys = Object.keys(sizesObj);
+            const totalStock = Object.values(sizesObj).reduce((acc: number, val: any) => acc + Number(val || 0), 0);
+            return {
+              id: p.id,
+              sku: p.sku,
+              name: p.name,
+              price: p.price,
+              priceDisplay: `৳${p.price}`,
+              loc: p.category,
+              img: { src: p.imgUrl },
+              sizes: sizesKeys.length > 0 ? sizesKeys : ["S", "M", "L", "XL"],
+              sizesJson: p.sizesJson,
+              desc: `${p.name} - Premium Quality Collection.`,
+              tag: totalStock === 0 ? "স্টক শেষ" : "নতুন"
+            };
+          });
+          setProductsList(mapped);
+        } else {
+          setProductsList(PRODUCTS);
+        }
+        setIsLoading(false);
+      })
+      .catch((err) => {
+        console.error("Failed to fetch live products, falling back to static:", err);
+        setProductsList(PRODUCTS);
+        setIsLoading(false);
+      });
   }, []);
-
-  const toggleTheme = () => {
-    const nextTheme = theme === "light" ? "dark" : "light";
-    setTheme(nextTheme);
-    localStorage.setItem("theme", nextTheme);
-    if (nextTheme === "dark") {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
-  };
 
   const [activeSection, setActiveSection] = useState(0);
   const [modalOpen, setModalOpen] = useState(false);
@@ -85,7 +108,46 @@ export default function HomeClient() {
   const [menuDrawerOpen, setMenuDrawerOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [selectedSizes, setSelectedSizes] = useState<{ [productId: string]: string }>({});
+
+  const handleSizeSelect = (productId: string, size: string) => {
+    setSelectedSizes((prev) => ({ ...prev, [productId]: size }));
+  };
+
+  const handleAddClick = (product: Product) => {
+    const size = selectedSizes[product.id] || product.sizes[0] || "M";
+    addToCart(product, 1, size);
+    showToast(`"${product.name}" (${size}) ব্যাগ-এ যুক্ত করা হয়েছে!`);
+  };
+
+  const handleBuyNowClick = (product: Product) => {
+    const size = selectedSizes[product.id] || product.sizes[0] || "M";
+    addToCart(product, 1, size);
+    router.push("/checkout");
+  };
+
+  useEffect(() => {
+    const secParam = searchParams.get("sec");
+    if (secParam) {
+      const index = parseInt(secParam, 10);
+      if (!isNaN(index)) {
+        const timer = setTimeout(() => {
+          scrollToSection(index);
+        }, 450);
+        return () => clearTimeout(timer);
+      }
+    }
+    const searchParam = searchParams.get("search");
+    if (searchParam) {
+      setSearchQuery(searchParam);
+    }
+  }, [searchParams]);
+
+
   const sections = [
+
     { id: "hero", label: "হোম" },
     { id: "categories", label: "টপ ক্যাটাগরি" },
     { id: "category-2", label: "সুতি থ্রি-পিস" },
@@ -190,15 +252,15 @@ export default function HomeClient() {
   };
 
   // Filter products by category
-  const cottonProducts = PRODUCTS.filter((p) => p.loc === "সুতি থ্রি-পিস");
-  const georgetteProducts = PRODUCTS.filter((p) => p.loc === "জর্জেট থ্রি-পিস");
-  const linenProducts = PRODUCTS.filter((p) => p.loc === "লিলেন থ্রি-পিস");
-  const casualAbayaProducts = PRODUCTS.filter((p) => p.loc === "ক্যাজুয়াল আবায়া");
-  const festiveBorkaProducts = PRODUCTS.filter((p) => p.loc === "উৎসবের বোরকা");
-  const comboProducts = PRODUCTS.filter((p) => p.loc === "কম্বো সেট");
+  const cottonProducts = productsList.filter((p) => p.loc === "সুতি থ্রি-পিস");
+  const georgetteProducts = productsList.filter((p) => p.loc === "জর্জেট থ্রি-পিস");
+  const linenProducts = productsList.filter((p) => p.loc === "লিলেন থ্রি-পিস");
+  const casualAbayaProducts = productsList.filter((p) => p.loc === "ক্যাজুয়াল আবায়া");
+  const festiveBorkaProducts = productsList.filter((p) => p.loc === "উৎসবের বোরকা");
+  const comboProducts = productsList.filter((p) => p.loc === "কম্বো সেট");
 
   // Filter products by search query
-  const filteredProducts = PRODUCTS.filter(
+  const filteredProducts = productsList.filter(
     (p) =>
       p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.loc.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -218,8 +280,6 @@ export default function HomeClient() {
         scrollToSection={scrollToSection}
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
-        theme={theme}
-        toggleTheme={toggleTheme}
       />
 
       {searchQuery ? (
@@ -240,46 +300,100 @@ export default function HomeClient() {
             </div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-              {filteredProducts.map((prod) => (
-                <div
-                  key={prod.id}
-                  className="bg-background border border-border/60 rounded overflow-hidden flex flex-col justify-between group transition-all duration-300 shadow-sm hover:shadow-lg hover:-translate-y-1 hover:border-primary/50"
-                >
-                  <div className="relative aspect-[3/4] bg-secondary overflow-hidden w-full cursor-pointer" onClick={() => openSpotlight(prod)}>
-                    <img
-                      src={prod.img.src}
-                      alt={prod.name}
-                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                    />
-                    {prod.tag && (
-                      <span className="absolute top-3 left-3 bg-primary text-primary-foreground text-[9px] sm:text-[10px] font-bold py-1 px-2 rounded-full">
-                        {prod.tag}
-                      </span>
-                    )}
-                  </div>
-                  <div className="p-3 sm:p-4 flex flex-col gap-2">
-                    <div>
-                      <h3 className="text-xs sm:text-sm font-bold text-foreground line-clamp-1 cursor-pointer" onClick={() => openSpotlight(prod)}>
-                        {prod.name}
-                      </h3>
-                      <p className="text-[10px] text-muted-foreground mt-0.5">{prod.loc}</p>
+              {filteredProducts.map((prod) => {
+                const activeSize = selectedSizes[prod.id] || prod.sizes[0] || "M";
+                return (
+                  <div
+                    key={prod.id}
+                    className="bg-background border border-border/60 hover:border-primary/50 rounded overflow-hidden flex flex-col justify-between group transition-all duration-300 shadow-sm hover:shadow-lg hover:-translate-y-1"
+                  >
+                    {/* Product Image Link */}
+                    <Link href={`/products/${prod.id}`} className="relative aspect-[3/4] bg-secondary overflow-hidden w-full block cursor-pointer">
+                      <img
+                        src={prod.img?.src || prod.img}
+                        alt={prod.name}
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      />
+                      
+                      {prod.tag && (
+                        <span className="absolute top-3 left-3 bg-primary text-primary-foreground text-[9px] sm:text-[10px] font-bold py-1 px-2.5 rounded-full uppercase tracking-wider shadow-sm">
+                          {prod.tag}
+                        </span>
+                      )}
+                    </Link>
+
+                    {/* Product Details */}
+                    <div className="p-3 sm:p-4 flex flex-col gap-2.5">
+                      <div>
+                        <Link
+                          href={`/products/${prod.id}`}
+                          className="text-xs sm:text-sm font-bold text-foreground line-clamp-1 group-hover:text-primary transition-colors cursor-pointer block no-underline"
+                        >
+                          {prod.name}
+                        </Link>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">{prod.loc}</p>
+                      </div>
+
+                      {/* Sizes Row */}
+                      <div className="flex flex-col gap-1.5">
+                        <div className="text-[9px] uppercase tracking-wider font-bold text-muted-foreground">সাইজ সিলেক্ট করুন:</div>
+                        <div className="flex flex-wrap gap-1">
+                          {prod.sizes.map((sz) => (
+                            <button
+                              key={sz}
+                              onClick={() => handleSizeSelect(prod.id, sz)}
+                              className={`text-[10px] font-bold w-6 h-6 sm:w-7 sm:h-7 rounded border flex items-center justify-center transition-all cursor-pointer ${
+                                activeSize === sz
+                                  ? "bg-primary border-primary text-primary-foreground"
+                                  : "bg-background border-border text-foreground hover:border-primary/50"
+                              }`}
+                            >
+                              {sz}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Price & Actions */}
+                      <div className="flex flex-col gap-2 border-t border-border/40 pt-2.5 mt-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs sm:text-sm font-extrabold text-foreground">
+                            {prod.priceDisplay}
+                          </span>
+                          <Link
+                            href={`/products/${prod.id}`}
+                            className="text-[10px] sm:text-xs text-primary hover:underline font-semibold no-underline"
+                          >
+                            বিস্তারিত
+                          </Link>
+                        </div>
+                        <div className="flex gap-1.5 mt-0.5">
+                          {/* Add to Cart button */}
+                          <button
+                            onClick={() => handleAddClick(prod)}
+                            className="flex-1 bg-secondary hover:bg-secondary-foreground/10 text-foreground border border-border/80 py-1.5 px-2 rounded-sm text-[10px] font-bold transition-colors flex items-center justify-center gap-1 cursor-pointer"
+                            title="ব্যাগে যোগ করুন"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor" className="w-3 h-3">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 1 0-7.5 0v4.5m11.356-1.993 1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 0 1-1.12-1.243l1.264-12A1.125 1.125 0 0 1 5.513 7.5h12.974c.576 0 1.059.435 1.119 1.007ZM8.625 10.5a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm7.5 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
+                            </svg>
+                            <span className="hidden sm:inline">ব্যাগে রাখুন</span>
+                          </button>
+                          {/* Buy Now button */}
+                          <button
+                            onClick={() => handleBuyNowClick(prod)}
+                            className="flex-1 bg-primary hover:bg-primary/95 text-white border-none py-1.5 px-2 rounded-sm text-[10px] font-bold transition-colors flex items-center justify-center gap-1 cursor-pointer"
+                          >
+                            <span>এখনই কিনুন</span>
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex items-center justify-between border-t border-border/40 pt-2.5 mt-2">
-                      <span className="text-xs sm:text-sm font-extrabold text-foreground">{prod.priceDisplay}</span>
-                      <button
-                        onClick={() => {
-                          addToCart(prod, 1, "M");
-                          showToast(`"${prod.name}" (M) ব্যাগ-এ যুক্ত করা হয়েছে!`);
-                        }}
-                        className="bg-primary hover:bg-primary/95 text-primary-foreground border-none py-1.5 px-3 rounded-full text-[10px] font-bold transition-colors cursor-pointer"
-                      >
-                        কিনুন
-                      </button>
-                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
+
           )}
         </main>
       ) : (
@@ -293,7 +407,7 @@ export default function HomeClient() {
 
           {/* SHOWROOM OUTLET SLIM BANNER */}
           <div className="max-w-[1440px] mx-auto px-4 md:px-8 py-4">
-            <div className="relative w-full h-[100px] sm:h-[130px] md:h-[160px] overflow-hidden rounded-md cursor-pointer group shadow-sm border border-border" onClick={() => scrollToSection(8)}>
+            <div className="relative w-full h-[100px] sm:h-[130px] md:h-[160px] overflow-hidden rounded-md cursor-pointer group shadow-sm border border-border" onClick={() => router.push("/showroom")}>
               <img
                 src={showroomBanner.src}
                 alt="শোরুম আউটলেট"

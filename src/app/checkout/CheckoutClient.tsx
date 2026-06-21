@@ -5,6 +5,16 @@ import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { useCart } from "@/lib/cart-context";
 import { toBanglaNumber, formatBanglaPriceWithCommas } from "@/lib/products";
+import { ChevronRight } from "lucide-react";
+
+// Layout components
+import Navbar from "@/components/layout/Navbar";
+import AnnouncementBar from "@/components/layout/AnnouncementBar";
+import MobileMenuDrawer from "@/components/layout/MobileMenuDrawer";
+import MobileTabBar from "@/components/layout/MobileTabBar";
+import CartDrawer from "@/components/layout/CartDrawer";
+import Cta from "@/components/sections/Cta";
+import ToastNotification from "@/components/overlays/ToastNotification";
 
 export default function CheckoutClient() {
   const router = useRouter();
@@ -13,8 +23,37 @@ export default function CheckoutClient() {
     subtotal,
     discount,
     appliedCoupon,
+    applyCoupon,
+    removeCoupon,
     clearCart,
+    cartCount,
+    cartDrawerOpen,
+    setCartDrawerOpen,
   } = useCart();
+
+  const [menuDrawerOpen, setMenuDrawerOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [toastActive, setToastActive] = useState(false);
+  const [toastMsg, setToastMsg] = useState("");
+  const [couponInput, setCouponInput] = useState("");
+
+  const showToast = (msg: string) => {
+    setToastMsg(msg);
+    setToastActive(true);
+    setTimeout(() => setToastActive(false), 2000);
+  };
+
+  useEffect(() => {
+    document.documentElement.classList.remove("dark");
+  }, []);
+
+
+  // Search redirection logic: redirect typing search to the home page
+  useEffect(() => {
+    if (searchQuery.trim()) {
+      router.push(`/?search=${encodeURIComponent(searchQuery)}`);
+    }
+  }, [searchQuery, router]);
 
   // Form States
   const [name, setName] = useState("");
@@ -97,14 +136,61 @@ export default function CheckoutClient() {
     }
 
     setIsSubmitting(true);
-    
-    // Simulate API request
-    setTimeout(() => {
-      const generatedOrderNum = "TF-" + Math.floor(100000 + Math.random() * 900000);
-      setOrderNumber(generatedOrderNum);
-      setIsSubmitting(false);
-      setOrderSuccess(true);
-    }, 1500);
+
+    const backendItems = items.map(item => ({
+      id: item.id,
+      size: item.size,
+      quantity: item.quantity,
+      price: item.price
+    }));
+
+    let resolvedTrxId = null;
+    if (paymentMethod === "bkash") {
+      resolvedTrxId = `বিকাশ নম্বর: ${bkashNumber}, TrxID: ${bkashTrx}`;
+    } else if (paymentMethod === "nagad") {
+      resolvedTrxId = `নগদ নম্বর: ${nagadNumber}, TrxID: ${nagadTrx}`;
+    } else if (paymentMethod === "card") {
+      resolvedTrxId = `কার্ড নম্বর: ${cardNumber.slice(-4)}, হোল্ডার: ${cardName}`;
+    }
+
+    const payload = {
+      name,
+      phone,
+      email: email || null,
+      address,
+      city,
+      postcode,
+      paymentMethod,
+      shippingMethod,
+      trxId: resolvedTrxId,
+      items: backendItems,
+      discount: discount
+    };
+
+    fetch("http://localhost:5000/api/orders", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(payload)
+    })
+      .then(async (res) => {
+        if (!res.ok) {
+          const errData = await res.json();
+          throw new Error(errData.error || "Failed to submit order");
+        }
+        return res.json();
+      })
+      .then((createdOrder) => {
+        setOrderNumber(createdOrder.orderNumber);
+        setIsSubmitting(false);
+        setOrderSuccess(true);
+      })
+      .catch((err) => {
+        console.error("Order placement API error:", err);
+        showToast("অর্ডার প্লেস করতে সমস্যা হয়েছে: " + err.message);
+        setIsSubmitting(false);
+      });
   };
 
   const handleReturnHome = () => {
@@ -113,19 +199,29 @@ export default function CheckoutClient() {
   };
 
   return (
-    <div className="checkout-page">
+    <div className="grain-bg min-h-screen pb-24 md:pb-8">
+      {/* Announcement offer bar */}
+      <AnnouncementBar scrollToSection={(index) => router.push(`/?sec=${index}`)} />
+
+      {/* Main Navbar */}
+      <Navbar 
+        cartCount={cartCount} 
+        onOpenMenu={() => setMenuDrawerOpen(true)}
+        onOpenCart={() => setCartDrawerOpen(true)}
+        scrollToSection={(index) => router.push(`/?sec=${index}`)}
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+      />
+
       <style dangerouslySetInnerHTML={{
         __html: `
+
           :root {
-            --bg: #F5EDE4;
-            --fg: #2A1A0E;
-            --primary: #A0522D;
-            --accent: #D4956B;
-            --card: #EDE3D6;
-            --bone: #F9F3EC;
-            --muted: rgba(42,26,14,0.6);
+            --bg: var(--background);
+            --fg: var(--foreground);
+            --bone: var(--secondary);
+            --muted: var(--muted-foreground);
             --font-bn: 'Hind Siliguri', sans-serif;
-            --grain: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
           }
 
           .checkout-page {
@@ -143,7 +239,7 @@ export default function CheckoutClient() {
             inset: 0;
             background-image: var(--grain);
             background-size: 150px 150px;
-            opacity: 0.15;
+            opacity: 0.05;
             pointer-events: none;
             z-index: 0;
           }
@@ -158,7 +254,7 @@ export default function CheckoutClient() {
           .checkout-header {
             text-align: center;
             margin-bottom: 3rem;
-            border-bottom: 1px solid rgba(42,26,14,0.1);
+            border-bottom: 1px solid var(--border);
             padding-bottom: 2rem;
           }
 
@@ -194,11 +290,11 @@ export default function CheckoutClient() {
           }
 
           .checkout-card {
-            background: var(--bone);
-            border: 1px solid rgba(42,26,14,0.1);
-            border-radius: 4px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
             padding: 2rem;
-            box-shadow: 0 4px 20px rgba(42,26,14,0.02);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.02);
             margin-bottom: 1.5rem;
           }
 
@@ -206,7 +302,7 @@ export default function CheckoutClient() {
             font-size: 1.35rem;
             font-weight: 700;
             margin-bottom: 1.5rem;
-            border-bottom: 1px solid rgba(42,26,14,0.06);
+            border-bottom: 1px solid var(--border);
             padding-bottom: 0.75rem;
             color: var(--fg);
           }
@@ -238,10 +334,10 @@ export default function CheckoutClient() {
           .form-input {
             width: 100%;
             padding: 0.75rem 1rem;
-            border: 1px solid rgba(42,26,14,0.15);
-            background: #fff;
+            border: 1px solid var(--border);
+            background: var(--bg);
             color: var(--fg);
-            border-radius: 4px;
+            border-radius: var(--radius-sm);
             font-family: inherit;
             font-size: 0.95rem;
             transition: all 0.2s ease;
@@ -250,11 +346,11 @@ export default function CheckoutClient() {
           .form-input:focus {
             outline: none;
             border-color: var(--primary);
-            box-shadow: 0 0 0 2px rgba(160,82,45,0.15);
+            box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 15%, transparent);
           }
 
           .error-text {
-            color: #d9534f;
+            color: var(--primary);
             font-size: 0.8rem;
             margin-top: 0.25rem;
             font-weight: 500;
@@ -269,14 +365,14 @@ export default function CheckoutClient() {
           }
 
           .shipping-card {
-            border: 1px solid rgba(42,26,14,0.12);
-            border-radius: 4px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
             padding: 1rem;
             cursor: pointer;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            background: #fff;
+            background: var(--bg);
             transition: all 0.25s ease;
           }
 
@@ -286,7 +382,7 @@ export default function CheckoutClient() {
 
           .shipping-card.active {
             border-color: var(--primary);
-            background: rgba(160,82,45,0.03);
+            background: color-mix(in srgb, var(--primary) 5%, transparent);
             box-shadow: inset 0 0 0 1px var(--primary);
           }
 
@@ -312,7 +408,7 @@ export default function CheckoutClient() {
           .payment-tabs {
             display: flex;
             gap: 0.5rem;
-            border-bottom: 1px solid rgba(42,26,14,0.1);
+            border-bottom: 1px solid var(--border);
             margin-bottom: 1.5rem;
             overflow-x: auto;
             padding-bottom: 2px;
@@ -344,9 +440,9 @@ export default function CheckoutClient() {
           }
 
           .payment-details {
-            background: #fff;
-            border: 1px solid rgba(42,26,14,0.06);
-            border-radius: 4px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
             padding: 1.25rem;
             margin-bottom: 1.5rem;
           }
@@ -383,9 +479,9 @@ export default function CheckoutClient() {
             width: 50px;
             height: 65px;
             object-fit: cover;
-            border-radius: 2px;
-            background: var(--card);
-            border: 1px solid rgba(42,26,14,0.08);
+            border-radius: var(--radius-sm);
+            background: var(--bone);
+            border: 1px solid var(--border);
           }
 
           .summary-item-details {
@@ -412,7 +508,7 @@ export default function CheckoutClient() {
 
           .divider {
             height: 1px;
-            background: rgba(42,26,14,0.08);
+            background: var(--border);
             margin: 1.25rem 0;
           }
 
@@ -430,7 +526,7 @@ export default function CheckoutClient() {
             color: var(--fg);
             margin-top: 1rem;
             padding-top: 1rem;
-            border-top: 1px dashed rgba(42,26,14,0.15);
+            border-top: 1px dashed var(--border);
           }
 
           .summary-row.total .total-price {
@@ -444,7 +540,7 @@ export default function CheckoutClient() {
             background: var(--primary);
             color: #fff;
             border: none;
-            border-radius: 4px;
+            border-radius: 9999px;
             font-size: 1.1rem;
             font-weight: 700;
             font-family: inherit;
@@ -452,12 +548,12 @@ export default function CheckoutClient() {
             justify-content: center;
             align-items: center;
             transition: all 0.25s ease;
-            box-shadow: 0 4px 15px rgba(160,82,45,0.2);
+            box-shadow: 0 4px 15px color-mix(in srgb, var(--primary) 20%, transparent);
           }
 
           .btn-submit-order:hover:not(:disabled) {
             background: var(--fg);
-            box-shadow: 0 4px 15px rgba(42,26,14,0.2);
+            box-shadow: 0 4px 15px color-mix(in srgb, var(--fg) 15%, transparent);
           }
 
           .btn-submit-order:disabled {
@@ -485,7 +581,7 @@ export default function CheckoutClient() {
           .success-overlay {
             position: fixed;
             inset: 0;
-            background: rgba(42,26,14,0.6);
+            background: color-mix(in srgb, var(--fg) 60%, transparent);
             backdrop-filter: blur(8px);
             z-index: 20000;
             display: flex;
@@ -498,8 +594,8 @@ export default function CheckoutClient() {
 
           .success-modal {
             background: var(--bg);
-            border: 1px solid rgba(42,26,14,0.15);
-            border-radius: 6px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
             max-width: 500px;
             width: 100%;
             padding: 2.5rem 2rem;
@@ -512,7 +608,7 @@ export default function CheckoutClient() {
           .success-icon-wrap {
             width: 4.5rem;
             height: 4.5rem;
-            background: rgba(160,82,45,0.1);
+            background: color-mix(in srgb, var(--primary) 10%, transparent);
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -542,8 +638,8 @@ export default function CheckoutClient() {
 
           .success-details {
             background: var(--bone);
-            border: 1px solid rgba(42,26,14,0.08);
-            border-radius: 4px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
             padding: 1rem 1.25rem;
             margin-bottom: 2rem;
             text-align: left;
@@ -573,7 +669,7 @@ export default function CheckoutClient() {
             background: var(--fg);
             color: var(--bg);
             border: none;
-            border-radius: 4px;
+            border-radius: 9999px;
             padding: 0.9rem 2rem;
             font-size: 1rem;
             font-weight: 700;
@@ -598,20 +694,19 @@ export default function CheckoutClient() {
         `
       }} />
 
-      <div className="checkout-container">
-        <Link href="/" className="back-link">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor" style={{ width: "1rem", height: "1rem" }}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
-          </svg>
-          হোম পেজে ফিরুন
-        </Link>
+      <div className="checkout-container" style={{ paddingTop: "2rem" }}>
+        {/* Breadcrumb Path */}
+        <nav className="flex items-center gap-1.5 text-xs text-muted-foreground mb-8 overflow-x-auto whitespace-nowrap py-1">
+          <Link href="/" className="hover:text-primary transition-colors">হোম</Link>
+          <ChevronRight size={12} className="flex-shrink-0" />
+          <span className="text-foreground font-semibold">চেকআউট</span>
+        </nav>
 
-        <header className="checkout-header">
-          <Link href="/" className="checkout-logo">
-            <span>তানহা</span> ফ্যাশন
-          </Link>
-          <div className="checkout-subtitle">অর্ডার সম্পন্ন করুন</div>
-        </header>
+        <div className="mb-8 border-b border-border pb-4">
+          <h1 className="text-2xl sm:text-3xl font-extrabold font-display text-foreground">চেকআউট করুন</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1">অনুগ্রহ করে নিচের ডেলিভারি ও পেমেন্ট ফর্মটি পূরণ করে আপনার অর্ডারটি সম্পন্ন করুন।</p>
+        </div>
+
 
         <form onSubmit={handlePlaceOrder} className="checkout-grid">
           {/* Left Column - Shipping & Payment Form */}
@@ -941,9 +1036,45 @@ export default function CheckoutClient() {
                 <span>{formatBanglaPriceWithCommas(subtotal)}</span>
               </div>
 
+              {/* Coupon Form */}
+              {appliedCoupon ? (
+                <div className="flex justify-between items-center bg-primary/10 p-2.5 rounded-lg text-xs text-primary font-bold mb-3 border border-primary/20 mt-2">
+                  <span>কুপন কোড ({appliedCoupon}) যুক্ত হয়েছে</span>
+                  <button 
+                    type="button" 
+                    className="bg-transparent border-none text-primary cursor-pointer text-xs font-black underline" 
+                    onClick={removeCoupon}
+                  >
+                    বাদ দিন
+                  </button>
+                </div>
+              ) : (
+                <div className="flex gap-2 my-3">
+                  <input
+                    type="text"
+                    placeholder="কুপন কোড লিখুন"
+                    className="form-input"
+                    style={{ padding: "0.5rem 0.75rem", fontSize: "0.8rem" }}
+                    value={couponInput}
+                    onChange={(e) => setCouponInput(e.target.value)}
+                  />
+                  <button 
+                    type="button"
+                    className="py-1.5 px-4 bg-foreground text-background border-none rounded-xl text-xs cursor-pointer font-bold transition-colors hover:bg-primary"
+                    onClick={async () => {
+                      const res = await applyCoupon(couponInput);
+                      showToast(res.message);
+                      if (res.success) setCouponInput("");
+                    }}
+                  >
+                    প্রয়োগ
+                  </button>
+                </div>
+              )}
+
               {appliedCoupon && (
                 <div className="summary-row" style={{ color: "var(--primary)", fontWeight: "500" }}>
-                  <span>ছাড় (কুপন: {appliedCoupon} - ২০%)</span>
+                  <span>ছাড় (কুপন: {appliedCoupon})</span>
                   <span>-{formatBanglaPriceWithCommas(discount)}</span>
                 </div>
               )}
@@ -1020,6 +1151,30 @@ export default function CheckoutClient() {
           </div>
         </div>
       )}
+
+      {/* Slide drawers and notifications */}
+      <MobileMenuDrawer 
+        isOpen={menuDrawerOpen}
+        onClose={() => setMenuDrawerOpen(false)}
+        activeSection={99}
+        scrollToSection={(index) => router.push(`/?sec=${index}`)}
+      />
+      <CartDrawer showToast={showToast} />
+      <ToastNotification isActive={toastActive} message={toastMsg} />
+
+      {/* Mobile-only layout bottom sticky nav tabs */}
+      <MobileTabBar 
+        activeSection={99}
+        cartCount={cartCount}
+        cartDrawerOpen={cartDrawerOpen}
+        scrollToSection={(index) => router.push(`/?sec=${index}`)}
+        setCartDrawerOpen={setCartDrawerOpen}
+        showToast={showToast}
+      />
+
+      {/* Newsletter & Global Footer */}
+      <Cta scrollToSection={(index) => router.push(`/?sec=${index}`)} />
     </div>
   );
 }
+

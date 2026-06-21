@@ -1,5 +1,7 @@
 import React from "react";
 import { X } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import Link from "next/link";
 
 interface MobileMenuDrawerProps {
   isOpen: boolean;
@@ -14,15 +16,23 @@ export default function MobileMenuDrawer({
   activeSection,
   scrollToSection,
 }: MobileMenuDrawerProps) {
+  const pathname = usePathname();
+  const router = useRouter();
+
   const handleLinkClick = (e: React.MouseEvent, index: number) => {
     e.preventDefault();
-    scrollToSection(index);
+    if (pathname === "/") {
+      scrollToSection(index);
+    } else {
+      router.push(`/?sec=${index}`);
+    }
     onClose();
   };
 
   const menuItems = [
-    { label: "হোম", index: 0 },
-    { label: "টপ ক্যাটাগরি", index: 1 },
+    { label: "হোম", index: 0, href: "/" },
+    { label: "সব পোশাক", href: "/categories" },
+    { label: "শোরুম আউটলেট", href: "/showroom" },
     { label: "সুতি থ্রি-পিস", index: 2 },
     { label: "জর্জেট থ্রি-পিস", index: 3 },
     { label: "লিলেন থ্রি-পিস", index: 4 },
@@ -49,15 +59,25 @@ export default function MobileMenuDrawer({
           </button>
         </div>
         <ul className="flex flex-col p-6 gap-4 list-none m-0 overflow-y-auto">
-          {menuItems.map((item) => (
-            <li key={item.index}>
-              <a 
-                href="#" 
-                className={`no-underline text-foreground text-base font-semibold transition-colors duration-200 hover:text-primary block py-2 ${activeSection === item.index ? "text-primary" : ""}`} 
-                onClick={(e) => handleLinkClick(e, item.index)}
-              >
-                {item.label}
-              </a>
+          {menuItems.map((item, idx) => (
+            <li key={idx}>
+              {item.href ? (
+                <Link 
+                  href={item.href}
+                  className={`no-underline text-foreground text-base font-bold transition-colors duration-200 hover:text-primary block py-2 ${pathname === item.href ? "text-primary" : ""}`}
+                  onClick={onClose}
+                >
+                  {item.label}
+                </Link>
+              ) : (
+                <a 
+                  href="#" 
+                  className={`no-underline text-foreground text-base font-semibold transition-colors duration-200 hover:text-primary block py-2 ${activeSection === item.index ? "text-primary" : ""}`} 
+                  onClick={(e) => handleLinkClick(e, item.index!)}
+                >
+                  {item.label}
+                </a>
+              )}
             </li>
           ))}
         </ul>

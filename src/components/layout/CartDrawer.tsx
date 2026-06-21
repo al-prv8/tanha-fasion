@@ -97,7 +97,7 @@ export default function CartDrawer({ showToast }: CartDrawerProps) {
             
             {appliedCoupon ? (
               <div className="flex justify-between items-center bg-accent/15 p-2 rounded mb-3 text-xs text-primary font-medium">
-                <span>কুপন কোড ({appliedCoupon}) যুক্ত হয়েছে (২০%)</span>
+                <span>কুপন কোড ({appliedCoupon}) যুক্ত হয়েছে</span>
                 <div className="flex items-center gap-2">
                   <span>-{formatBanglaPriceWithCommas(discount)}</span>
                   <button className="bg-transparent border-none text-primary cursor-pointer text-xs font-semibold underline" onClick={removeCoupon}>বাদ দিন</button>
@@ -114,8 +114,8 @@ export default function CartDrawer({ showToast }: CartDrawerProps) {
                 />
                 <button 
                   className="py-2 px-4 bg-foreground text-background border-none rounded text-xs cursor-pointer font-semibold transition-colors hover:bg-primary"
-                  onClick={() => {
-                    const res = applyCoupon(couponInput);
+                  onClick={async () => {
+                    const res = await applyCoupon(couponInput);
                     showToast(res.message);
                     if (res.success) setCouponInput("");
                   }}

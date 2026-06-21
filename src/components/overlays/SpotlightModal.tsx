@@ -1,5 +1,9 @@
+"use client";
+
 import React from "react";
 import { Product } from "@/lib/products";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 interface SpotlightModalProps {
   isOpen: boolean;
@@ -26,6 +30,8 @@ export default function SpotlightModal({
   addToCart,
   showToast,
 }: SpotlightModalProps) {
+  const router = useRouter();
+
   return (
     <div 
       className={`fixed inset-0 bg-ink/60 backdrop-blur-md z-[10000] transition-opacity duration-300 flex items-center justify-center p-4 md:p-8 ${isOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`} 
@@ -70,22 +76,48 @@ export default function SpotlightModal({
             </>
           )}
           
-          <div className="flex gap-4 mt-6 items-center">
-            {modalData.product && (
-              <button
-                className="flex-1 bg-primary text-bone py-3 px-6 rounded-full font-semibold text-sm cursor-pointer transition-colors duration-300 hover:bg-foreground"
-                onClick={() => {
-                  if (modalData.product) {
-                    addToCart(modalData.product, 1, selectedSize);
-                    showToast(`"${modalData.product.name}" (${selectedSize}) ব্যাগে যোগ করা হয়েছে!`);
-                    onClose();
-                  }
-                }}
+          {modalData.product && (
+            <div className="text-center mb-4">
+              <Link 
+                href={`/products/${modalData.product.id}`} 
+                className="text-xs text-primary font-bold hover:underline inline-flex items-center gap-1"
+                onClick={onClose}
               >
-                ব্যাগে রাখুন
-              </button>
+                বিস্তারিত বিবরণ দেখুন →
+              </Link>
+            </div>
+          )}
+
+          <div className="flex gap-3 mt-4 items-center">
+            {modalData.product && (
+              <>
+                <button
+                  className="flex-1 bg-secondary text-foreground py-3 px-4 rounded-full font-bold text-xs sm:text-sm cursor-pointer border border-border transition-colors hover:bg-ink/5"
+                  onClick={() => {
+                    if (modalData.product) {
+                      addToCart(modalData.product, 1, selectedSize);
+                      showToast(`"${modalData.product.name}" (${selectedSize}) ব্যাগে যোগ করা হয়েছে!`);
+                      onClose();
+                    }
+                  }}
+                >
+                  ব্যাগে রাখুন
+                </button>
+                <button
+                  className="flex-1 bg-primary text-bone py-3 px-4 rounded-full font-bold text-xs sm:text-sm cursor-pointer transition-colors duration-300 hover:bg-foreground"
+                  onClick={() => {
+                    if (modalData.product) {
+                      addToCart(modalData.product, 1, selectedSize);
+                      router.push("/checkout");
+                      onClose();
+                    }
+                  }}
+                >
+                  এখনই কিনুন
+                </button>
+              </>
             )}
-            <button className="bg-foreground text-background py-3 px-6 rounded-full font-semibold text-sm cursor-pointer transition-colors duration-300 hover:bg-primary hover:text-white" onClick={onClose}>
+            <button className="bg-foreground text-background py-3 px-5 rounded-full font-bold text-xs sm:text-sm cursor-pointer transition-colors duration-300 hover:bg-primary hover:text-white" onClick={onClose}>
               বন্ধ করুন
             </button>
           </div>
@@ -94,3 +126,4 @@ export default function SpotlightModal({
     </div>
   );
 }
+

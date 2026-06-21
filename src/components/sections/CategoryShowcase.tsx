@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { Product } from "@/lib/products";
 import { ShoppingBag, Eye } from "lucide-react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 interface CategoryShowcaseProps {
   title: string;
@@ -24,6 +26,7 @@ export default function CategoryShowcase({
   sectionId,
 }: CategoryShowcaseProps) {
   const [selectedSizes, setSelectedSizes] = useState<{ [productId: string]: string }>({});
+  const router = useRouter();
 
   const handleSizeSelect = (productId: string, size: string) => {
     setSelectedSizes((prev) => ({ ...prev, [productId]: size }));
@@ -35,7 +38,14 @@ export default function CategoryShowcase({
     showToast(`"${product.name}" (${size}) ব্যাগ-এ যুক্ত করা হয়েছে!`);
   };
 
+  const handleBuyNowClick = (product: Product) => {
+    const size = selectedSizes[product.id] || product.sizes[0] || "M";
+    addToCart(product, size);
+    router.push("/checkout");
+  };
+
   return (
+
     <section id={sectionId} className="w-full py-8 max-w-[1440px] mx-auto px-4 md:px-8 reveal-item">
       {/* FULL WIDTH CATEGORY BANNER */}
       <div className="relative w-full h-[180px] sm:h-[220px] md:h-[260px] lg:h-[300px] overflow-hidden rounded-md mb-8 shadow-sm">
@@ -68,13 +78,15 @@ export default function CategoryShowcase({
               className="bg-background border border-border/60 hover:border-primary/50 rounded overflow-hidden flex flex-col justify-between group transition-all duration-300 shadow-sm hover:shadow-lg hover:-translate-y-1"
             >
               {/* Product Image and badges */}
-              <div className="relative aspect-[3/4] bg-secondary overflow-hidden w-full cursor-pointer" onClick={() => openSpotlight(prod)}>
-                <img
-                  src={prod.img.src}
-                  alt={prod.name}
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                  loading="lazy"
-                />
+              <div className="relative aspect-[3/4] bg-secondary overflow-hidden w-full">
+                <Link href={`/products/${prod.id}`} className="block w-full h-full cursor-pointer">
+                  <img
+                    src={prod.img?.src || prod.img}
+                    alt={prod.name}
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    loading="lazy"
+                  />
+                </Link>
                 
                 {/* Hot/New Tag Badges */}
                 {prod.tag && (
@@ -84,10 +96,14 @@ export default function CategoryShowcase({
                 )}
 
                 {/* Quick actions hover overlay (Desktop only) */}
-                <div className="hidden md:flex absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 items-center justify-center gap-3 z-10">
+                <Link
+                  href={`/products/${prod.id}`}
+                  className="hidden md:flex absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 items-center justify-center gap-3 z-10 cursor-pointer"
+                >
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
+                      e.preventDefault();
                       openSpotlight(prod);
                     }}
                     className="w-10 h-10 rounded-full bg-white hover:bg-primary text-foreground hover:text-white flex items-center justify-center shadow-md transition-colors border-none cursor-pointer"
@@ -95,19 +111,20 @@ export default function CategoryShowcase({
                   >
                     <Eye size={18} />
                   </button>
-                </div>
+                </Link>
+
               </div>
 
               {/* Product Details */}
               <div className="p-3 sm:p-4 flex flex-col gap-2.5">
                 {/* Product Name */}
                 <div>
-                  <h3
-                    className="text-xs sm:text-sm font-bold text-foreground line-clamp-1 group-hover:text-primary transition-colors cursor-pointer"
-                    onClick={() => openSpotlight(prod)}
+                  <Link
+                    href={`/products/${prod.id}`}
+                    className="text-xs sm:text-sm font-bold text-foreground line-clamp-1 group-hover:text-primary transition-colors cursor-pointer block no-underline"
                   >
                     {prod.name}
-                  </h3>
+                  </Link>
                   <p className="text-[10px] text-muted-foreground mt-0.5">{prod.loc}</p>
                 </div>
 
@@ -131,18 +148,37 @@ export default function CategoryShowcase({
                   </div>
                 </div>
 
-                {/* Price & Add to Cart */}
-                <div className="flex items-center justify-between border-t border-border/40 pt-2.5 mt-1">
-                  <span className="text-xs sm:text-sm font-extrabold text-foreground">
-                    {prod.priceDisplay}
-                  </span>
-                  <button
-                    onClick={() => handleAddClick(prod)}
-                    className="bg-foreground hover:bg-primary text-background hover:text-white border-none py-1.5 px-3 rounded-full text-[10px] sm:text-xs font-bold transition-colors flex items-center gap-1 cursor-pointer"
-                  >
-                    <ShoppingBag size={12} />
-                    <span>কিনুন</span>
-                  </button>
+                {/* Price & Actions */}
+                <div className="flex flex-col gap-2 border-t border-border/40 pt-2.5 mt-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs sm:text-sm font-extrabold text-foreground">
+                      {prod.priceDisplay}
+                    </span>
+                    <Link
+                      href={`/products/${prod.id}`}
+                      className="text-[10px] sm:text-xs text-primary hover:underline font-semibold no-underline"
+                    >
+                      বিস্তারিত
+                    </Link>
+                  </div>
+                  <div className="flex gap-1.5 mt-0.5">
+                    {/* Add to Cart button */}
+                    <button
+                      onClick={() => handleAddClick(prod)}
+                      className="flex-grow bg-secondary hover:bg-secondary-foreground/10 text-foreground border border-border/80 py-1.5 px-2 rounded-sm text-[10px] font-bold transition-colors flex items-center justify-center gap-1 cursor-pointer"
+                      title="ব্যাগে যোগ করুন"
+                    >
+                      <ShoppingBag size={11} />
+                      <span className="hidden sm:inline">ব্যাগে রাখুন</span>
+                    </button>
+                    {/* Buy Now button */}
+                    <button
+                      onClick={() => handleBuyNowClick(prod)}
+                      className="flex-grow bg-primary hover:bg-primary/95 text-white border-none py-1.5 px-2 rounded-sm text-[10px] font-bold transition-colors flex items-center justify-center gap-1 cursor-pointer"
+                    >
+                      <span>এখনই কিনুন</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

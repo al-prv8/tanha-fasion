@@ -21,7 +21,7 @@ interface CartContextType {
   updateQuantity: (id: string, size: string, quantity: number) => void;
   clearCart: () => void;
   appliedCoupon: string | null;
-  applyCoupon: (code: string) => { success: boolean; message: string };
+  applyCoupon: (code: string) => Promise<{ success: boolean; message: string }>;
   removeCoupon: () => void;
   subtotal: number;
   discount: number;
@@ -34,9 +34,11 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [items, setItems] = useState<CartItem[]>([]);
-  const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null);
+  const [appliedCouponDetails, setAppliedCouponDetails] = useState<any | null>(null);
   const [cartDrawerOpen, setCartDrawerOpen] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
+
+  const appliedCoupon = appliedCouponDetails?.code || null;
 
   // Load cart and coupon from localStorage on mount
   useEffect(() => {
@@ -45,9 +47,9 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (storedCart) {
         setItems(JSON.parse(storedCart));
       }
-      const storedCoupon = localStorage.getItem("tanha_coupon");
-      if (storedCoupon) {
-        setAppliedCoupon(storedCoupon);
+      const storedCouponDetails = localStorage.getItem("tanha_coupon_details");
+      if (storedCouponDetails) {
+        setAppliedCouponDetails(JSON.parse(storedCouponDetails));
       }
     } catch (error) {
       console.error("Error loading cart from localStorage:", error);
@@ -68,15 +70,15 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     if (!isInitialized) return;
     try {
-      if (appliedCoupon) {
-        localStorage.setItem("tanha_coupon", appliedCoupon);
+      if (appliedCouponDetails) {
+        localStorage.setItem("tanha_coupon_details", JSON.stringify(appliedCouponDetails));
       } else {
-        localStorage.removeItem("tanha_coupon");
+        localStorage.removeItem("tanha_coupon_details");
       }
     } catch (error) {
-      console.error("Error saving coupon to localStorage:", error);
+      console.error("Error saving coupon details to localStorage:", error);
     }
-  }, [appliedCoupon, isInitialized]);
+  }, [appliedCouponDetails, isInitialized]);
 
   const addToCart = (product: Product, quantity = 1, size = "M") => {
     setItems((prevItems) => {
@@ -126,20 +128,53 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const clearCart = () => {
     setItems([]);
-    setAppliedCoupon(null);
+    setAppliedCouponDetails(null);
   };
 
-  const applyCoupon = (code: string) => {
+  const applyCoupon = async (code: string) => {
     const cleanCode = code.trim().toUpperCase();
-    if (cleanCode === "TANHA20") {
-      setAppliedCoupon("TANHA20");
-      return { success: true, message: "২০% ছাড় কুপন সফলভাবে যুক্ত হয়েছে!" };
+    if (!cleanCode) return { success: false, message: "দয়া করে কুপন কোড লিখুন।" };
+
+    try {
+      const res = await fetch("http://localhost:5000/api/coupons/apply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: cleanCode, subtotal })
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        return { success: false, message: errData.error || "কুপন কোড প্রয়োগ করা যায়নি।" };
+      }
+
+      const data = await res.json();
+      if (data.success && data.coupon) {
+        setAppliedCouponDetails({
+          code: data.coupon.code,
+          type: data.coupon.type,
+          value: data.coupon.value
+        });
+        const discText = data.coupon.type === "PERCENTAGE" ? `${data.coupon.value}% ছাড়` : `৳${data.coupon.value} ছাড়`;
+        return { success: true, message: `কুপন (${data.coupon.code} - ${discText}) সফলভাবে যুক্ত হয়েছে!` };
+      }
+      return { success: false, message: "কুপন কোডটি সঠিক নয়।" };
+    } catch (error) {
+      console.error("Apply coupon error:", error);
+      // fallback to offline coupon
+      if (cleanCode === "TANHA20") {
+        setAppliedCouponDetails({
+          code: "TANHA20",
+          type: "PERCENTAGE",
+          value: 20
+        });
+        return { success: true, message: "২০% ছাড় কুপন সফলভাবে যুক্ত হয়েছে! (অফলাইন মোড)" };
+      }
+      return { success: false, message: "সার্ভারের সাথে সংযোগ স্থাপন করা যাচ্ছে না।" };
     }
-    return { success: false, message: "ভুল কুপন কোড! অনুগ্রহ করে আবার চেষ্টা করুন।" };
   };
 
   const removeCoupon = () => {
-    setAppliedCoupon(null);
+    setAppliedCouponDetails(null);
   };
 
   // Computed values
@@ -148,11 +183,15 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [items]);
 
   const discount = useMemo(() => {
-    if (appliedCoupon === "TANHA20") {
-      return Math.round(subtotal * 0.20);
+    if (!appliedCouponDetails) return 0;
+    let amt = 0;
+    if (appliedCouponDetails.type === "PERCENTAGE") {
+      amt = Math.round((subtotal * appliedCouponDetails.value) / 100);
+    } else {
+      amt = appliedCouponDetails.value;
     }
-    return 0;
-  }, [subtotal, appliedCoupon]);
+    return Math.min(amt, subtotal);
+  }, [subtotal, appliedCouponDetails]);
 
   const cartCount = useMemo(() => {
     return items.reduce((sum, item) => sum + item.quantity, 0);

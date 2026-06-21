@@ -40,6 +40,7 @@ export interface Product {
   title: string;
   desc: string;
   sizes: string[];
+  sizesJson?: string;
 }
 
 export const PRODUCTS: Product[] = [
@@ -398,4 +399,16 @@ export function formatBanglaPriceWithCommas(price: number): string {
     if (char === ",") return ",";
     return banglaDigits[Number(char)] || char;
   }).join("");
+}
+
+export function getProductTotalStock(p: any): number {
+  if (p.sizesJson) {
+    try {
+      const sizes = JSON.parse(p.sizesJson);
+      return Object.values(sizes).reduce((acc: number, val: any) => acc + Number(val || 0), 0);
+    } catch (e) {
+      return 0;
+    }
+  }
+  return (p.stockS || 0) + (p.stockM || 0) + (p.stockL || 0) + (p.stockXL || 0);
 }
