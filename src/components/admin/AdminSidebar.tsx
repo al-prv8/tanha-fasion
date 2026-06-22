@@ -13,13 +13,14 @@ import {
   Tag,
   HelpCircle,
   Megaphone,
-  Mail
+  Mail,
+  Activity
 } from "lucide-react";
 import { toBanglaNumber } from "@/lib/products";
 
 interface SidebarProps {
-  activeTab: "dashboard" | "orders" | "products" | "reviews" | "categories" | "coupons" | "faqs" | "announcements" | "newsletters";
-  setActiveTab: (tab: "dashboard" | "orders" | "products" | "reviews" | "categories" | "coupons" | "faqs" | "announcements" | "newsletters") => void;
+  activeTab: "dashboard" | "orders" | "products" | "reviews" | "categories" | "coupons" | "faqs" | "announcements" | "newsletters" | "activity-logs";
+  setActiveTab: (tab: "dashboard" | "orders" | "products" | "reviews" | "categories" | "coupons" | "faqs" | "announcements" | "newsletters" | "activity-logs") => void;
   ordersCount: number;
   productsCount: number;
   reviewsCount: number;
@@ -58,6 +59,7 @@ export default function AdminSidebar({
     { id: "announcements", label: "ঘোষণা পরিচালনা", icon: <Megaphone size={16} />, count: announcementsCount },
     { id: "newsletters", label: "নিউজলেটার গ্রাহক", icon: <Mail size={16} />, count: newslettersCount },
     { id: "reviews", label: "রিভিউ মডারেশন", icon: <Star size={16} />, count: reviewsCount },
+    { id: "activity-logs", label: "অ্যাক্টিভিটি লগ", icon: <Activity size={16} /> },
   ];
 
   return (

@@ -102,6 +102,15 @@ export default function ProductsTab({
   const [newSizeName, setNewSizeName] = useState("");
   const [newSizeStock, setNewSizeStock] = useState("10");
 
+  const lowStockProducts = products.filter(p => {
+    try {
+      const sizesObj = JSON.parse(p.sizesJson || "{}");
+      return Object.values(sizesObj).some((qty: any) => Number(qty) < 5);
+    } catch(e) {
+      return false;
+    }
+  });
+
   const updateSizeStock = (size: string, stockVal: string) => {
     let currentSizes: { [sz: string]: number } = {};
     try {
@@ -495,9 +504,19 @@ export default function ProductsTab({
         </div>
       )}
 
-      {/* 2. PRODUCT TABLE LIST PANEL */}
-      <div className="bg-white border border-slate-200/80 rounded-2xl shadow-3xs p-6">
+      {/* 2. PRODUCTS DIRECTORY (List view) */}
+      <div className="bg-card border border-border/80 rounded-2xl p-6 shadow-2xs text-left">
         
+        {lowStockProducts.length > 0 && (
+          <div className="bg-amber-50/50 border border-amber-200 p-4 rounded-xl text-xs leading-relaxed font-semibold text-amber-700 flex gap-2.5 text-left mb-6">
+            <AlertTriangle size={16} className="text-amber-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <h5 className="font-extrabold text-[11px] uppercase tracking-wider mb-1">স্টক সতর্কতা (Low Stock Alert)</h5>
+              আপনার তালিকায় <span className="font-extrabold text-amber-900 font-sans">{toBanglaNumber(lowStockProducts.length)}</span> টি পোশাকের কিছু সাইজ স্টক শেষ অথবা প্রায় শেষের পথে (৫টির কম)। দ্রুত স্টক বাড়ানোর জন্য পোশাকগুলোর সাইজ ইনভেন্টরি হালনাগাদ করুন।
+            </div>
+          </div>
+        )}
+
         {/* Filter pills and search control row */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
           {/* Categories Pill Tabs */}
@@ -623,12 +642,21 @@ export default function ProductsTab({
                             {(() => {
                               try {
                                 const sizesObj = JSON.parse(p.sizesJson || "{}");
-                                return Object.entries(sizesObj).map(([sz, qty]) => (
-                                  <span key={sz} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-secondary text-[10px] font-bold text-foreground border border-border">
-                                    <span className="text-slate-405 font-extrabold">{sz}:</span>
-                                    <span>{toBanglaNumber(qty as number)}</span>
-                                  </span>
-                                ));
+                                return Object.entries(sizesObj).map(([sz, qty]) => {
+                                  const quantity = Number(qty || 0);
+                                  let badgeClass = "bg-secondary text-foreground border-border";
+                                  if (quantity === 0) {
+                                    badgeClass = "bg-rose-50 text-rose-600 border-rose-200";
+                                  } else if (quantity < 5) {
+                                    badgeClass = "bg-amber-50 text-amber-700 border-amber-250";
+                                  }
+                                  return (
+                                    <span key={sz} className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold border ${badgeClass}`}>
+                                      <span className="font-extrabold">{sz}:</span>
+                                      <span>{toBanglaNumber(quantity)}</span>
+                                    </span>
+                                  );
+                                });
                               } catch (e) {
                                 return <span className="text-[10px] text-rose-500">ত্রুটি</span>;
                               }

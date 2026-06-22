@@ -15,6 +15,7 @@ import ReviewsTab from "@/components/admin/ReviewsTab";
 import FaqsTab from "@/components/admin/FaqsTab";
 import AnnouncementsTab from "@/components/admin/AnnouncementsTab";
 import NewslettersTab from "@/components/admin/NewslettersTab";
+import ActivityLogsTab from "@/components/admin/ActivityLogsTab";
 import ToastNotification from "@/components/overlays/ToastNotification";
 
 const DEFAULT_CATEGORIES = [
@@ -35,7 +36,7 @@ export default function AdminPage() {
   const [authError, setAuthError] = useState("");
 
   // Navigation State
-  const [activeTab, setActiveTab] = useState<"dashboard" | "orders" | "products" | "reviews" | "categories" | "coupons" | "faqs" | "announcements" | "newsletters">("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "orders" | "products" | "reviews" | "categories" | "coupons" | "faqs" | "announcements" | "newsletters" | "activity-logs">("dashboard");
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   // Toast Notification States
@@ -64,6 +65,8 @@ export default function AdminPage() {
   const [subscribers, setSubscribers] = useState<any[]>([]);
   const [faqs, setFaqs] = useState<any[]>([]);
   const [announcements, setAnnouncements] = useState<any[]>([]);
+  const [logs, setLogs] = useState<any[]>([]);
+  const [isLogsLoading, setIsLogsLoading] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   // Search States
@@ -130,8 +133,9 @@ export default function AdminPage() {
 
   const fetchData = async () => {
     setIsLoading(true);
+    setIsLogsLoading(true);
     try {
-      const [analyticsRes, ordersRes, productsRes, categoriesRes, couponsRes, subscribersRes, faqsRes, announcementsRes] = await Promise.all([
+      const [analyticsRes, ordersRes, productsRes, categoriesRes, couponsRes, subscribersRes, faqsRes, announcementsRes, logsRes] = await Promise.all([
         authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/analytics`),
         authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/orders`),
         authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/products`),
@@ -139,7 +143,8 @@ export default function AdminPage() {
         authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/coupons`),
         authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/newsletter`),
         authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/faqs`),
-        authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/announcements`)
+        authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/announcements`),
+        authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/logs`)
       ]);
 
       if (analyticsRes.ok) setAnalytics(await analyticsRes.json());
@@ -149,6 +154,7 @@ export default function AdminPage() {
       if (subscribersRes.ok) setSubscribers(await subscribersRes.json());
       if (faqsRes.ok) setFaqs(await faqsRes.json());
       if (announcementsRes.ok) setAnnouncements(await announcementsRes.json());
+      if (logsRes.ok) setLogs(await logsRes.json());
       
       if (productsRes.ok) {
         const prodData = await productsRes.json();
@@ -169,6 +175,7 @@ export default function AdminPage() {
       console.error("Error loading admin data:", err);
     } finally {
       setIsLoading(false);
+      setIsLogsLoading(false);
     }
   };
 
@@ -746,6 +753,13 @@ export default function AdminPage() {
             <NewslettersTab 
               subscribers={subscribers}
               onDeleteSubscriber={handleDeleteSubscriber}
+            />
+          )}
+
+          {activeTab === "activity-logs" && (
+            <ActivityLogsTab 
+              logs={logs}
+              isLoading={isLogsLoading}
             />
           )}
           </main>

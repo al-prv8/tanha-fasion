@@ -117,6 +117,28 @@ const requireRole = (roles: string[]) => {
   };
 };
 
+const logActivity = async (email: string, adminName: string, action: string, details: string) => {
+  try {
+    await prisma.activityLog.create({
+      data: {
+        email,
+        adminName,
+        action,
+        details
+      }
+    });
+    console.log(`[Activity Logged] ${adminName} (${email}): ${action} - ${details}`);
+  } catch (err) {
+    console.error("Failed to write activity log:", err);
+  }
+};
+
+const logAdminActivity = async (req: any, action: string, details: string) => {
+  if (req.user) {
+    await logActivity(req.user.email, req.user.name || "অ্যাডমিন", action, details);
+  }
+};
+
 // --- Authentication Endpoints ---
 
 // A. Register Customer
@@ -458,6 +480,7 @@ app.post("/api/upload", authenticateToken, requireRole(["ADMIN"]), (req, res) =>
     }
     const filename = req.file.filename;
     const imageUrl = `${req.protocol}://${req.get("host")}/uploads/${filename}`;
+    logAdminActivity(req, "IMAGE_UPLOAD", `Uploaded image file: ${filename}`);
     res.json({ url: imageUrl });
   });
 });
@@ -650,6 +673,7 @@ app.post("/api/categories", authenticateToken, requireRole(["ADMIN"]), async (re
         bannerDescription: bannerDescription || null
       }
     });
+    logAdminActivity(req, "CATEGORY_CREATE", `Created new category: ${cleanName}`);
     res.status(201).json(category);
   } catch (error: any) {
     res.status(500).json({ error: "Failed to create category: " + error.message });
@@ -706,6 +730,7 @@ app.put("/api/categories/:id", authenticateToken, requireRole(["ADMIN"]), async 
       });
     }
 
+    logAdminActivity(req, "CATEGORY_UPDATE", `Updated category: ${oldName} (New Name: ${nextName}, Order: ${updated.order})`);
     res.json(updated);
   } catch (error: any) {
     res.status(500).json({ error: "Failed to update category: " + error.message });
@@ -730,6 +755,7 @@ app.delete("/api/categories/:id", authenticateToken, requireRole(["ADMIN"]), asy
       });
     }
     await prisma.category.delete({ where: { id } });
+    logAdminActivity(req, "CATEGORY_DELETE", `Deleted category: ${category.name}`);
     res.json({ message: "Category deleted successfully" });
   } catch (error: any) {
     res.status(500).json({ error: "Failed to delete category: " + error.message });
@@ -777,6 +803,7 @@ app.post("/api/announcements", authenticateToken, requireRole(["ADMIN"]), async 
         isActive: isActive !== undefined ? Boolean(isActive) : true
       }
     });
+    logAdminActivity(req, "ANNOUNCEMENT_CREATE", `Created announcement: "${text.slice(0, 30)}${text.length > 30 ? '...' : ''}"`);
     res.status(201).json(announcement);
   } catch (error: any) {
     res.status(500).json({ error: "Failed to create announcement: " + error.message });
@@ -801,6 +828,11 @@ app.put("/api/announcements/:id", authenticateToken, requireRole(["ADMIN"]), asy
         ...(isActive !== undefined && { isActive: Boolean(isActive) })
       }
     });
+    let logMsg = `Updated announcement ID: ${id}.`;
+    if (isActive !== undefined && isActive !== announcement.isActive) {
+      logMsg += ` Status: ${announcement.isActive ? 'Active' : 'Inactive'} -> ${isActive ? 'Active' : 'Inactive'}.`;
+    }
+    logAdminActivity(req, "ANNOUNCEMENT_UPDATE", logMsg);
     res.json(updated);
   } catch (error: any) {
     res.status(500).json({ error: "Failed to update announcement: " + error.message });
@@ -816,6 +848,7 @@ app.delete("/api/announcements/:id", authenticateToken, requireRole(["ADMIN"]), 
       return res.status(404).json({ error: "ঘোষণা পাওয়া যায়নি।" });
     }
     await prisma.announcement.delete({ where: { id } });
+    logAdminActivity(req, "ANNOUNCEMENT_DELETE", `Deleted announcement: "${announcement.text.slice(0, 30)}${announcement.text.length > 30 ? '...' : ''}"`);
     res.json({ message: "Announcement deleted successfully" });
   } catch (error: any) {
     res.status(500).json({ error: "Failed to delete announcement: " + error.message });
@@ -1142,6 +1175,18 @@ app.put("/api/orders/:id", authenticateToken, requireRole(["ADMIN"]), async (req
       }
     });
 
+    let logDetails = `Updated order: ${order.orderNumber}.`;
+    if (orderStatus && orderStatus !== order.orderStatus) {
+      logDetails += ` Status: ${order.orderStatus} -> ${orderStatus}.`;
+    }
+    if (paymentStatus && paymentStatus !== order.paymentStatus) {
+      logDetails += ` Payment: ${order.paymentStatus} -> ${paymentStatus}.`;
+    }
+    if (name !== undefined || phone !== undefined || address !== undefined || trxId !== undefined) {
+      logDetails += ` Modified shipping/payment fields.`;
+    }
+    logAdminActivity(req, "ORDER_UPDATE", logDetails);
+
     res.json(updatedOrder);
   } catch (error: any) {
     console.error("Order update error:", error);
@@ -1174,7 +1219,7 @@ app.post("/api/products", authenticateToken, requireRole(["ADMIN"]), async (req,
         sizesJson: sizesJson || '{"S":10,"M":15,"L":15,"XL":5}'
       }
     });
-
+    logAdminActivity(req, "PRODUCT_CREATE", `Created new product: ${name} (SKU: ${sku}, Price: ৳${price})`);
     res.status(201).json(product);
   } catch (error: any) {
     res.status(500).json({ error: "Failed to create product: " + error.message });
@@ -1205,7 +1250,7 @@ app.put("/api/products/:id", authenticateToken, requireRole(["ADMIN"]), async (r
         ...(sizesJson && { sizesJson })
       }
     });
-
+    logAdminActivity(req, "PRODUCT_UPDATE", `Updated product: ${updatedProduct.name} (SKU: ${updatedProduct.sku}, Price: ৳${updatedProduct.price})`);
     res.json(updatedProduct);
   } catch (error: any) {
     res.status(500).json({ error: "Failed to update product: " + error.message });
@@ -1216,17 +1261,16 @@ app.put("/api/products/:id", authenticateToken, requireRole(["ADMIN"]), async (r
 app.delete("/api/products/:id", authenticateToken, requireRole(["ADMIN"]), async (req, res) => {
   try {
     const { id } = req.params;
-    
-    // First, delete dependent OrderItems and Reviews or let Prisma handle cascade
-    // In our schema, we cascade delete reviews, but OrderItems are standard relations,
-    // so we can delete reviews and product cleanly. Let's make sure.
+    const product = await prisma.product.findUnique({ where: { id } });
+    if (!product) {
+      return res.status(404).json({ error: "Product not found" });
+    }
     await prisma.review.deleteMany({ where: { productId: id } });
     await prisma.orderItem.deleteMany({ where: { productId: id } });
-    
     await prisma.product.delete({
       where: { id }
     });
-    
+    logAdminActivity(req, "PRODUCT_DELETE", `Deleted product: ${product.name} (SKU: ${product.sku})`);
     res.json({ message: "Product deleted successfully" });
   } catch (error: any) {
     res.status(500).json({ error: "Failed to delete product: " + error.message });
@@ -1237,9 +1281,14 @@ app.delete("/api/products/:id", authenticateToken, requireRole(["ADMIN"]), async
 app.delete("/api/reviews/:id", authenticateToken, requireRole(["ADMIN"]), async (req, res) => {
   try {
     const { id } = req.params;
+    const review = await prisma.review.findUnique({ where: { id }, include: { product: true } });
+    if (!review) {
+      return res.status(404).json({ error: "Review not found" });
+    }
     await prisma.review.delete({
       where: { id }
     });
+    logAdminActivity(req, "REVIEW_DELETE", `Deleted review by ${review.name} on product: ${review.product?.name}`);
     res.json({ message: "Review deleted successfully" });
   } catch (error: any) {
     res.status(500).json({ error: "Failed to delete review: " + error.message });
@@ -1281,6 +1330,7 @@ app.delete("/api/orders/:id", authenticateToken, requireRole(["ADMIN"]), async (
       where: { id }
     });
     
+    logAdminActivity(req, "ORDER_DELETE", `Deleted order: ${order.orderNumber} (Grand Total: ৳${order.grandTotal})`);
     res.json({ message: "Order deleted successfully" });
   } catch (error: any) {
     res.status(500).json({ error: "Failed to delete order: " + error.message });
@@ -1328,7 +1378,7 @@ app.post("/api/coupons", authenticateToken, requireRole(["ADMIN"]), async (req, 
         isActive: true
       }
     });
-
+    logAdminActivity(req, "COUPON_CREATE", `Created coupon code: ${cleanCode} (${type === 'PERCENTAGE' ? value + '%' : '৳' + value} discount)`);
     res.status(201).json(coupon);
   } catch (error: any) {
     res.status(500).json({ error: "Failed to create coupon: " + error.message });
@@ -1356,7 +1406,11 @@ app.put("/api/coupons/:id", authenticateToken, requireRole(["ADMIN"]), async (re
         ...(minSubtotal !== undefined && { minSubtotal: Number(minSubtotal) })
       }
     });
-
+    let logMsg = `Updated coupon ${updated.code}.`;
+    if (isActive !== undefined && isActive !== coupon.isActive) {
+      logMsg += ` Status: ${coupon.isActive ? 'Active' : 'Inactive'} -> ${isActive ? 'Active' : 'Inactive'}.`;
+    }
+    logAdminActivity(req, "COUPON_UPDATE", logMsg);
     res.json(updated);
   } catch (error: any) {
     res.status(500).json({ error: "Failed to update coupon: " + error.message });
@@ -1367,7 +1421,12 @@ app.put("/api/coupons/:id", authenticateToken, requireRole(["ADMIN"]), async (re
 app.delete("/api/coupons/:id", authenticateToken, requireRole(["ADMIN"]), async (req, res) => {
   try {
     const { id } = req.params;
+    const coupon = await prisma.coupon.findUnique({ where: { id } });
+    if (!coupon) {
+      return res.status(404).json({ error: "Coupon not found" });
+    }
     await prisma.coupon.delete({ where: { id } });
+    logAdminActivity(req, "COUPON_DELETE", `Deleted coupon code: ${coupon.code}`);
     res.json({ message: "Coupon deleted successfully" });
   } catch (error: any) {
     res.status(500).json({ error: "Failed to delete coupon: " + error.message });
@@ -1456,6 +1515,7 @@ app.post("/api/faqs", authenticateToken, requireRole(["ADMIN"]), async (req, res
         order: Number(order || 0)
       }
     });
+    logAdminActivity(req, "FAQ_CREATE", `Created FAQ: "${question.slice(0, 30)}${question.length > 30 ? '...' : ''}"`);
     res.status(201).json(faq);
   } catch (error: any) {
     res.status(500).json({ error: "Failed to create FAQ: " + error.message });
@@ -1481,6 +1541,7 @@ app.put("/api/faqs/:id", authenticateToken, requireRole(["ADMIN"]), async (req, 
         ...(order !== undefined && { order: Number(order) })
       }
     });
+    logAdminActivity(req, "FAQ_UPDATE", `Updated FAQ ID: ${id}`);
     res.json(updated);
   } catch (error: any) {
     res.status(500).json({ error: "Failed to update FAQ: " + error.message });
@@ -1491,7 +1552,12 @@ app.put("/api/faqs/:id", authenticateToken, requireRole(["ADMIN"]), async (req, 
 app.delete("/api/faqs/:id", authenticateToken, requireRole(["ADMIN"]), async (req, res) => {
   try {
     const { id } = req.params;
+    const faq = await prisma.faq.findUnique({ where: { id } });
+    if (!faq) {
+      return res.status(404).json({ error: "FAQ not found" });
+    }
     await prisma.faq.delete({ where: { id } });
+    logAdminActivity(req, "FAQ_DELETE", `Deleted FAQ: "${faq.question.slice(0, 30)}${faq.question.length > 30 ? '...' : ''}"`);
     res.json({ message: "FAQ deleted successfully" });
   } catch (error: any) {
     res.status(500).json({ error: "Failed to delete FAQ: " + error.message });
@@ -1552,12 +1618,29 @@ app.get("/api/newsletter", authenticateToken, requireRole(["ADMIN"]), async (req
 app.delete("/api/newsletter/:id", authenticateToken, requireRole(["ADMIN"]), async (req, res) => {
   try {
     const { id } = req.params;
+    const sub = await prisma.newsletterSubscriber.findUnique({ where: { id } });
+    if (!sub) {
+      return res.status(404).json({ error: "Subscriber not found" });
+    }
     await prisma.newsletterSubscriber.delete({
       where: { id }
     });
+    logAdminActivity(req, "NEWSLETTER_UNSUBSCRIBE", `Removed newsletter subscriber: ${sub.email}`);
     res.json({ message: "Subscriber removed successfully" });
   } catch (error: any) {
     res.status(500).json({ error: "Failed to delete subscriber: " + error.message });
+  }
+});
+
+// --- Admin Activity Logs Endpoint ---
+app.get("/api/logs", authenticateToken, requireRole(["ADMIN"]), async (req, res) => {
+  try {
+    const logs = await prisma.activityLog.findMany({
+      orderBy: { createdAt: "desc" }
+    });
+    res.json(logs);
+  } catch (error: any) {
+    res.status(500).json({ error: "Failed to load activity logs: " + error.message });
   }
 });
 

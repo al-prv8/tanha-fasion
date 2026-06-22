@@ -46,10 +46,14 @@ export default function DashboardTab({
   setActiveTab,
   adminName = "অ্যাডমিন"
 }: DashboardTabProps) {
-  // Filter products that are running low on stock (total stock < 5)
+  // Filter products that are running low on stock (any size quantity < 5)
   const lowStockProducts = products.filter(p => {
-    const total = getProductTotalStock(p);
-    return total < 5;
+    try {
+      const sizesObj = JSON.parse(p.sizesJson || "{}");
+      return Object.values(sizesObj).some((qty: any) => Number(qty) < 5);
+    } catch (e) {
+      return false;
+    }
   });
 
   const avgOrderValue = analytics.totalOrders > 0 
@@ -224,16 +228,23 @@ export default function DashboardTab({
                 </div>
               ) : (
                 <div className="flex flex-col gap-3 max-h-[160px] overflow-y-auto pr-1">
-                  {lowStockProducts.slice(0, 3).map((p) => {
-                    const totalStock = getProductTotalStock(p);
+                  {lowStockProducts.slice(0, 4).map((p) => {
+                    let lowSizes: string[] = [];
+                    try {
+                      const sizesObj = JSON.parse(p.sizesJson || "{}");
+                      lowSizes = Object.entries(sizesObj)
+                        .filter(([sz, qty]) => Number(qty) < 5)
+                        .map(([sz, qty]) => `${sz}: ${qty}`);
+                    } catch (e) {}
+
                     return (
                       <div key={p.id} className="flex items-center justify-between bg-secondary/50 p-2.5 rounded-lg border border-border/40 text-xs">
                         <div className="min-w-0 pr-2">
                           <div className="font-bold text-foreground truncate">{p.name}</div>
                           <div className="text-[10px] text-muted-foreground font-mono mt-0.5">SKU: {p.sku}</div>
                         </div>
-                        <span className="bg-primary/10 border border-primary/20 text-primary text-[10px] font-bold px-2 py-0.5 rounded-md flex-shrink-0">
-                          স্টক: {totalStock} টি
+                        <span className="bg-amber-50 border border-amber-250 text-amber-700 text-[10px] font-bold px-2 py-0.5 rounded-md flex-shrink-0">
+                          {lowSizes.join(", ")}
                         </span>
                       </div>
                     );

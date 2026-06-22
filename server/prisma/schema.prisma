@@ -121,6 +121,16 @@ model NewsletterSubscriber {
   createdAt DateTime @default(now())
 }
 
+model ActivityLog {
+  id        String   @id @default(uuid())
+  adminName String
+  email     String
+  action    String
+  details   String
+  createdAt DateTime @default(now())
+}
+
+
 
 
 
