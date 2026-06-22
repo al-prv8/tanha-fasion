@@ -4,6 +4,7 @@ import React from "react";
 import { Home, Grid, Sparkles, ShoppingBag, User } from "lucide-react";
 import { toBanglaNumber } from "@/lib/products";
 import { usePathname, useRouter } from "next/navigation";
+import { useAuth } from "@/lib/auth-context";
 
 interface MobileTabBarProps {
   activeSection: number;
@@ -24,6 +25,7 @@ export default function MobileTabBar({
 }: MobileTabBarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const { user } = useAuth();
 
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0 h-17 bg-background/85 backdrop-blur-md border-t border-ink/10 flex justify-around items-center z-[9999] pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_20px_rgba(42,26,14,0.05)]" aria-label="Mobile Navigation">
@@ -79,10 +81,16 @@ export default function MobileTabBar({
       </button>
       <button 
         className="flex flex-col items-center justify-center gap-1 text-[11px] font-medium text-foreground cursor-pointer p-2 transition-colors duration-300 relative flex-1 bg-transparent border-none"
-        onClick={() => showToast("অ্যাকাউন্ট ফিচারটি শীঘ্রই আসছে!")}
+        onClick={() => {
+          if (user) {
+            router.push("/dashboard");
+          } else {
+            router.push("/login");
+          }
+        }}
       >
         <User className="w-5 h-5" />
-        <span>অ্যাকাউন্ট</span>
+        <span>{user ? "অ্যাকাউন্ট" : "লগইন"}</span>
       </button>
     </nav>
   );

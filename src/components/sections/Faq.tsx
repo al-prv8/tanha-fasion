@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { ChevronDown, MessageSquare } from "lucide-react";
 
 interface FaqProps {
@@ -8,28 +8,20 @@ interface FaqProps {
 }
 
 export default function Faq({ openFaq, setOpenFaq, scrollToSection }: FaqProps) {
-  const faqs = [
-    {
-      q: "পোশাক কত দিনে পৌঁছাবে?",
-      a: "ঢাকার ভেতরে ১–২ কর্মদিবস, ঢাকার বাইরে সারা দেশে ৩–৫ কর্মদিবসের মধ্যে পৌঁছে যাবে। আমরা অত্যন্ত নির্ভরযোগ্য কুরিয়ার পার্টনারদের মাধ্যমে হোম ডেলিভারি নিশ্চিত করি।",
-    },
-    {
-      q: "পোশাকের কাপড় কোথা থেকে আসে?",
-      a: "আমাদের সংগৃহীত প্রতিটি পোশাকের মূল ঐতিহ্যবাহী কাপড় সরাসরি বাংলার প্রান্তিক তাঁতিদের নিজস্ব হস্তচালিত তাঁতে বোনা। রূপগঞ্জ, টাঙ্গাইল, কুমিল্লা ও সিরাজগঞ্জ থেকে আমরা এগুলো সংগ্রহ করি।",
-    },
-    {
-      q: "ফেরত বা পরিবর্তনের নিয়ম কী?",
-      a: "পণ্য হাতে পাওয়ার ৭ দিনের মধ্যে অক্ষত অবস্থায় ফেরত বা সাইজ পরিবর্তন করা যাবে — কোনো অতিরিক্ত ডেলিভারি চার্জ বা ঝামেলা ছাড়াই।",
-    },
-    {
-      q: "মাপ নিয়ে সমস্যা হলে কী করব?",
-      a: "আমাদের প্রতিটা প্রোডাক্টের সাথে বিস্তারিত সাইজ গাইড রয়েছে। এছাড়াও মাপ নিয়ে কোনো সংশয় থাকলে সরাসরি আমাদের ফেসবুক পেজে বা হোয়াটসঅ্যাপে যোগাযোগ করুন — আমাদের প্রতিনিধি আপনাকে সঠিক সাইজ নির্বাচন করতে সাহায্য করবেন।",
-    },
-    {
-      q: "ক্যাশ অন ডেলিভারি আছে কি?",
-      a: "হ্যাঁ, সারা বাংলাদেশে কোনো এডভান্স পেমেন্ট ছাড়াই শতভাগ ক্যাশ অন ডেলিভারি সুবিধা রয়েছে। এছাড়াও আপনি বিকাশ, নগদ ও যেকোনো ব্যাংকের কার্ডের মাধ্যমে নিরাপদে বিল পরিশোধ করতে পারবেন।",
-    },
-  ];
+  const [faqs, setFaqs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/faqs`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setFaqs(data);
+        }
+      })
+      .catch((err) => console.error("Failed to fetch FAQs:", err))
+      .finally(() => setLoading(false));
+  }, []);
 
   return (
     <section className="w-full bg-zinc-50/50 py-16 md:py-28 border-t border-border/40" id="faq">
@@ -61,40 +53,48 @@ export default function Faq({ openFaq, setOpenFaq, scrollToSection }: FaqProps) 
 
         {/* Right Side Accordions */}
         <div className="space-y-4">
-          {faqs.map((faq, idx) => {
-            const isOpen = openFaq === idx;
-            return (
-              <div 
-                key={idx} 
-                className={`group border rounded-xl overflow-hidden transition-all duration-300 ${
-                  isOpen 
-                    ? "bg-background border-primary/30 shadow-sm" 
-                    : "bg-background border-border/60 hover:border-foreground/20"
-                }`}
-              >
-                <button 
-                  className="flex justify-between items-center w-full px-5 py-4 bg-transparent border-none cursor-pointer text-left transition-colors" 
-                  onClick={() => setOpenFaq(isOpen ? null : idx)}
-                >
-                  <span className={`text-xs md:text-sm font-bold transition-colors duration-200 pr-4 ${isOpen ? "text-primary" : "text-foreground group-hover:text-primary"}`}>
-                    {faq.q}
-                  </span>
-                  <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-300 ${isOpen ? "bg-primary text-primary-foreground rotate-180" : "bg-secondary text-muted-foreground group-hover:bg-foreground/5 group-hover:text-foreground"}`}>
-                    <ChevronDown size={14} />
-                  </div>
-                </button>
+          {loading ? (
+            <div className="text-center py-12 text-xs text-muted-foreground font-semibold">এফএকিউ লোড হচ্ছে...</div>
+          ) : faqs.length === 0 ? (
+            <div className="text-center py-16 border border-dashed border-border rounded-2xl bg-zinc-50/50 text-xs text-muted-foreground">
+              কোনো প্রশ্ন পাওয়া যায়নি।
+            </div>
+          ) : (
+            faqs.map((faq, idx) => {
+              const isOpen = openFaq === idx;
+              return (
                 <div 
-                  className={`transition-all duration-300 ease-in-out overflow-hidden ${
-                    isOpen ? "max-h-[300px] border-t border-border/40" : "max-h-0"
+                  key={faq.id || idx} 
+                  className={`group border rounded-xl overflow-hidden transition-all duration-300 ${
+                    isOpen 
+                      ? "bg-background border-primary/30 shadow-sm" 
+                      : "bg-background border-border/60 hover:border-foreground/20"
                   }`}
                 >
-                  <div className="p-5 text-muted-foreground text-xs leading-relaxed bg-zinc-50/30">
-                    {faq.a}
+                  <button 
+                    className="flex justify-between items-center w-full px-5 py-4 bg-transparent border-none cursor-pointer text-left transition-colors" 
+                    onClick={() => setOpenFaq(isOpen ? null : idx)}
+                  >
+                    <span className={`text-xs md:text-sm font-bold transition-colors duration-200 pr-4 ${isOpen ? "text-primary" : "text-foreground group-hover:text-primary"}`}>
+                      {faq.question}
+                    </span>
+                    <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-300 ${isOpen ? "bg-primary text-primary-foreground rotate-180" : "bg-secondary text-muted-foreground group-hover:bg-foreground/5 group-hover:text-foreground"}`}>
+                      <ChevronDown size={14} />
+                    </div>
+                  </button>
+                  <div 
+                    className={`transition-all duration-300 ease-in-out overflow-hidden ${
+                      isOpen ? "max-h-[300px] border-t border-border/40" : "max-h-0"
+                    }`}
+                  >
+                    <div className="p-5 text-muted-foreground text-xs leading-relaxed bg-zinc-50/30 whitespace-pre-line">
+                      {faq.answer}
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })
+          )}
         </div>
       </div>
     </section>

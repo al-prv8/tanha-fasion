@@ -1,12 +1,13 @@
 "use client";
-
-import React from "react";
+ 
+import React, { useState, useEffect } from "react";
 import { Search, User, ShoppingBag, Menu } from "lucide-react";
 import Logo from "./Logo";
 import { toBanglaNumber } from "@/lib/products";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
- 
+import { useAuth } from "@/lib/auth-context";
+
 interface NavbarProps {
   cartCount: number;
   onOpenMenu: () => void;
@@ -15,7 +16,7 @@ interface NavbarProps {
   searchQuery: string;
   setSearchQuery: (query: string) => void;
 }
- 
+
 export default function Navbar({
   cartCount,
   onOpenMenu,
@@ -26,15 +27,39 @@ export default function Navbar({
 }: NavbarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const { user } = useAuth();
 
-  const categories = [
-    { name: "সুতি থ্রি-পিস", sectionIndex: 2 },
-    { name: "জর্জেট থ্রি-পিস", sectionIndex: 3 },
-    { name: "লিলেন থ্রি-পিস", sectionIndex: 4 },
-    { name: "ক্যাজুয়াল আবায়া", sectionIndex: 5 },
-    { name: "উৎসবের বোরকা", sectionIndex: 6 },
-    { name: "কম্বো সেট", sectionIndex: 7 },
-  ];
+  const [categories, setCategories] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/categories`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setCategories(data.map((c, idx) => ({ name: c.name, sectionIndex: idx + 2 })));
+        } else {
+          setCategories([
+            { name: "সুতি থ্রি-পিস", sectionIndex: 2 },
+            { name: "জর্জেট থ্রি-পিস", sectionIndex: 3 },
+            { name: "লিলেন থ্রি-পিস", sectionIndex: 4 },
+            { name: "ক্যাজুয়াল আবায়া", sectionIndex: 5 },
+            { name: "উৎসবের বোরকা", sectionIndex: 6 },
+            { name: "কম্বো সেট", sectionIndex: 7 },
+          ]);
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to load categories in Navbar, using fallback:", err);
+        setCategories([
+          { name: "সুতি থ্রি-পিস", sectionIndex: 2 },
+          { name: "জর্জেট থ্রি-পিস", sectionIndex: 3 },
+          { name: "লিলেন থ্রি-পিস", sectionIndex: 4 },
+          { name: "ক্যাজুয়াল আবায়া", sectionIndex: 5 },
+          { name: "উৎসবের বোরকা", sectionIndex: 6 },
+          { name: "কম্বো সেট", sectionIndex: 7 },
+        ]);
+      });
+  }, []);
 
   return (
     <header className="sticky top-0 z-[1000] w-full bg-background/95 backdrop-blur-md border-b border-border shadow-sm">
@@ -77,10 +102,23 @@ export default function Navbar({
 
         {/* Action Buttons */}
         <div className="flex items-center gap-4">
-          <button className="hidden sm:flex items-center gap-1.5 text-sm font-medium text-foreground hover:text-primary transition-colors cursor-pointer">
-            <User size={18} />
-            <span>লগইন</span>
-          </button>
+          {user ? (
+            <Link 
+              href="/dashboard"
+              className="hidden sm:flex items-center gap-1.5 text-sm font-medium text-foreground hover:text-primary transition-colors no-underline cursor-pointer"
+            >
+              <User size={18} />
+              <span>{user.name.split(" ")[0]}</span>
+            </Link>
+          ) : (
+            <Link 
+              href="/login"
+              className="hidden sm:flex items-center gap-1.5 text-sm font-medium text-foreground hover:text-primary transition-colors no-underline cursor-pointer"
+            >
+              <User size={18} />
+              <span>লগইন</span>
+            </Link>
+          )}
           
           <button
             className="flex items-center gap-2 border border-border py-2 px-4 rounded-full text-sm font-medium bg-transparent text-foreground hover:bg-secondary cursor-pointer transition-all duration-300 relative"
@@ -138,6 +176,15 @@ export default function Navbar({
               >
                 শোরুম আউটলেট
                 <span className={`absolute bottom-0 left-0 w-full h-[1.5px] bg-primary transition-transform duration-300 origin-left ${pathname === "/showroom" ? "scale-x-100" : "scale-x-0 group-hover:scale-x-100"}`} />
+              </Link>
+            </li>
+            <li>
+              <Link 
+                href="/track"
+                className={`no-underline hover:text-primary text-xs md:text-sm font-bold transition-colors duration-300 relative pb-1 group cursor-pointer ${pathname === "/track" ? "text-primary font-black" : "text-foreground"}`}
+              >
+                অর্ডার ট্র্যাকিং
+                <span className={`absolute bottom-0 left-0 w-full h-[1.5px] bg-primary transition-transform duration-300 origin-left ${pathname === "/track" ? "scale-x-100" : "scale-x-0 group-hover:scale-x-100"}`} />
               </Link>
             </li>
             

@@ -97,7 +97,7 @@ export default function ProductDetailClient({ product }: { product: Product }) {
 
   // Load reviews dynamically from the Express API
   useEffect(() => {
-    fetch(`http://localhost:5000/api/reviews/${product.id}`)
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/reviews/${product.id}`)
       .then((res) => res.json())
       .then((data) => {
         if (data && data.length > 0) {
@@ -207,7 +207,7 @@ export default function ProductDetailClient({ product }: { product: Product }) {
       comment: newReviewComment.trim()
     };
 
-    fetch("http://localhost:5000/api/reviews", {
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/reviews`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json"

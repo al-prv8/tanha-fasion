@@ -1,12 +1,81 @@
-import React from "react";
+"use client";
+
+import React, { useState, useEffect } from "react";
 import { Phone, Mail, MapPin, Facebook, Youtube, Send, ArrowRight } from "lucide-react";
 import Logo from "../layout/Logo";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 
 interface CtaProps {
   scrollToSection: (index: number) => void;
 }
 
 export default function Cta({ scrollToSection }: CtaProps) {
+  const [categories, setCategories] = useState<any[]>([]);
+  const pathname = usePathname();
+  const router = useRouter();
+
+  const [newsletterEmail, setNewsletterEmail] = useState("");
+  const [subscribeStatus, setSubscribeStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [errorMessage, setErrorMessage] = useState("");
+
+  const handleSubscribe = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newsletterEmail.trim()) return;
+
+    setSubscribeStatus("loading");
+    setErrorMessage("");
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/newsletter/subscribe`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: newsletterEmail.trim() })
+      });
+
+      if (res.ok) {
+        setSubscribeStatus("success");
+        setNewsletterEmail("");
+      } else {
+        const data = await res.json();
+        setSubscribeStatus("error");
+        setErrorMessage(data.error || "নিউজলেটার সাবস্ক্রিপশন ব্যর্থ হয়েছে।");
+      }
+    } catch (err) {
+      console.error(err);
+      setSubscribeStatus("error");
+      setErrorMessage("সার্ভারের সাথে সংযোগ স্থাপন করা যাচ্ছে না।");
+    }
+  };
+
+  useEffect(() => {
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/categories`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setCategories(data.map((c, idx) => ({ name: c.name, sectionIndex: idx + 2 })));
+        } else {
+          setCategories([
+            { name: "সুতি থ্রি-পিস", sectionIndex: 2 },
+            { name: "জর্জেট থ্রি-পিস", sectionIndex: 3 },
+            { name: "লিলেন থ্রি-পিস", sectionIndex: 4 },
+            { name: "ক্যাজুয়াল আবায়া", sectionIndex: 5 },
+            { name: "উৎসবের বোরকা", sectionIndex: 6 },
+            { name: "বিশেষ কম্বো সেট", sectionIndex: 7 }
+          ]);
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to load categories in Cta footer, using fallback:", err);
+        setCategories([
+          { name: "সুতি থ্রি-পিস", sectionIndex: 2 },
+          { name: "জর্জেট থ্রি-পিস", sectionIndex: 3 },
+          { name: "লিলেন থ্রি-পিস", sectionIndex: 4 },
+          { name: "ক্যাজুয়াল আবায়া", sectionIndex: 5 },
+          { name: "উৎসবের বোরকা", sectionIndex: 6 },
+          { name: "বিশেষ কম্বো সেট", sectionIndex: 7 }
+        ]);
+      });
+  }, []);
   return (
     <>
       {/* LIGHT PREMIUM NEWSLETTER SECTION (White Background) */}
@@ -32,7 +101,7 @@ export default function Cta({ scrollToSection }: CtaProps) {
 
           <div className="w-full">
             <form 
-              onSubmit={(e) => e.preventDefault()} 
+              onSubmit={handleSubscribe} 
               className="bg-zinc-50 border border-border/80 p-5 md:p-8 rounded-2xl shadow-sm space-y-4 w-full"
             >
               <div className="text-[10px] md:text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1 block text-center lg:text-left">
@@ -43,19 +112,33 @@ export default function Cta({ scrollToSection }: CtaProps) {
                   <input
                     type="email"
                     required
+                    value={newsletterEmail}
+                    onChange={(e) => setNewsletterEmail(e.target.value)}
+                    disabled={subscribeStatus === "loading"}
                     placeholder="আপনার ইমেল এড্রেস"
-                    className="w-full bg-background border border-border py-3 px-4 pr-12 rounded-xl text-xs outline-none text-foreground placeholder-muted-foreground/60 focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all"
+                    className="w-full bg-background border border-border py-3 px-4 pr-12 rounded-xl text-xs outline-none text-foreground placeholder-muted-foreground/60 focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all disabled:opacity-50"
                   />
                   <Mail className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={14} />
                 </div>
                 <button
                   type="submit"
-                  className="bg-primary hover:bg-primary/95 text-white py-3 px-6 rounded-xl text-[10px] font-bold uppercase tracking-wider cursor-pointer transition-all duration-300 flex items-center justify-center gap-2 shadow-sm hover:shadow-md active:scale-95 border-none"
+                  disabled={subscribeStatus === "loading"}
+                  className="bg-primary hover:bg-primary/95 text-white py-3 px-6 rounded-xl text-[10px] font-bold uppercase tracking-wider cursor-pointer transition-all duration-300 flex items-center justify-center gap-2 shadow-sm hover:shadow-md active:scale-95 border-none disabled:opacity-50"
                 >
-                  <span>যুক্ত হোন</span>
+                  <span>{subscribeStatus === "loading" ? "যুক্ত করা হচ্ছে..." : "যুক্ত হোন"}</span>
                   <Send size={10} />
                 </button>
               </div>
+              {subscribeStatus === "success" && (
+                <p className="text-[10px] text-emerald-600 font-bold mt-1 text-center lg:text-left">
+                  আপনার ইমেইলটি সফলভাবে নিউজলেটারে যুক্ত করা হয়েছে!
+                </p>
+              )}
+              {subscribeStatus === "error" && (
+                <p className="text-[10px] text-rose-600 font-bold mt-1 text-center lg:text-left">
+                  {errorMessage}
+                </p>
+              )}
               <p className="text-[9px] text-muted-foreground/75 text-center lg:text-left mt-1">
                 * আমরা কোনো স্প্যাম মেইল পাঠাবো না এবং যেকোনো সময় আনসাবস্ক্রাইব করতে পারবেন।
               </p>
@@ -97,26 +180,25 @@ export default function Cta({ scrollToSection }: CtaProps) {
               </a>
             </div>
           </div>
-
           {/* Quick links: Categories - 1 column on Mobile, Left-aligned */}
           <div className="col-span-1 flex flex-col items-start text-left space-y-4">
             <h4 className="text-foreground text-xs uppercase tracking-[0.2em] font-bold relative pb-2 after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-6 after:h-0.5 after:bg-primary">
               পোশাক ক্যাটাগরি
             </h4>
             <ul className="list-none p-0 m-0 space-y-2.5 flex flex-col items-start">
-              {[
-                { name: "সুতি থ্রি-পিস", target: 2 },
-                { name: "জর্জেট থ্রি-পিস", target: 3 },
-                { name: "লিলেন থ্রি-পিস", target: 4 },
-                { name: "ক্যাজুয়াল আবায়া", target: 5 },
-                { name: "উৎসবের বোরকা", target: 6 },
-                { name: "বিশেষ কম্বো সেট", target: 7 }
-              ].map((cat) => (
+              {categories.map((cat) => (
                 <li key={cat.name}>
                   <a
-                    href={`#category-${cat.target}`}
+                    href={`#category-${cat.sectionIndex}`}
                     className="text-muted-foreground hover:text-primary text-xs md:text-sm no-underline transition-all duration-200 flex items-center gap-1.5 group"
-                    onClick={(e) => { e.preventDefault(); scrollToSection(cat.target); }}
+                    onClick={(e) => { 
+                      e.preventDefault(); 
+                      if (pathname === "/") {
+                        scrollToSection(cat.sectionIndex);
+                      } else {
+                        router.push(`/?sec=${cat.sectionIndex}`);
+                      }
+                    }}
                   >
                     <ArrowRight size={10} className="hidden lg:inline-block opacity-0 -ml-3 group-hover:opacity-100 group-hover:ml-0 group-hover:text-primary transition-all duration-200" />
                     <span>{cat.name}</span>
@@ -132,27 +214,30 @@ export default function Cta({ scrollToSection }: CtaProps) {
               গ্রাহক সেবা
             </h4>
             <ul className="list-none p-0 m-0 space-y-2.5 flex flex-col items-start">
+              <li>
+                <Link
+                  href="/track"
+                  className="text-primary hover:text-primary/80 text-xs md:text-sm no-underline font-extrabold transition-all duration-200 flex items-center gap-1.5 group"
+                >
+                  <ArrowRight size={10} className="hidden lg:inline-block opacity-0 -ml-3 group-hover:opacity-100 group-hover:ml-0 group-hover:text-primary transition-all duration-200" />
+                  <span>অর্ডার ট্র্যাক করুন (নতুন)</span>
+                </Link>
+              </li>
               {[
-                { name: "আমাদের সম্পর্কে", target: 8, isScroll: true },
-                { name: "যোগাযোগ করুন", target: 8, isScroll: true },
-                { name: "গোপনীয়তা নীতি", target: 0, isScroll: false },
-                { name: "শর্তাবলী ও নিয়ম", target: 0, isScroll: false },
-                { name: "রিটার্ন ও রিফান্ড পলিসি", target: 0, isScroll: false }
+                { name: "শোরুম আউটলেট", href: "/showroom" },
+                { name: "যোগাযোগ করুন", href: "/contact" },
+                { name: "গোপনীয়তা নীতি", href: "/privacy-policy" },
+                { name: "শর্তাবলী ও নিয়ম", href: "/terms-conditions" },
+                { name: "রিটার্ন ও রিফান্ড পলিসি", href: "/refund-policy" }
               ].map((link) => (
                 <li key={link.name}>
-                  <a 
-                    href={link.isScroll ? "#contact" : "#"} 
+                  <Link 
+                    href={link.href} 
                     className="text-muted-foreground hover:text-primary text-xs md:text-sm no-underline transition-all duration-200 flex items-center gap-1.5 group"
-                    onClick={(e) => { 
-                      if (link.isScroll) {
-                        e.preventDefault(); 
-                        scrollToSection(link.target); 
-                      }
-                    }}
                   >
                     <ArrowRight size={10} className="hidden lg:inline-block opacity-0 -ml-3 group-hover:opacity-100 group-hover:ml-0 group-hover:text-primary transition-all duration-200" />
                     <span>{link.name}</span>
-                  </a>
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -211,9 +296,15 @@ export default function Cta({ scrollToSection }: CtaProps) {
         <div className="border-t border-border/40 pt-8 mt-8">
           <div className="max-w-[1440px] mx-auto px-4 md:px-12 flex flex-col sm:flex-row justify-between items-center gap-4 text-xs text-muted-foreground text-center sm:text-left">
             <div>© ২০২৬ তানহা ফ্যাশন। সর্বস্বত্ব সংরক্ষিত।</div>
-            <div className="flex gap-1.5 items-center text-[10px] uppercase font-bold tracking-wider text-muted-foreground/45">
-              <span>Made with premium quality fabrics</span>
-              <span className="text-primary">✦</span>
+            <div className="text-[10px] uppercase font-bold tracking-wider">
+              <a
+                href="https://wa.me/8801600086773"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-muted-foreground/45 hover:text-primary transition-colors no-underline cursor-pointer"
+              >
+                Developed by Al Mamun Sikder
+              </a>
             </div>
           </div>
         </div>

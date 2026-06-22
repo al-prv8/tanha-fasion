@@ -13,6 +13,8 @@ interface CategoryShowcaseProps {
   addToCart: (product: Product, size: string) => void;
   showToast: (msg: string) => void;
   sectionId: string;
+  bannerSubtitle?: string;
+  bannerDescription?: string;
 }
 
 export default function CategoryShowcase({
@@ -24,6 +26,8 @@ export default function CategoryShowcase({
   addToCart,
   showToast,
   sectionId,
+  bannerSubtitle,
+  bannerDescription,
 }: CategoryShowcaseProps) {
   const [selectedSizes, setSelectedSizes] = useState<{ [productId: string]: string }>({});
   const router = useRouter();
@@ -50,20 +54,20 @@ export default function CategoryShowcase({
       {/* FULL WIDTH CATEGORY BANNER */}
       <div className="relative w-full h-[180px] sm:h-[220px] md:h-[260px] lg:h-[300px] overflow-hidden rounded-md mb-8 shadow-sm">
         <img
-          src={bannerImg.src}
+          src={bannerImg.src || bannerImg}
           alt={title}
           className="w-full h-full object-cover"
         />
         {/* Dark overlay & Text details */}
         <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/30 to-transparent flex flex-col justify-center px-6 sm:px-12 md:px-16 text-white">
           <span className="text-xs md:text-sm font-semibold text-primary uppercase tracking-[0.2em] mb-1">
-            EXQUISITE COLLECTION
+            {bannerSubtitle || "EXQUISITE COLLECTION"}
           </span>
           <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold tracking-wider mb-2 font-display">
             {englishTitle}
           </h2>
           <p className="text-xs sm:text-sm md:text-base text-zinc-200 opacity-90 max-w-md mb-0">
-            {title} — নতুন এবং আকর্ষণীয় ডিজাইনের চমৎকার প্রিমিয়াম সংগ্রহ।
+            {bannerDescription || `${title} — নতুন এবং আকর্ষণীয় ডিজাইনের চমৎকার প্রিমিয়াম সংগ্রহ।`}
           </p>
         </div>
       </div>

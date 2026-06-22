@@ -6,6 +6,7 @@ import { useState, useEffect } from "react";
 import { useCart } from "@/lib/cart-context";
 import { toBanglaNumber, formatBanglaPriceWithCommas } from "@/lib/products";
 import { ChevronRight } from "lucide-react";
+import { useAuth } from "@/lib/auth-context";
 
 // Layout components
 import Navbar from "@/components/layout/Navbar";
@@ -18,6 +19,7 @@ import ToastNotification from "@/components/overlays/ToastNotification";
 
 export default function CheckoutClient() {
   const router = useRouter();
+  const { user } = useAuth();
   const {
     items,
     subtotal,
@@ -94,6 +96,18 @@ export default function CheckoutClient() {
     }
   }, [items, orderSuccess, router]);
 
+  // Pre-fill fields if user is logged in
+  useEffect(() => {
+    if (user) {
+      setName(user.name || "");
+      setPhone(user.phone || "");
+      setEmail(user.email || "");
+      setAddress(user.address || "");
+      setCity(user.city || "Dhaka");
+      setPostcode(user.postcode || "");
+    }
+  }, [user]);
+
   const validateForm = () => {
     const newErrors: { [key: string]: string } = {};
 
@@ -167,12 +181,13 @@ export default function CheckoutClient() {
       discount: discount
     };
 
-    fetch("http://localhost:5000/api/orders", {
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/orders`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
       },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
+      credentials: "include"
     })
       .then(async (res) => {
         if (!res.ok) {
@@ -706,6 +721,15 @@ export default function CheckoutClient() {
           <h1 className="text-2xl sm:text-3xl font-extrabold font-display text-foreground">চেকআউট করুন</h1>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">অনুগ্রহ করে নিচের ডেলিভারি ও পেমেন্ট ফর্মটি পূরণ করে আপনার অর্ডারটি সম্পন্ন করুন।</p>
         </div>
+
+        {!user && (
+          <div className="bg-secondary/30 border border-border/80 p-4 rounded-xl mb-6 text-xs font-semibold text-foreground flex items-center justify-between gap-4">
+            <span>দ্রুত চেকআউট করতে চান? আপনার ইনফো দিয়ে অটো-ফিল করতে লগইন করুন।</span>
+            <Link href="/login?redirect=/checkout" className="text-primary font-bold hover:underline no-underline whitespace-nowrap">
+              লগইন করুন →
+            </Link>
+          </div>
+        )}
 
 
         <form onSubmit={handlePlaceOrder} className="checkout-grid">

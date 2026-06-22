@@ -93,7 +93,7 @@ function CategoriesContent() {
     document.documentElement.classList.remove("dark");
 
     // Fetch Categories
-    fetch("http://localhost:5000/api/categories")
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/categories`)
       .then((res) => res.json())
       .then((data) => {
         if (data && data.length > 0) {
@@ -107,7 +107,7 @@ function CategoriesContent() {
       .catch((err) => console.error("Error fetching categories:", err));
 
     // Fetch Products
-    fetch("http://localhost:5000/api/products")
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/products`)
       .then((res) => res.json())
       .then((data) => {
         if (data && data.length > 0) {

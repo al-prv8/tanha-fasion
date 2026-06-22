@@ -136,10 +136,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!cleanCode) return { success: false, message: "দয়া করে কুপন কোড লিখুন।" };
 
     try {
-      const res = await fetch("http://localhost:5000/api/coupons/apply", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/coupons/apply`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code: cleanCode, subtotal })
+        body: JSON.stringify({ code: cleanCode, subtotal }),
+        credentials: "include"
       });
 
       if (!res.ok) {

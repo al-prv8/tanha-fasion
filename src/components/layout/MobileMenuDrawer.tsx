@@ -1,4 +1,6 @@
-import React from "react";
+"use client";
+
+import React, { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
@@ -19,6 +21,38 @@ export default function MobileMenuDrawer({
   const pathname = usePathname();
   const router = useRouter();
 
+  const [categories, setCategories] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/categories`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setCategories(data.map((c, idx) => ({ label: c.name, index: idx + 2 })));
+        } else {
+          setCategories([
+            { label: "সুতি থ্রি-পিস", index: 2 },
+            { label: "জর্জেট থ্রি-পিস", index: 3 },
+            { label: "লিলেন থ্রি-পিস", index: 4 },
+            { label: "ক্যাজুয়াল আবায়া", index: 5 },
+            { label: "উৎসবের বোরকা", index: 6 },
+            { label: "বিশেষ কম্বো", index: 7 },
+          ]);
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to load categories in MobileMenuDrawer, using fallback:", err);
+        setCategories([
+          { label: "সুতি থ্রি-পিস", index: 2 },
+          { label: "জর্জেট থ্রি-পিস", index: 3 },
+          { label: "লিলেন থ্রি-পিস", index: 4 },
+          { label: "ক্যাজুয়াল আবায়া", index: 5 },
+          { label: "উৎসবের বোরকা", index: 6 },
+          { label: "বিশেষ কম্বো", index: 7 },
+        ]);
+      });
+  }, []);
+
   const handleLinkClick = (e: React.MouseEvent, index: number) => {
     e.preventDefault();
     if (pathname === "/") {
@@ -33,13 +67,9 @@ export default function MobileMenuDrawer({
     { label: "হোম", index: 0, href: "/" },
     { label: "সব পোশাক", href: "/categories" },
     { label: "শোরুম আউটলেট", href: "/showroom" },
-    { label: "সুতি থ্রি-পিস", index: 2 },
-    { label: "জর্জেট থ্রি-পিস", index: 3 },
-    { label: "লিলেন থ্রি-পিস", index: 4 },
-    { label: "ক্যাজুয়াল আবায়া", index: 5 },
-    { label: "উৎসবের বোরকা", index: 6 },
-    { label: "বিশেষ কম্বো", index: 7 },
-    { label: "জিজ্ঞাসা", index: 8 },
+    { label: "অর্ডার ট্র্যাকিং", href: "/track" },
+    ...categories,
+    { label: "জিজ্ঞাসা", index: categories.length + 2 },
   ];
 
   return (

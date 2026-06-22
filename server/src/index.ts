@@ -5,11 +5,16 @@ import path from "path";
 import fs from "fs";
 import multer from "multer";
 import prisma from "./db";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import cookieParser from "cookie-parser";
+import rateLimit from "express-rate-limit";
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+const JWT_SECRET = process.env.JWT_SECRET || "tanha-fashion-jwt-secret-key-123!";
 
 // Ensure uploads folder exists
 const UPLOADS_DIR = path.join(process.cwd(), "uploads");
@@ -41,12 +46,401 @@ const upload = multer({
   }
 });
 
+const allowedOrigins = [
+  "http://localhost:3000",
+  process.env.FRONTEND_URL
+].filter(Boolean);
+
 app.use(cors({
-  origin: true, // Dynamically allow request origin in local dev
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) === -1 && process.env.NODE_ENV === "production") {
+      const msg = "The CORS policy for this site does not allow access from the specified Origin.";
+      return callback(new Error(msg), false);
+    }
+    return callback(null, true);
+  },
   credentials: true
 }));
+
+app.use(cookieParser());
 app.use(express.json());
+
+// Rate Limiting Middlewares
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "অতিরিক্ত রিকোয়েস্ট করা হয়েছে, অনুগ্রহ করে ১৫ মিনিট পর আবার চেষ্টা করুন।" }
+});
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "অতিরিক্ত লগইন চেষ্টার কারণে সাময়িকভাবে ব্লক করা হয়েছে, অনুগ্রহ করে ১৫ মিনিট পর আবার চেষ্টা করুন।" }
+});
+
+app.use("/api/auth/login", authLimiter);
+app.use("/api/", apiLimiter);
+
 app.use("/uploads", express.static(UPLOADS_DIR));
+
+// Authentication Middlewares
+const authenticateToken = (req: any, res: any, next: any) => {
+  const token = req.cookies.token;
+  if (!token) {
+    return res.status(401).json({ error: "অননুমোদিত প্রবেশ। দয়া করে লগইন করুন।" });
+  }
+
+  try {
+    const verified = jwt.verify(token, JWT_SECRET) as any;
+    req.user = verified;
+    next();
+  } catch (err) {
+    res.clearCookie("token");
+    return res.status(401).json({ error: "সেশন শেষ হয়েছে, আবার লগইন করুন।" });
+  }
+};
+
+const requireRole = (roles: string[]) => {
+  return (req: any, res: any, next: any) => {
+    if (!req.user) {
+      return res.status(401).json({ error: "অননুমোদিত প্রবেশ।" });
+    }
+    if (!roles.includes(req.user.role)) {
+      return res.status(403).json({ error: "আপনার এই সুবিধা ব্যবহারের অনুমতি নেই।" });
+    }
+    next();
+  };
+};
+
+// --- Authentication Endpoints ---
+
+// A. Register Customer
+app.post("/api/auth/register", async (req, res) => {
+  try {
+    const { email, password, name, phone } = req.body;
+    if (!email || !password || !name) {
+      return res.status(400).json({ error: "নাম, ইমেইল এবং পাসওয়ার্ড আবশ্যক।" });
+    }
+
+    const existing = await prisma.user.findUnique({ where: { email: email.toLowerCase().trim() } });
+    if (existing) {
+      return res.status(400).json({ error: "এই ইমেইল দিয়ে ইতিমধ্যে অ্যাকাউন্ট তৈরি করা আছে।" });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const user = await prisma.user.create({
+      data: {
+        email: email.toLowerCase().trim(),
+        password: hashedPassword,
+        name: name.trim(),
+        phone: phone ? phone.trim() : null,
+        role: "CUSTOMER"
+      }
+    });
+
+    res.status(201).json({
+      message: "অ্যাকাউন্ট সফলভাবে তৈরি হয়েছে।",
+      user: { id: user.id, email: user.email, name: user.name, role: user.role }
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: "নিবন্ধন ব্যর্থ হয়েছে: " + err.message });
+  }
+});
+
+// B. Login (Issues JWT Cookie)
+app.post("/api/auth/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ error: "ইমেইল এবং পাসওয়ার্ড আবশ্যক।" });
+    }
+
+    const user = await prisma.user.findUnique({ where: { email: email.toLowerCase().trim() } });
+    if (!user) {
+      return res.status(400).json({ error: "ভুল ইমেইল বা পাসওয়ার্ড।" });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ error: "ভুল ইমেইল বা পাসওয়ার্ড।" });
+    }
+
+    // Sign token
+    const token = jwt.sign(
+      { id: user.id, email: user.email, role: user.role, name: user.name },
+      JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    // Set cookie
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+    });
+
+    res.json({
+      message: "লগইন সফল হয়েছে।",
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        phone: user.phone,
+        address: user.address,
+        city: user.city,
+        postcode: user.postcode
+      }
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: "লগইন ব্যর্থ হয়েছে: " + err.message });
+  }
+});
+
+// C. Logout (Clears JWT Cookie)
+app.post("/api/auth/logout", (req, res) => {
+  res.clearCookie("token");
+  res.json({ message: "লগআউট সফল হয়েছে।" });
+});
+
+// D. Get Current User Session context
+app.get("/api/auth/me", async (req, res) => {
+  const token = req.cookies.token;
+  if (!token) {
+    return res.status(401).json({ error: "কোনো সচল সেশন পাওয়া যায়নি।" });
+  }
+
+  try {
+    const verified = jwt.verify(token, JWT_SECRET) as any;
+    // Fetch fresh user role from database
+    const user = await prisma.user.findUnique({ where: { id: verified.id } });
+    if (!user) {
+      res.clearCookie("token");
+      return res.status(401).json({ error: "ইউজার পাওয়া যায়নি।" });
+    }
+    res.json({
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        phone: user.phone,
+        address: user.address,
+        city: user.city,
+        postcode: user.postcode
+      }
+    });
+  } catch (err) {
+    res.clearCookie("token");
+    res.status(401).json({ error: "সেশন অবৈধ বা মেয়াদ শেষ হয়েছে।" });
+  }
+});
+
+// E. Update User Profile details & optional password
+app.put("/api/auth/profile", authenticateToken, async (req: any, res: any) => {
+  try {
+    const { name, phone, address, city, postcode, currentPassword, newPassword } = req.body;
+    const userId = req.user.id;
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      return res.status(404).json({ error: "ইউজার পাওয়া যায়নি।" });
+    }
+
+    let updatedPasswordHash = undefined;
+
+    // Handle password update if requested
+    if (newPassword) {
+      if (!currentPassword) {
+        return res.status(400).json({ error: "পাসওয়ার্ড পরিবর্তনের জন্য বর্তমান পাসওয়ার্ডটি আবশ্যক।" });
+      }
+      const isMatch = await bcrypt.compare(currentPassword, user.password);
+      if (!isMatch) {
+        return res.status(400).json({ error: "বর্তমান পাসওয়ার্ডটি সঠিক নয়।" });
+      }
+      updatedPasswordHash = await bcrypt.hash(newPassword, 10);
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        ...(name !== undefined && { name: name.trim() }),
+        ...(phone !== undefined && { phone: phone ? phone.trim() : null }),
+        ...(address !== undefined && { address: address ? address.trim() : null }),
+        ...(city !== undefined && { city: city ? city.trim() : null }),
+        ...(postcode !== undefined && { postcode: postcode ? postcode.trim() : null }),
+        ...(updatedPasswordHash !== undefined && { password: updatedPasswordHash })
+      }
+    });
+
+    res.json({
+      message: "প্রোফাইল সফলভাবে হালনাগাদ করা হয়েছে।",
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        name: updatedUser.name,
+        phone: updatedUser.phone,
+        address: updatedUser.address,
+        city: updatedUser.city,
+        postcode: updatedUser.postcode,
+        role: updatedUser.role
+      }
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: "হালনাগাদ ব্যর্থ হয়েছে: " + err.message });
+  }
+});
+
+// F. Get Customer Orders history
+app.get("/api/orders/my-orders", authenticateToken, async (req: any, res: any) => {
+  try {
+    const userEmail = req.user.email.toLowerCase().trim();
+    const userPhone = req.user.phone ? req.user.phone.trim() : "";
+
+    const orders = await prisma.order.findMany({
+      where: {
+        OR: [
+          { email: { equals: userEmail } },
+          ...(userPhone ? [{ phone: { equals: userPhone } }] : [])
+        ]
+      },
+      include: {
+        items: {
+          include: {
+            product: true
+          }
+        }
+      },
+      orderBy: {
+        createdAt: "desc"
+      }
+    });
+
+    res.json(orders);
+  } catch (err: any) {
+    res.status(500).json({ error: "অর্ডার লোড করতে ব্যর্থ হয়েছে: " + err.message });
+  }
+});
+
+// G. Public Order Tracking (both logged in and guest users)
+app.post("/api/orders/track", async (req, res) => {
+  try {
+    const { orderNumber, contact } = req.body;
+    if (!orderNumber || !contact) {
+      return res.status(400).json({ error: "অর্ডার নম্বর এবং মোবাইল নম্বর/ইমেইল আবশ্যক।" });
+    }
+
+    const cleanOrderNumber = orderNumber.trim().toUpperCase();
+    const cleanContact = contact.trim().toLowerCase();
+
+    // Query order
+    const order = await prisma.order.findUnique({
+      where: { orderNumber: cleanOrderNumber },
+      include: {
+        items: {
+          include: {
+            product: true
+          }
+        }
+      }
+    });
+
+    if (!order) {
+      return res.status(404).json({ error: "দুঃখিত, এই নম্বর দিয়ে কোনো অর্ডার পাওয়া যায়নি।" });
+    }
+
+    // Verify contact matches order phone or email
+    const orderPhone = order.phone.trim();
+    const orderEmail = order.email ? order.email.trim().toLowerCase() : "";
+
+    const contactPhoneNoPrefix = cleanContact.replace(/^(?:\+88|88)?0/, "0");
+    const dbPhoneNoPrefix = orderPhone.replace(/^(?:\+88|88)?0/, "0");
+
+    const phoneMatches = contactPhoneNoPrefix === dbPhoneNoPrefix || cleanContact === orderPhone;
+    const emailMatches = orderEmail && cleanContact === orderEmail;
+
+    if (!phoneMatches && !emailMatches) {
+      return res.status(403).json({ error: "অর্ডারের সাথে প্রদানকৃত ইমেইল বা মোবাইল নম্বরটি মেলেনি।" });
+    }
+
+    res.json(order);
+  } catch (err: any) {
+    res.status(500).json({ error: "অর্ডার ট্র্যাক করতে ব্যর্থ হয়েছে: " + err.message });
+  }
+});
+
+// H. Customer Self-Service Order Cancellation
+app.put("/api/orders/:id/cancel", authenticateToken, async (req: any, res: any) => {
+  try {
+    const { id } = req.params;
+    const userEmail = req.user.email.toLowerCase().trim();
+    const userPhone = req.user.phone ? req.user.phone.trim() : "";
+
+    // Fetch order first to check owner and status
+    const order = await prisma.order.findUnique({
+      where: { id },
+      include: { items: true }
+    });
+
+    if (!order) {
+      return res.status(404).json({ error: "অর্ডারটি পাওয়া যায়নি।" });
+    }
+
+    // Verify ownership: checks email/phone matching logged in user
+    const orderEmail = order.email ? order.email.toLowerCase().trim() : "";
+    const orderPhone = order.phone.trim();
+
+    const emailMatches = orderEmail && orderEmail === userEmail;
+    const phoneMatches = userPhone && orderPhone === userPhone;
+
+    if (!emailMatches && !phoneMatches) {
+      return res.status(403).json({ error: "এই অর্ডারটি বাতিল করার অনুমতি আপনার নেই।" });
+    }
+
+    // Verify order is still PENDING
+    if (order.orderStatus !== "PENDING") {
+      return res.status(400).json({ error: "আপনার অর্ডারটি ইতিমধ্যে প্রসেস করা হয়েছে, তাই এটি বাতিল করা সম্ভব নয়।" });
+    }
+
+    // Restore stock if stock was adjusted
+    if (order.stockAdjusted) {
+      for (const item of order.items) {
+        const prod = await prisma.product.findUnique({ where: { id: item.productId } });
+        if (prod) {
+          const sizes = JSON.parse(prod.sizesJson || "{}");
+          sizes[item.size] = Number(sizes[item.size] || 0) + item.quantity;
+          await prisma.product.update({
+            where: { id: item.productId },
+            data: { sizesJson: JSON.stringify(sizes) }
+          });
+        }
+      }
+    }
+
+    const updatedOrder = await prisma.order.update({
+      where: { id },
+      data: {
+        orderStatus: "CANCELLED",
+        stockAdjusted: false
+      }
+    });
+
+    res.json({
+      message: "অর্ডারটি সফলভাবে বাতিল করা হয়েছে।",
+      order: updatedOrder
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: "অর্ডার বাতিল করতে ব্যর্থ হয়েছে: " + err.message });
+  }
+});
+
+
 
 // 1. Healthcheck Route
 app.get("/api/health", (req, res) => {
@@ -54,7 +448,7 @@ app.get("/api/health", (req, res) => {
 });
 
 // 1.5. Image Upload Endpoint
-app.post("/api/upload", (req, res) => {
+app.post("/api/upload", authenticateToken, requireRole(["ADMIN"]), (req, res) => {
   upload.single("image")(req, res, (err) => {
     if (err) {
       return res.status(400).json({ error: err.message || "ফাইল আপলোড করতে সমস্যা হয়েছে।" });
@@ -72,24 +466,39 @@ app.post("/api/upload", (req, res) => {
 // 2. Seed Database Route
 app.post("/api/seed", async (req, res) => {
   try {
-    // Clear existing reviews, order items, products, categories, and coupons for a clean seed slate
+    // Clear existing reviews, order items, products, categories, coupons, and users for a clean seed slate
     await prisma.review.deleteMany();
     await prisma.orderItem.deleteMany();
     await prisma.product.deleteMany();
     await prisma.category.deleteMany();
     await prisma.coupon.deleteMany();
+    await prisma.user.deleteMany();
+    await prisma.faq.deleteMany();
+    await prisma.announcement.deleteMany();
+
+    // Seed default admin user
+    const adminPasswordHash = await bcrypt.hash("adminpassword123", 10);
+    await prisma.user.create({
+      data: {
+        email: "admin@tanha.com",
+        password: adminPasswordHash,
+        role: "ADMIN",
+        name: "তানহা অ্যাডমিন",
+        phone: "01700000000"
+      }
+    });
 
     // Seed Categories
-    const categoryNames = [
-      "সুতি থ্রি-পিস",
-      "জর্জেট থ্রি-পিস",
-      "লিলেন থ্রি-পিস",
-      "ক্যাজুয়াল আবায়া",
-      "উৎসবের বোরকা",
-      "কম্বো সেট"
+    const defaultCategories = [
+      { name: "সুতি থ্রি-পিস", englishName: "COTTON 3-PIECE", imgUrl: "/assets/cotton_1.png", bannerUrl: "/assets/cotton_3pc_banner.png", order: 1, bannerSubtitle: "EXQUISITE COLLECTION", bannerDescription: "নতুন এবং আকর্ষণীয় ডিজাইনের চমৎকার প্রিমিয়াম সংগ্রহ।" },
+      { name: "জর্জেট থ্রি-পিস", englishName: "GEORGETTE 3-PIECE", imgUrl: "/assets/georgette_1.png", bannerUrl: "/assets/georgette_3pc_banner.png", order: 2, bannerSubtitle: "EXQUISITE COLLECTION", bannerDescription: "নতুন এবং আকর্ষণীয় ডিজাইনের চমৎকার প্রিমিয়াম সংগ্রহ।" },
+      { name: "লিলেন থ্রি-পিস", englishName: "LINEN 3-PIECE", imgUrl: "/assets/linen_1.png", bannerUrl: "/assets/linen_3pc_banner.png", order: 3, bannerSubtitle: "EXQUISITE COLLECTION", bannerDescription: "নতুন এবং আকর্ষণীয় ডিজাইনের চমৎকার প্রিমিয়াম সংগ্রহ।" },
+      { name: "ক্যাজুয়াল আবায়া", englishName: "CASUAL ABAYA", imgUrl: "/assets/casual_abaya_1.png", bannerUrl: "/assets/casual_abaya_banner.png", order: 4, bannerSubtitle: "EXQUISITE COLLECTION", bannerDescription: "নতুন এবং আকর্ষণীয় ডিজাইনের চমৎকার প্রিমিয়াম সংগ্রহ।" },
+      { name: "উৎসবের বোরকা", englishName: "FESTIVE BORKA", imgUrl: "/assets/festive_borka_1.png", bannerUrl: "/assets/festive_borka_banner.png", order: 5, bannerSubtitle: "EXQUISITE COLLECTION", bannerDescription: "নতুন এবং আকর্ষণীয় ডিজাইনের চমৎকার প্রিমিয়াম সংগ্রহ।" },
+      { name: "কম্বো সেট", englishName: "COMBO PACK DETAILS", imgUrl: "/assets/combo_1.png", bannerUrl: "/assets/combo_pack_banner.png", order: 6, bannerSubtitle: "EXQUISITE COLLECTION", bannerDescription: "নতুন এবং আকর্ষণীয় ডিজাইনের চমৎকার প্রিমিয়াম সংগ্রহ।" }
     ];
-    for (const name of categoryNames) {
-      await prisma.category.create({ data: { name } });
+    for (const cat of defaultCategories) {
+      await prisma.category.create({ data: cat });
     }
 
     // Standard list of all 24 catalog products from products.ts
@@ -152,6 +561,51 @@ app.post("/api/seed", async (req, res) => {
       await prisma.coupon.create({ data: c });
     }
 
+    // Seed default FAQs
+    const defaultFaqs = [
+      {
+        question: "পোশাক কত দিনে পৌঁছাবে?",
+        answer: "ঢাকার ভেতরে ১–২ কর্মদিবস, ঢাকার বাইরে সারা দেশে ৩–৫ কর্মদিবসের মধ্যে পৌঁছে যাবে। আমরা অত্যন্ত নির্ভরযোগ্য কুরিয়ার পার্টনারদের মাধ্যমে হোম ডেলিভারি নিশ্চিত করি।",
+        order: 1
+      },
+      {
+        question: "পোশাকের কাপড় কোথা থেকে আসে?",
+        answer: "আমাদের সংগৃহীত প্রতিটি পোশাকের মূল ঐতিহ্যবাহী কাপড় সরাসরি বাংলার প্রান্তিক তাঁতিদের নিজস্ব হস্তচালিত তাঁতে বোনা। রূপগঞ্জ, টাঙ্গাইল, কুমিল্লা ও সিরাজগঞ্জ থেকে আমরা এগুলো সংগ্রহ করি।",
+        order: 2
+      },
+      {
+        question: "ফেরত বা পরিবর্তনের নিয়ম কী?",
+        answer: "পণ্য হাতে পাওয়ার ৭ দিনের মধ্যে অক্ষত অবস্থায় ফেরত বা সাইজ পরিবর্তন করা যাবে — কোনো অতিরিক্ত ডেলিভারি চার্জ বা ঝামেলা ছাড়াই।",
+        order: 3
+      },
+      {
+        question: "মাপ নিয়ে সমস্যা হলে কী করব?",
+        answer: "আমাদের প্রতিটা প্রোডাক্টের সাথে বিস্তারিত সাইজ গাইড রয়েছে। এছাড়াও মাপ নিয়ে কোনো সংশয় থাকলে সরাসরি আমাদের ফেসবুক পেজে বা হোয়াটসঅ্যাপে যোগাযোগ করুন — আমাদের প্রতিনিধি আপনাকে সঠিক সাইজ নির্বাচন করতে সাহায্য করবেন।",
+        order: 4
+      },
+      {
+        question: "ক্যাশ অন ডেলিভারি আছে কি?",
+        answer: "হ্যাঁ, সারা বাংলাদেশে কোনো এডভান্স পেমেন্ট ছাড়াই শতভাগ ক্যাশ অন ডেলিভারি সুবিধা রয়েছে। এছাড়াও আপনি বিকাশ, নগদ ও যেকোনো ব্যাংকের কার্ডের মাধ্যমে নিরাপদে বিল পরিশোধ করতে পারবেন।",
+        order: 5
+      }
+    ];
+    for (const f of defaultFaqs) {
+      await prisma.faq.create({ data: f });
+    }
+
+    // Seed default announcements
+    const defaultAnnouncements = [
+      {
+        text: "🎉 পূজা ও ঈদ সংস্করণ — ২০% ছাড়ের জন্য TANHA20 ব্যবহার করুন!",
+        buttonText: "সংগ্রহ দেখুন →",
+        link: "2",
+        isActive: true
+      }
+    ];
+    for (const ann of defaultAnnouncements) {
+      await prisma.announcement.create({ data: ann });
+    }
+
     res.json({ message: "Seeding complete!", count: seeded.length, products: seeded });
   } catch (error: any) {
     console.error("Seeding Error:", error);
@@ -164,7 +618,7 @@ app.post("/api/seed", async (req, res) => {
 app.get("/api/categories", async (req, res) => {
   try {
     const categories = await prisma.category.findMany({
-      orderBy: { name: "asc" }
+      orderBy: { order: "asc" }
     });
     res.json(categories);
   } catch (error: any) {
@@ -173,9 +627,9 @@ app.get("/api/categories", async (req, res) => {
 });
 
 // B. Create Category
-app.post("/api/categories", async (req, res) => {
+app.post("/api/categories", authenticateToken, requireRole(["ADMIN"]), async (req, res) => {
   try {
-    const { name } = req.body;
+    const { name, englishName, imgUrl, bannerUrl, order, bannerSubtitle, bannerDescription } = req.body;
     if (!name || !name.trim()) {
       return res.status(400).json({ error: "ক্যাটাগরির নাম আবশ্যক।" });
     }
@@ -186,7 +640,15 @@ app.post("/api/categories", async (req, res) => {
       return res.status(400).json({ error: "এই ক্যাটাগরি ইতিমধ্যে যুক্ত আছে।" });
     }
     const category = await prisma.category.create({
-      data: { name: cleanName }
+      data: {
+        name: cleanName,
+        englishName: englishName ? englishName.trim() : null,
+        imgUrl: imgUrl || null,
+        bannerUrl: bannerUrl || null,
+        order: order !== undefined ? Number(order) : 0,
+        bannerSubtitle: bannerSubtitle || null,
+        bannerDescription: bannerDescription || null
+      }
     });
     res.status(201).json(category);
   } catch (error: any) {
@@ -195,36 +657,55 @@ app.post("/api/categories", async (req, res) => {
 });
 
 // C. Update Category
-app.put("/api/categories/:id", async (req, res) => {
+app.put("/api/categories/:id", authenticateToken, requireRole(["ADMIN"]), async (req, res) => {
   try {
     const { id } = req.params;
-    const { name } = req.body;
-    if (!name || !name.trim()) {
-      return res.status(400).json({ error: "ক্যাটাগরির নাম আবশ্যক।" });
-    }
-    const cleanName = name.trim();
+    const { name, englishName, imgUrl, bannerUrl, order, bannerSubtitle, bannerDescription } = req.body;
+
     const category = await prisma.category.findUnique({ where: { id } });
     if (!category) {
       return res.status(404).json({ error: "ক্যাটাগরি পাওয়া যায়নি।" });
     }
-    if (category.name === cleanName) {
-      return res.json(category);
-    }
-    // Check duplicate for new name
-    const existing = await prisma.category.findUnique({ where: { name: cleanName } });
-    if (existing) {
-      return res.status(400).json({ error: "এই নামের ক্যাটাগরি ইতিমধ্যে রয়েছে।" });
-    }
+
+    let nextName = category.name;
     const oldName = category.name;
+
+    if (name !== undefined) {
+      if (!name || !name.trim()) {
+        return res.status(400).json({ error: "ক্যাটাগরির নাম খালি রাখা যাবে না।" });
+      }
+      const cleanName = name.trim();
+      if (cleanName !== category.name) {
+        // Check duplicate for new name
+        const existing = await prisma.category.findUnique({ where: { name: cleanName } });
+        if (existing) {
+          return res.status(400).json({ error: "এই নামের ক্যাটাগরি ইতিমধ্যে রয়েছে।" });
+        }
+        nextName = cleanName;
+      }
+    }
+
     const updated = await prisma.category.update({
       where: { id },
-      data: { name: cleanName }
+      data: {
+        name: nextName,
+        ...(englishName !== undefined && { englishName: englishName ? englishName.trim() : null }),
+        ...(imgUrl !== undefined && { imgUrl: imgUrl || null }),
+        ...(bannerUrl !== undefined && { bannerUrl: bannerUrl || null }),
+        ...(order !== undefined && { order: Number(order) }),
+        ...(bannerSubtitle !== undefined && { bannerSubtitle: bannerSubtitle || null }),
+        ...(bannerDescription !== undefined && { bannerDescription: bannerDescription || null })
+      }
     });
-    // Sync products matching the old category name
-    await prisma.product.updateMany({
-      where: { category: oldName },
-      data: { category: cleanName }
-    });
+
+    // Sync products matching the old category name if the name changed
+    if (nextName !== oldName) {
+      await prisma.product.updateMany({
+        where: { category: oldName },
+        data: { category: nextName }
+      });
+    }
+
     res.json(updated);
   } catch (error: any) {
     res.status(500).json({ error: "Failed to update category: " + error.message });
@@ -232,7 +713,7 @@ app.put("/api/categories/:id", async (req, res) => {
 });
 
 // D. Delete Category
-app.delete("/api/categories/:id", async (req, res) => {
+app.delete("/api/categories/:id", authenticateToken, requireRole(["ADMIN"]), async (req, res) => {
   try {
     const { id } = req.params;
     const category = await prisma.category.findUnique({ where: { id } });
@@ -252,6 +733,92 @@ app.delete("/api/categories/:id", async (req, res) => {
     res.json({ message: "Category deleted successfully" });
   } catch (error: any) {
     res.status(500).json({ error: "Failed to delete category: " + error.message });
+  }
+});
+
+// Announcements API Routes
+// A. List all announcements
+app.get("/api/announcements", async (req, res) => {
+  try {
+    const announcements = await prisma.announcement.findMany({
+      orderBy: { createdAt: "desc" }
+    });
+    res.json(announcements);
+  } catch (error: any) {
+    res.status(500).json({ error: "Failed to load announcements: " + error.message });
+  }
+});
+
+// B. Get active announcements
+app.get("/api/announcements/active", async (req, res) => {
+  try {
+    const announcements = await prisma.announcement.findMany({
+      where: { isActive: true },
+      orderBy: { createdAt: "desc" }
+    });
+    res.json(announcements);
+  } catch (error: any) {
+    res.status(500).json({ error: "Failed to load active announcements: " + error.message });
+  }
+});
+
+// C. Create Announcement
+app.post("/api/announcements", authenticateToken, requireRole(["ADMIN"]), async (req, res) => {
+  try {
+    const { text, buttonText, link, isActive } = req.body;
+    if (!text || !text.trim()) {
+      return res.status(400).json({ error: "ঘোষণার লেখা আবশ্যক।" });
+    }
+    const announcement = await prisma.announcement.create({
+      data: {
+        text: text.trim(),
+        buttonText: buttonText ? buttonText.trim() : null,
+        link: link ? link.trim() : null,
+        isActive: isActive !== undefined ? Boolean(isActive) : true
+      }
+    });
+    res.status(201).json(announcement);
+  } catch (error: any) {
+    res.status(500).json({ error: "Failed to create announcement: " + error.message });
+  }
+});
+
+// D. Update Announcement
+app.put("/api/announcements/:id", authenticateToken, requireRole(["ADMIN"]), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { text, buttonText, link, isActive } = req.body;
+    const announcement = await prisma.announcement.findUnique({ where: { id } });
+    if (!announcement) {
+      return res.status(404).json({ error: "ঘোষণা পাওয়া যায়নি।" });
+    }
+    const updated = await prisma.announcement.update({
+      where: { id },
+      data: {
+        ...(text !== undefined && { text: text.trim() }),
+        ...(buttonText !== undefined && { buttonText: buttonText ? buttonText.trim() : null }),
+        ...(link !== undefined && { link: link ? link.trim() : null }),
+        ...(isActive !== undefined && { isActive: Boolean(isActive) })
+      }
+    });
+    res.json(updated);
+  } catch (error: any) {
+    res.status(500).json({ error: "Failed to update announcement: " + error.message });
+  }
+});
+
+// E. Delete Announcement
+app.delete("/api/announcements/:id", authenticateToken, requireRole(["ADMIN"]), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const announcement = await prisma.announcement.findUnique({ where: { id } });
+    if (!announcement) {
+      return res.status(404).json({ error: "ঘোষণা পাওয়া যায়নি।" });
+    }
+    await prisma.announcement.delete({ where: { id } });
+    res.json({ message: "Announcement deleted successfully" });
+  } catch (error: any) {
+    res.status(500).json({ error: "Failed to delete announcement: " + error.message });
   }
 });
 
@@ -352,7 +919,7 @@ app.post("/api/orders", async (req, res) => {
 });
 
 // 5. List Orders Route
-app.get("/api/orders", async (req, res) => {
+app.get("/api/orders", authenticateToken, requireRole(["ADMIN"]), async (req, res) => {
   try {
     const orders = await prisma.order.findMany({
       include: {
@@ -411,7 +978,7 @@ app.get("/api/reviews/:productId", async (req, res) => {
 });
 
 // 8. Get Analytics Route
-app.get("/api/analytics", async (req, res) => {
+app.get("/api/analytics", authenticateToken, requireRole(["ADMIN"]), async (req, res) => {
   try {
     const orders = await prisma.order.findMany();
     const totalEarnings = orders
@@ -420,8 +987,17 @@ app.get("/api/analytics", async (req, res) => {
 
     const totalOrders = orders.length;
     const pendingOrders = orders.filter(o => o.orderStatus === "PENDING").length;
+    const confirmedOrders = orders.filter(o => o.orderStatus === "CONFIRMED").length;
+    const shippedOrders = orders.filter(o => o.orderStatus === "SHIPPED").length;
+    const deliveredOrders = orders.filter(o => o.orderStatus === "DELIVERED").length;
+    const cancelledOrders = orders.filter(o => o.orderStatus === "CANCELLED").length;
     const activeOrders = orders.filter(o => o.orderStatus !== "DELIVERED" && o.orderStatus !== "CANCELLED").length;
+    
     const totalProducts = await prisma.product.count();
+    const totalCustomers = await prisma.user.count({ where: { role: "CUSTOMER" } });
+    const totalCoupons = await prisma.coupon.count();
+    const totalReviews = await prisma.review.count();
+    const totalSubscribers = await prisma.newsletterSubscriber.count();
 
     // Last 7 days daily sales log for dashboard charts
     const last7DaysSales: { [date: string]: number } = {};
@@ -449,8 +1025,16 @@ app.get("/api/analytics", async (req, res) => {
       totalEarnings,
       totalOrders,
       pendingOrders,
+      confirmedOrders,
+      shippedOrders,
+      deliveredOrders,
+      cancelledOrders,
       activeOrders,
       totalProducts,
+      totalCustomers,
+      totalCoupons,
+      totalReviews,
+      totalSubscribers,
       salesChartData
     });
   } catch (error: any) {
@@ -459,7 +1043,7 @@ app.get("/api/analytics", async (req, res) => {
 });
 
 // 9. Update Order Status & Info Route
-app.put("/api/orders/:id", async (req, res) => {
+app.put("/api/orders/:id", authenticateToken, requireRole(["ADMIN"]), async (req, res) => {
   try {
     const { id } = req.params;
     const { 
@@ -566,12 +1150,18 @@ app.put("/api/orders/:id", async (req, res) => {
 });
 
 // 10. Create Product Route
-app.post("/api/products", async (req, res) => {
+app.post("/api/products", authenticateToken, requireRole(["ADMIN"]), async (req, res) => {
   try {
     const { sku, name, price, category, imgUrl, sizesJson } = req.body;
 
     if (!sku || !name || !price || !category || !imgUrl) {
       return res.status(400).json({ error: "Missing required product fields" });
+    }
+
+    // Verify category exists in database
+    const catExists = await prisma.category.findUnique({ where: { name: category } });
+    if (!catExists) {
+      return res.status(400).json({ error: `প্রদত্ত ক্যাটাগরি "${category}" সিস্টেমে পাওয়া যায়নি। প্রথমে ক্যাটাগরি তৈরি করুন।` });
     }
 
     const product = await prisma.product.create({
@@ -592,10 +1182,18 @@ app.post("/api/products", async (req, res) => {
 });
 
 // 11. Update Product Route
-app.put("/api/products/:id", async (req, res) => {
+app.put("/api/products/:id", authenticateToken, requireRole(["ADMIN"]), async (req, res) => {
   try {
     const { id } = req.params;
     const { name, price, category, imgUrl, sizesJson } = req.body;
+
+    if (category) {
+      // Verify category exists in database
+      const catExists = await prisma.category.findUnique({ where: { name: category } });
+      if (!catExists) {
+        return res.status(400).json({ error: `প্রদত্ত ক্যাটাগরি "${category}" সিস্টেমে পাওয়া যায়নি। প্রথমে ক্যাটাগরি তৈরি করুন।` });
+      }
+    }
 
     const updatedProduct = await prisma.product.update({
       where: { id },
@@ -615,7 +1213,7 @@ app.put("/api/products/:id", async (req, res) => {
 });
 
 // 12. Delete Product Route
-app.delete("/api/products/:id", async (req, res) => {
+app.delete("/api/products/:id", authenticateToken, requireRole(["ADMIN"]), async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -636,7 +1234,7 @@ app.delete("/api/products/:id", async (req, res) => {
 });
 
 // 13. Delete Review Route
-app.delete("/api/reviews/:id", async (req, res) => {
+app.delete("/api/reviews/:id", authenticateToken, requireRole(["ADMIN"]), async (req, res) => {
   try {
     const { id } = req.params;
     await prisma.review.delete({
@@ -649,7 +1247,7 @@ app.delete("/api/reviews/:id", async (req, res) => {
 });
 
 // 14. Delete Order Route
-app.delete("/api/orders/:id", async (req, res) => {
+app.delete("/api/orders/:id", authenticateToken, requireRole(["ADMIN"]), async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -691,7 +1289,7 @@ app.delete("/api/orders/:id", async (req, res) => {
 
 // 15. Coupon API Routes
 // A. List all coupons
-app.get("/api/coupons", async (req, res) => {
+app.get("/api/coupons", authenticateToken, requireRole(["ADMIN"]), async (req, res) => {
   try {
     const coupons = await prisma.coupon.findMany({
       orderBy: { createdAt: "desc" }
@@ -703,7 +1301,7 @@ app.get("/api/coupons", async (req, res) => {
 });
 
 // B. Create a coupon
-app.post("/api/coupons", async (req, res) => {
+app.post("/api/coupons", authenticateToken, requireRole(["ADMIN"]), async (req, res) => {
   try {
     const { code, type, value, minSubtotal } = req.body;
 
@@ -738,7 +1336,7 @@ app.post("/api/coupons", async (req, res) => {
 });
 
 // C. Update coupon active status / values
-app.put("/api/coupons/:id", async (req, res) => {
+app.put("/api/coupons/:id", authenticateToken, requireRole(["ADMIN"]), async (req, res) => {
   try {
     const { id } = req.params;
     const { isActive, code, type, value, minSubtotal } = req.body;
@@ -766,7 +1364,7 @@ app.put("/api/coupons/:id", async (req, res) => {
 });
 
 // D. Delete a coupon
-app.delete("/api/coupons/:id", async (req, res) => {
+app.delete("/api/coupons/:id", authenticateToken, requireRole(["ADMIN"]), async (req, res) => {
   try {
     const { id } = req.params;
     await prisma.coupon.delete({ where: { id } });
@@ -827,6 +1425,139 @@ app.post("/api/coupons/apply", async (req, res) => {
     });
   } catch (error: any) {
     res.status(500).json({ error: "Failed to apply coupon: " + error.message });
+  }
+});
+
+// --- FAQ API Routes ---
+
+// A. Get all FAQs (Public)
+app.get("/api/faqs", async (req, res) => {
+  try {
+    const faqs = await prisma.faq.findMany({
+      orderBy: { order: "asc" }
+    });
+    res.json(faqs);
+  } catch (error: any) {
+    res.status(500).json({ error: "Failed to load FAQs: " + error.message });
+  }
+});
+
+// B. Create FAQ (Admin only)
+app.post("/api/faqs", authenticateToken, requireRole(["ADMIN"]), async (req, res) => {
+  try {
+    const { question, answer, order } = req.body;
+    if (!question || !answer) {
+      return res.status(400).json({ error: "প্রশ্ন এবং উত্তর দেওয়া আবশ্যক।" });
+    }
+    const faq = await prisma.faq.create({
+      data: {
+        question: question.trim(),
+        answer: answer.trim(),
+        order: Number(order || 0)
+      }
+    });
+    res.status(201).json(faq);
+  } catch (error: any) {
+    res.status(500).json({ error: "Failed to create FAQ: " + error.message });
+  }
+});
+
+// C. Update FAQ (Admin only)
+app.put("/api/faqs/:id", authenticateToken, requireRole(["ADMIN"]), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { question, answer, order } = req.body;
+    
+    const faq = await prisma.faq.findUnique({ where: { id } });
+    if (!faq) {
+      return res.status(404).json({ error: "FAQ পাওয়া যায়নি।" });
+    }
+
+    const updated = await prisma.faq.update({
+      where: { id },
+      data: {
+        ...(question !== undefined && { question: question.trim() }),
+        ...(answer !== undefined && { answer: answer.trim() }),
+        ...(order !== undefined && { order: Number(order) })
+      }
+    });
+    res.json(updated);
+  } catch (error: any) {
+    res.status(500).json({ error: "Failed to update FAQ: " + error.message });
+  }
+});
+
+// D. Delete FAQ (Admin only)
+app.delete("/api/faqs/:id", authenticateToken, requireRole(["ADMIN"]), async (req, res) => {
+  try {
+    const { id } = req.params;
+    await prisma.faq.delete({ where: { id } });
+    res.json({ message: "FAQ deleted successfully" });
+  } catch (error: any) {
+    res.status(500).json({ error: "Failed to delete FAQ: " + error.message });
+  }
+});
+
+// --- Newsletter Subscriber API Routes ---
+
+// A. Subscribe to newsletter (Public)
+app.post("/api/newsletter/subscribe", async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ error: "ইমেইল এড্রেস দেওয়া আবশ্যক।" });
+    }
+
+    const cleanEmail = email.toLowerCase().trim();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(cleanEmail)) {
+      return res.status(400).json({ error: "অনুগ্রহ করে একটি সঠিক ইমেইল এড্রেস প্রদান করুন।" });
+    }
+
+    // Check duplicate
+    const existing = await prisma.newsletterSubscriber.findUnique({
+      where: { email: cleanEmail }
+    });
+
+    if (existing) {
+      return res.status(400).json({ error: "এই ইমেইলটি ইতিমধ্যে সাবস্ক্রাইব করা হয়েছে।" });
+    }
+
+    const subscriber = await prisma.newsletterSubscriber.create({
+      data: { email: cleanEmail }
+    });
+
+    res.status(201).json({
+      message: "নিউজলেটার সাবস্ক্রিপশন সফল হয়েছে।",
+      subscriber
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: "Failed to subscribe to newsletter: " + error.message });
+  }
+});
+
+// B. List all subscribers (Admin only)
+app.get("/api/newsletter", authenticateToken, requireRole(["ADMIN"]), async (req, res) => {
+  try {
+    const subscribers = await prisma.newsletterSubscriber.findMany({
+      orderBy: { createdAt: "desc" }
+    });
+    res.json(subscribers);
+  } catch (error: any) {
+    res.status(500).json({ error: "Failed to list subscribers: " + error.message });
+  }
+});
+
+// C. Delete subscriber / unsubscribe manually (Admin only)
+app.delete("/api/newsletter/:id", authenticateToken, requireRole(["ADMIN"]), async (req, res) => {
+  try {
+    const { id } = req.params;
+    await prisma.newsletterSubscriber.delete({
+      where: { id }
+    });
+    res.json({ message: "Subscriber removed successfully" });
+  } catch (error: any) {
+    res.status(500).json({ error: "Failed to delete subscriber: " + error.message });
   }
 });
 

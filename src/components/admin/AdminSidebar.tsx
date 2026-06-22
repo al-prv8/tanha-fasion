@@ -10,18 +10,25 @@ import {
   LogOut, 
   X,
   Layers,
-  Tag
+  Tag,
+  HelpCircle,
+  Megaphone,
+  Mail
 } from "lucide-react";
 import { toBanglaNumber } from "@/lib/products";
 
 interface SidebarProps {
-  activeTab: "dashboard" | "orders" | "products" | "reviews" | "categories" | "coupons";
-  setActiveTab: (tab: "dashboard" | "orders" | "products" | "reviews" | "categories" | "coupons") => void;
+  activeTab: "dashboard" | "orders" | "products" | "reviews" | "categories" | "coupons" | "faqs" | "announcements" | "newsletters";
+  setActiveTab: (tab: "dashboard" | "orders" | "products" | "reviews" | "categories" | "coupons" | "faqs" | "announcements" | "newsletters") => void;
   ordersCount: number;
   productsCount: number;
   reviewsCount: number;
   categoriesCount: number;
   couponsCount: number;
+  newslettersCount: number;
+  faqsCount: number;
+  announcementsCount: number;
+  adminName?: string;
   onLogout: () => void;
   onCloseMobile?: () => void;
 }
@@ -34,6 +41,10 @@ export default function AdminSidebar({
   reviewsCount,
   categoriesCount,
   couponsCount,
+  newslettersCount,
+  faqsCount,
+  announcementsCount,
+  adminName = "অ্যাডমিন",
   onLogout,
   onCloseMobile
 }: SidebarProps) {
@@ -43,6 +54,9 @@ export default function AdminSidebar({
     { id: "products", label: "পণ্য তালিকা", icon: <Package size={16} />, count: productsCount },
     { id: "categories", label: "ক্যাটাগরি", icon: <Layers size={16} />, count: categoriesCount },
     { id: "coupons", label: "কুপন পরিচালনা", icon: <Tag size={16} />, count: couponsCount },
+    { id: "faqs", label: "এফএকিউ পরিচালনা", icon: <HelpCircle size={16} />, count: faqsCount },
+    { id: "announcements", label: "ঘোষণা পরিচালনা", icon: <Megaphone size={16} />, count: announcementsCount },
+    { id: "newsletters", label: "নিউজলেটার গ্রাহক", icon: <Mail size={16} />, count: newslettersCount },
     { id: "reviews", label: "রিভিউ মডারেশন", icon: <Star size={16} />, count: reviewsCount },
   ];
 
@@ -71,7 +85,7 @@ export default function AdminSidebar({
         </div>
         <div className="min-w-0">
           <div className="text-xs font-bold text-foreground flex items-center gap-1">
-            <span className="truncate">মোঃ মামুন</span>
+            <span className="truncate">{adminName}</span>
             <ShieldCheck size={12} className="text-primary flex-shrink-0" />
           </div>
           <div className="text-[10px] text-muted-foreground font-semibold mt-0.5">স্টোর অ্যাডমিনিস্ট্রেটর</div>

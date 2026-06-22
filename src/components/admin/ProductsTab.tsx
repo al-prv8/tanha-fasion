@@ -153,9 +153,10 @@ export default function ProductsTab({
     formData.append("image", file);
 
     try {
-      const res = await fetch("http://localhost:5000/api/upload", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/upload`, {
         method: "POST",
         body: formData,
+        credentials: "include"
       });
 
       if (!res.ok) {
@@ -727,7 +728,7 @@ export default function ProductsTab({
                                   </div>
 
                                   <div className="flex items-center justify-between border-t border-slate-100 pt-3 mt-1.5">
-                                    <span className="text-sm font-extrabold text-slate-900">৳{formatBanglaPriceWithCommas(Number(productForm.price || p.price))}</span>
+                                    <span className="text-sm font-extrabold text-slate-900">{formatBanglaPriceWithCommas(Number(productForm.price || p.price))}</span>
                                     <span className="text-[10px] text-primary font-bold">SKU Code: {productForm.sku || p.sku}</span>
                                   </div>
                                 </div>

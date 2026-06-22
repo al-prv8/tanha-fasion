@@ -6,7 +6,15 @@ import {
   Package, 
   AlertCircle,
   ArrowRight,
-  Sparkles
+  Sparkles,
+  Users,
+  Tag,
+  Star,
+  Activity,
+  CheckCircle2,
+  Truck,
+  XCircle,
+  BadgePercent
 } from "lucide-react";
 import { formatBanglaPriceWithCommas, toBanglaNumber, getProductTotalStock } from "@/lib/products";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
@@ -16,24 +24,37 @@ interface DashboardTabProps {
     totalEarnings: number;
     totalOrders: number;
     pendingOrders: number;
+    confirmedOrders?: number;
+    shippedOrders?: number;
+    deliveredOrders?: number;
+    cancelledOrders?: number;
     activeOrders: number;
     totalProducts: number;
+    totalCustomers?: number;
+    totalCoupons?: number;
+    totalReviews?: number;
     salesChartData: Array<{ date: string; sales: number }>;
   };
   products: any[];
-  setActiveTab: (tab: "dashboard" | "orders" | "products" | "reviews") => void;
+  setActiveTab: (tab: any) => void;
+  adminName?: string;
 }
 
 export default function DashboardTab({
   analytics,
   products,
-  setActiveTab
+  setActiveTab,
+  adminName = "অ্যাডমিন"
 }: DashboardTabProps) {
   // Filter products that are running low on stock (total stock < 5)
   const lowStockProducts = products.filter(p => {
     const total = getProductTotalStock(p);
     return total < 5;
   });
+
+  const avgOrderValue = analytics.totalOrders > 0 
+    ? Math.round(analytics.totalEarnings / analytics.totalOrders) 
+    : 0;
 
   return (
     <div className="flex flex-col gap-8 font-sans">
@@ -42,7 +63,7 @@ export default function DashboardTab({
         <div>
           <h2 className="text-xl font-extrabold text-foreground flex items-center gap-2 font-display">
             <Sparkles className="text-primary animate-pulse" size={20} />
-            শুভ দিন, মোঃ মামুন!
+            শুভ দিন, {adminName}!
           </h2>
           <p className="text-xs text-muted-foreground mt-1 font-semibold">
             আজকে আপনার তানহা ফ্যাশন স্টোরের বিবরণ এবং অর্ডারের সংক্ষিপ্ত পরিসংখ্যান নিচে দেওয়া হলো।
@@ -57,7 +78,7 @@ export default function DashboardTab({
         </button>
       </div>
 
-      {/* 2. Premium Analytics Cards Grid */}
+      {/* 2. Primary Analytics Cards Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
         {/* Earnings Card */}
         <div className="bg-card border border-border/80 p-5 rounded-2xl shadow-2xs flex items-center justify-between transition-transform duration-300 hover:-translate-y-0.5">
@@ -98,21 +119,68 @@ export default function DashboardTab({
           </div>
         </div>
 
-        {/* Total Products Card */}
+        {/* Registered Customers Card */}
         <div className="bg-card border border-border/80 p-5 rounded-2xl shadow-2xs flex items-center justify-between transition-transform duration-300 hover:-translate-y-0.5">
           <div className="min-w-0">
-            <span className="text-[10px] font-black text-muted-foreground uppercase tracking-wider block">সক্রিয় পণ্য তালিকা</span>
+            <span className="text-[10px] font-black text-muted-foreground uppercase tracking-wider block">নিবন্ধিত ক্রেতা</span>
             <span className="text-xl sm:text-2xl font-black text-foreground block mt-1.5">
-              {toBanglaNumber(analytics.totalProducts || 0)} টি
+              {toBanglaNumber(analytics.totalCustomers || 0)} জন
             </span>
           </div>
-          <div className="w-10 h-10 bg-emerald-50 border border-emerald-100 rounded-full flex items-center justify-center text-emerald-600 flex-shrink-0">
-            <Package size={20} />
+          <div className="w-10 h-10 bg-purple-50 border border-purple-100 rounded-full flex items-center justify-center text-purple-650 flex-shrink-0">
+            <Users size={20} />
           </div>
         </div>
       </div>
 
-      {/* 3. Analytics Graphs & Alerts Row */}
+      {/* 3. Secondary Metrics Overview Row */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
+        {/* Total Products Card */}
+        <div className="bg-white border border-border/60 p-4 rounded-xl flex items-center gap-3.5 shadow-3xs">
+          <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center flex-shrink-0">
+            <Package size={16} />
+          </div>
+          <div className="min-w-0">
+            <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block">সক্রিয় পণ্য</span>
+            <span className="text-sm font-black text-foreground mt-0.5 block">{toBanglaNumber(analytics.totalProducts || 0)} টি</span>
+          </div>
+        </div>
+
+        {/* Active Coupons Card */}
+        <div className="bg-white border border-border/60 p-4 rounded-xl flex items-center gap-3.5 shadow-3xs">
+          <div className="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 border border-rose-100 flex items-center justify-center flex-shrink-0">
+            <BadgePercent size={16} />
+          </div>
+          <div className="min-w-0">
+            <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block">সক্রিয় কুপন</span>
+            <span className="text-sm font-black text-foreground mt-0.5 block">{toBanglaNumber(analytics.totalCoupons || 0)} টি</span>
+          </div>
+        </div>
+
+        {/* Customer Reviews Card */}
+        <div className="bg-white border border-border/60 p-4 rounded-xl flex items-center gap-3.5 shadow-3xs">
+          <div className="w-8 h-8 rounded-lg bg-yellow-50 text-yellow-600 border border-yellow-100 flex items-center justify-center flex-shrink-0">
+            <Star size={16} />
+          </div>
+          <div className="min-w-0">
+            <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block">কাস্টমার রিভিউ</span>
+            <span className="text-sm font-black text-foreground mt-0.5 block">{toBanglaNumber(analytics.totalReviews || 0)} টি</span>
+          </div>
+        </div>
+
+        {/* Avg Order Value Card */}
+        <div className="bg-white border border-border/60 p-4 rounded-xl flex items-center gap-3.5 shadow-3xs">
+          <div className="w-8 h-8 rounded-lg bg-sky-50 text-sky-600 border border-sky-100 flex items-center justify-center flex-shrink-0">
+            <Activity size={16} />
+          </div>
+          <div className="min-w-0">
+            <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block">গড় অর্ডার মূল্য</span>
+            <span className="text-sm font-black text-foreground mt-0.5 block">{formatBanglaPriceWithCommas(avgOrderValue)}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* 4. Analytics Graphs & Alerts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Sales Chart Container */}
         <div className="lg:col-span-8 bg-card border border-border/80 p-6 rounded-2xl shadow-2xs">
@@ -188,19 +256,38 @@ export default function DashboardTab({
             </button>
           </div>
 
-          {/* Quick Metrics Info */}
-          <div className="bg-card border border-border/80 p-5 rounded-2xl shadow-2xs text-xs font-semibold text-slate-700 flex flex-col gap-3 bg-white/40">
-            <div className="flex justify-between items-center border-b border-border/40 pb-2">
-              <span className="text-muted-foreground">পেন্ডিং অর্ডার (Pending)</span>
-              <span className="font-bold text-amber-600 font-sans">{toBanglaNumber(analytics.pendingOrders || 0)}</span>
+          {/* Detailed Fulfillment Lifecycle Info */}
+          <div className="bg-card border border-border/80 p-5 rounded-2xl shadow-2xs text-xs font-semibold text-slate-700 flex flex-col gap-2.5 bg-white/40">
+            <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-wider mb-2.5 border-b border-border/40 pb-1.5">অর্ডার বিতরণ অবস্থা</h3>
+            
+            <div className="flex justify-between items-center border-b border-border/30 pb-1.5">
+              <span className="text-muted-foreground flex items-center gap-1.5"><Clock size={12} className="text-amber-500" /> অপেক্ষমান (Pending)</span>
+              <span className="font-bold text-amber-600 font-sans">{toBanglaNumber(analytics.pendingOrders || 0)} টি</span>
             </div>
-            <div className="flex justify-between items-center border-b border-border/40 pb-2">
-              <span className="text-muted-foreground">চলতি অর্ডার (Active)</span>
-              <span className="font-bold text-blue-600 font-sans">{toBanglaNumber(analytics.activeOrders || 0)}</span>
+            
+            <div className="flex justify-between items-center border-b border-border/30 pb-1.5">
+              <span className="text-muted-foreground flex items-center gap-1.5"><CheckCircle2 size={12} className="text-indigo-500" /> নিশ্চিতকৃত (Confirmed)</span>
+              <span className="font-bold text-indigo-600 font-sans">{toBanglaNumber(analytics.confirmedOrders || 0)} টি</span>
             </div>
-            <div className="flex justify-between items-center pb-1">
-              <span className="text-muted-foreground">মোট অর্ডার (All Time)</span>
-              <span className="font-bold text-foreground font-sans">{toBanglaNumber(analytics.totalOrders || 0)}</span>
+            
+            <div className="flex justify-between items-center border-b border-border/30 pb-1.5">
+              <span className="text-muted-foreground flex items-center gap-1.5"><Truck size={12} className="text-blue-500" /> শিপড (Shipped)</span>
+              <span className="font-bold text-blue-600 font-sans">{toBanglaNumber(analytics.shippedOrders || 0)} টি</span>
+            </div>
+            
+            <div className="flex justify-between items-center border-b border-border/30 pb-1.5">
+              <span className="text-muted-foreground flex items-center gap-1.5"><CheckCircle2 size={12} className="text-emerald-500" /> ডেলিভারড (Delivered)</span>
+              <span className="font-bold text-emerald-600 font-sans">{toBanglaNumber(analytics.deliveredOrders || 0)} টি</span>
+            </div>
+            
+            <div className="flex justify-between items-center border-b border-border/30 pb-1.5">
+              <span className="text-muted-foreground flex items-center gap-1.5"><XCircle size={12} className="text-rose-500" /> বাতিলকৃত (Cancelled)</span>
+              <span className="font-bold text-rose-600 font-sans">{toBanglaNumber(analytics.cancelledOrders || 0)} টি</span>
+            </div>
+            
+            <div className="flex justify-between items-center pt-1">
+              <span className="text-foreground font-extrabold flex items-center gap-1.5"><Activity size={12} className="text-foreground" /> সর্বমোট অর্ডার (Total)</span>
+              <span className="font-extrabold text-foreground font-sans">{toBanglaNumber(analytics.totalOrders || 0)} টি</span>
             </div>
           </div>
         </div>

@@ -17,7 +17,7 @@ async function fetchProduct(id: string) {
   
   // 2. Fetch Express API database to override with real-time stock values
   try {
-    const res = await fetch("http://localhost:5000/api/products", { next: { revalidate: 0 } });
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/products`, { next: { revalidate: 0 } });
     if (res.ok) {
       const data = await res.json();
       const matchId = localProduct ? localProduct.id : decodedId;

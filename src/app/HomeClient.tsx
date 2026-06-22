@@ -13,7 +13,6 @@ import MobileTabBar from "@/components/layout/MobileTabBar";
 import MobileMenuDrawer from "@/components/layout/MobileMenuDrawer";
 import CartDrawer from "@/components/layout/CartDrawer";
 
-
 // Section Component imports
 import Hero from "@/components/sections/Hero";
 import Categories from "@/components/sections/Categories";
@@ -25,14 +24,18 @@ import Cta from "@/components/sections/Cta";
 import SpotlightModal from "@/components/overlays/SpotlightModal";
 import ToastNotification from "@/components/overlays/ToastNotification";
 
-// Category Banners & Showroom assets
-import cotton3pcBanner from "@/assets/cotton_3pc_banner.png";
-import georgette3pcBanner from "@/assets/georgette_3pc_banner.png";
-import linen3pcBanner from "@/assets/linen_3pc_banner.png";
-import casualAbayaBanner from "@/assets/casual_abaya_banner.png";
-import festiveBorkaBanner from "@/assets/festive_borka_banner.png";
-import comboPackBanner from "@/assets/combo_pack_banner.png";
 import showroomBanner from "@/assets/showroom_banner.png";
+
+const getCategoryDefaultBanner = (name: string) => {
+  const n = name.toLowerCase();
+  if (n.includes("সুতি") || n.includes("cotton")) return "/assets/cotton_3pc_banner.png";
+  if (n.includes("জর্জেট") || n.includes("georgette")) return "/assets/georgette_3pc_banner.png";
+  if (n.includes("লিলেন") || n.includes("linen")) return "/assets/linen_3pc_banner.png";
+  if (n.includes("আবায়া") || n.includes("abaya")) return "/assets/casual_abaya_banner.png";
+  if (n.includes("বোরকা") || n.includes("borka")) return "/assets/festive_borka_banner.png";
+  if (n.includes("কম্বো") || n.includes("combo")) return "/assets/combo_pack_banner.png";
+  return "/assets/cotton_3pc_banner.png";
+};
 
 export default function HomeClient() {
   const {
@@ -43,13 +46,44 @@ export default function HomeClient() {
   } = useCart();
 
   const [productsList, setProductsList] = useState<Product[]>([]);
+  const [categoriesList, setCategoriesList] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Fetch products and categories dynamically from Express backend
   useEffect(() => {
     document.documentElement.classList.remove("dark");
     
-    // Fetch products dynamically from Express backend
-    fetch("http://localhost:5000/api/products")
+    // 1. Fetch categories
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/categories`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setCategoriesList(data);
+        } else {
+          setCategoriesList([
+            { id: "1", name: "সুতি থ্রি-পিস", englishName: "COTTON 3-PIECE", imgUrl: "/assets/cotton_1.png", bannerUrl: "/assets/cotton_3pc_banner.png" },
+            { id: "2", name: "জর্জেট থ্রি-পিস", englishName: "GEORGETTE 3-PIECE", imgUrl: "/assets/georgette_1.png", bannerUrl: "/assets/georgette_3pc_banner.png" },
+            { id: "3", name: "লিলেন থ্রি-পিস", englishName: "LINEN 3-PIECE", imgUrl: "/assets/linen_1.png", bannerUrl: "/assets/linen_3pc_banner.png" },
+            { id: "4", name: "ক্যাজুয়াল আবায়া", englishName: "CASUAL ABAYA", imgUrl: "/assets/casual_abaya_1.png", bannerUrl: "/assets/casual_abaya_banner.png" },
+            { id: "5", name: "উৎসবের বোরকা", englishName: "FESTIVE BORKA", imgUrl: "/assets/festive_borka_1.png", bannerUrl: "/assets/festive_borka_banner.png" },
+            { id: "6", name: "কম্বো সেট", englishName: "COMBO PACK DETAILS", imgUrl: "/assets/combo_1.png", bannerUrl: "/assets/combo_pack_banner.png" }
+          ]);
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to fetch categories, using fallback:", err);
+        setCategoriesList([
+          { id: "1", name: "সুতি থ্রি-পিস", englishName: "COTTON 3-PIECE", imgUrl: "/assets/cotton_1.png", bannerUrl: "/assets/cotton_3pc_banner.png" },
+          { id: "2", name: "জর্জেট থ্রি-পিস", englishName: "GEORGETTE 3-PIECE", imgUrl: "/assets/georgette_1.png", bannerUrl: "/assets/georgette_3pc_banner.png" },
+          { id: "3", name: "লিলেন থ্রি-পিস", englishName: "LINEN 3-PIECE", imgUrl: "/assets/linen_1.png", bannerUrl: "/assets/linen_3pc_banner.png" },
+          { id: "4", name: "ক্যাজুয়াল আবায়া", englishName: "CASUAL ABAYA", imgUrl: "/assets/casual_abaya_1.png", bannerUrl: "/assets/casual_abaya_banner.png" },
+          { id: "5", name: "উৎসবের বোরকা", englishName: "FESTIVE BORKA", imgUrl: "/assets/festive_borka_1.png", bannerUrl: "/assets/festive_borka_banner.png" },
+          { id: "6", name: "কম্বো সেট", englishName: "COMBO PACK DETAILS", imgUrl: "/assets/combo_1.png", bannerUrl: "/assets/combo_pack_banner.png" }
+        ]);
+      });
+
+    // 2. Fetch products
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/products`)
       .then((res) => res.json())
       .then((data) => {
         if (data && data.length > 0) {
@@ -128,6 +162,14 @@ export default function HomeClient() {
     router.push("/checkout");
   };
 
+  // Build sections array dynamically based on loaded categories
+  const sections = [
+    { id: "hero", label: "হোম" },
+    { id: "categories", label: "টপ ক্যাটাগরি" },
+    ...categoriesList.map((c, idx) => ({ id: `category-${idx + 2}`, label: c.name })),
+    { id: "faq", label: "জিজ্ঞাসা" },
+  ];
+
   useEffect(() => {
     const secParam = searchParams.get("sec");
     if (secParam) {
@@ -143,21 +185,7 @@ export default function HomeClient() {
     if (searchParam) {
       setSearchQuery(searchParam);
     }
-  }, [searchParams]);
-
-
-  const sections = [
-
-    { id: "hero", label: "হোম" },
-    { id: "categories", label: "টপ ক্যাটাগরি" },
-    { id: "category-2", label: "সুতি থ্রি-পিস" },
-    { id: "category-3", label: "জর্জেট থ্রি-পিস" },
-    { id: "category-4", label: "লিলেন থ্রি-পিস" },
-    { id: "category-5", label: "ক্যাজুয়াল আবায়া" },
-    { id: "category-6", label: "উৎসবের বোরকা" },
-    { id: "category-7", label: "কম্বো সেট" },
-    { id: "faq", label: "জিজ্ঞাসা" },
-  ];
+  }, [searchParams, categoriesList]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -180,7 +208,7 @@ export default function HomeClient() {
 
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
+  }, [categoriesList]);
 
   useEffect(() => {
     const revealItems = document.querySelectorAll(".reveal-item");
@@ -197,7 +225,7 @@ export default function HomeClient() {
 
     revealItems.forEach((item) => observer.observe(item));
     return () => observer.disconnect();
-  }, []);
+  }, [categoriesList, productsList]);
 
   const scrollToSection = (index: number) => {
     const sec = sections[index];
@@ -250,14 +278,6 @@ export default function HomeClient() {
   const closeSpotlight = () => {
     setModalOpen(false);
   };
-
-  // Filter products by category
-  const cottonProducts = productsList.filter((p) => p.loc === "সুতি থ্রি-পিস");
-  const georgetteProducts = productsList.filter((p) => p.loc === "জর্জেট থ্রি-পিস");
-  const linenProducts = productsList.filter((p) => p.loc === "লিলেন থ্রি-পিস");
-  const casualAbayaProducts = productsList.filter((p) => p.loc === "ক্যাজুয়াল আবায়া");
-  const festiveBorkaProducts = productsList.filter((p) => p.loc === "উৎসবের বোরকা");
-  const comboProducts = productsList.filter((p) => p.loc === "কম্বো সেট");
 
   // Filter products by search query
   const filteredProducts = productsList.filter(
@@ -393,7 +413,6 @@ export default function HomeClient() {
                 );
               })}
             </div>
-
           )}
         </main>
       ) : (
@@ -403,7 +422,7 @@ export default function HomeClient() {
           <Hero scrollToSection={scrollToSection} />
 
           {/* Categories Grid Section */}
-          <Categories scrollToSection={scrollToSection} />
+          <Categories scrollToSection={scrollToSection} categories={categoriesList} />
 
           {/* SHOWROOM OUTLET SLIM BANNER */}
           <div className="max-w-[1440px] mx-auto px-4 md:px-8 py-4">
@@ -425,72 +444,25 @@ export default function HomeClient() {
             </div>
           </div>
 
-          {/* Category-wise Showcase Stack */}
-          <CategoryShowcase
-            sectionId="category-2"
-            title="সুতি থ্রি-পিস"
-            englishTitle="COTTON 3-PIECE"
-            bannerImg={cotton3pcBanner}
-            products={cottonProducts}
-            openSpotlight={openSpotlight}
-            addToCart={(product, size) => addToCart(product, 1, size)}
-            showToast={showToast}
-          />
-
-          <CategoryShowcase
-            sectionId="category-3"
-            title="জর্জেট থ্রি-পিস"
-            englishTitle="GEORGETTE 3-PIECE"
-            bannerImg={georgette3pcBanner}
-            products={georgetteProducts}
-            openSpotlight={openSpotlight}
-            addToCart={(product, size) => addToCart(product, 1, size)}
-            showToast={showToast}
-          />
-
-          <CategoryShowcase
-            sectionId="category-4"
-            title="লিলেন থ্রি-পিস"
-            englishTitle="LINEN 3-PIECE"
-            bannerImg={linen3pcBanner}
-            products={linenProducts}
-            openSpotlight={openSpotlight}
-            addToCart={(product, size) => addToCart(product, 1, size)}
-            showToast={showToast}
-          />
-
-          <CategoryShowcase
-            sectionId="category-5"
-            title="ক্যাজুয়াল আবায়া"
-            englishTitle="CASUAL ABAYA"
-            bannerImg={casualAbayaBanner}
-            products={casualAbayaProducts}
-            openSpotlight={openSpotlight}
-            addToCart={(product, size) => addToCart(product, 1, size)}
-            showToast={showToast}
-          />
-
-          <CategoryShowcase
-            sectionId="category-6"
-            title="উৎসবের বোরকা"
-            englishTitle="FESTIVE BORKA"
-            bannerImg={festiveBorkaBanner}
-            products={festiveBorkaProducts}
-            openSpotlight={openSpotlight}
-            addToCart={(product, size) => addToCart(product, 1, size)}
-            showToast={showToast}
-          />
-
-          <CategoryShowcase
-            sectionId="category-7"
-            title="বিশেষ কম্বো সেট"
-            englishTitle="COMBO PACK DETAILS"
-            bannerImg={comboPackBanner}
-            products={comboProducts}
-            openSpotlight={openSpotlight}
-            addToCart={(product, size) => addToCart(product, 1, size)}
-            showToast={showToast}
-          />
+          {/* Dynamic Category-wise Showcase Stack */}
+          {categoriesList.map((cat, idx) => {
+            const catProducts = productsList.filter((p) => p.loc === cat.name);
+            return (
+              <CategoryShowcase
+                key={cat.id || idx}
+                sectionId={`category-${idx + 2}`}
+                title={cat.name}
+                englishTitle={cat.englishName || cat.name.toUpperCase()}
+                bannerImg={{ src: cat.bannerUrl || getCategoryDefaultBanner(cat.name) }}
+                products={catProducts}
+                openSpotlight={openSpotlight}
+                addToCart={(product, size) => addToCart(product, 1, size)}
+                showToast={showToast}
+                bannerSubtitle={cat.bannerSubtitle}
+                bannerDescription={cat.bannerDescription}
+              />
+            );
+          })}
         </main>
       )}
 

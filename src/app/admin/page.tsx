@@ -2,17 +2,20 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { Lock } from "lucide-react";
+import { Lock, Menu } from "lucide-react";
 
 // Modular Admin Components
 import AdminSidebar from "@/components/admin/AdminSidebar";
-import AdminHeader from "@/components/admin/AdminHeader";
 import DashboardTab from "@/components/admin/DashboardTab";
 import OrdersTab from "@/components/admin/OrdersTab";
 import ProductsTab from "@/components/admin/ProductsTab";
 import CategoriesTab from "@/components/admin/CategoriesTab";
 import CouponsTab from "@/components/admin/CouponsTab";
 import ReviewsTab from "@/components/admin/ReviewsTab";
+import FaqsTab from "@/components/admin/FaqsTab";
+import AnnouncementsTab from "@/components/admin/AnnouncementsTab";
+import NewslettersTab from "@/components/admin/NewslettersTab";
+import ToastNotification from "@/components/overlays/ToastNotification";
 
 const DEFAULT_CATEGORIES = [
   "সুতি থ্রি-পিস",
@@ -25,13 +28,25 @@ const DEFAULT_CATEGORIES = [
 
 export default function AdminPage() {
   // Authentication State
-  const [passcode, setPasscode] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [adminUser, setAdminUser] = useState<any>(null);
   const [authError, setAuthError] = useState("");
 
   // Navigation State
-  const [activeTab, setActiveTab] = useState<"dashboard" | "orders" | "products" | "reviews" | "categories" | "coupons">("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "orders" | "products" | "reviews" | "categories" | "coupons" | "faqs" | "announcements" | "newsletters">("dashboard");
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+
+  // Toast Notification States
+  const [toastActive, setToastActive] = useState(false);
+  const [toastMsg, setToastMsg] = useState("");
+
+  const showToast = (msg: string) => {
+    setToastMsg(msg);
+    setToastActive(true);
+    setTimeout(() => setToastActive(false), 2000);
+  };
 
   // Live Data States
   const [analytics, setAnalytics] = useState<any>({
@@ -46,6 +61,9 @@ export default function AdminPage() {
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [reviews, setReviews] = useState<any[]>([]);
+  const [subscribers, setSubscribers] = useState<any[]>([]);
+  const [faqs, setFaqs] = useState<any[]>([]);
+  const [announcements, setAnnouncements] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Search States
@@ -65,12 +83,32 @@ export default function AdminPage() {
 
   const [coupons, setCoupons] = useState<any[]>([]);
 
-  // Verify sessionStorage on mount
+  // Authenticated fetch wrapper to automatically include credentials cookies
+  const authenticatedFetch = (url: string, options: any = {}) => {
+    return fetch(url, {
+      ...options,
+      credentials: "include"
+    });
+  };
+
+  // Verify active JWT session cookie on mount
   useEffect(() => {
-    const authStatus = sessionStorage.getItem("admin_auth");
-    if (authStatus === "true") {
-      setIsAuthenticated(true);
-    }
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/auth/me`, { credentials: "include" })
+      .then(res => {
+        if (res.ok) {
+          return res.json();
+        }
+        throw new Error("No session");
+      })
+      .then(data => {
+        if (data.user && data.user.role === "ADMIN") {
+          setIsAuthenticated(true);
+          setAdminUser(data.user);
+        }
+      })
+      .catch(() => {
+        setIsAuthenticated(false);
+      });
   }, []);
 
   // Fetch all backend data once authenticated
@@ -93,18 +131,24 @@ export default function AdminPage() {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const [analyticsRes, ordersRes, productsRes, categoriesRes, couponsRes] = await Promise.all([
-        fetch("http://localhost:5000/api/analytics"),
-        fetch("http://localhost:5000/api/orders"),
-        fetch("http://localhost:5000/api/products"),
-        fetch("http://localhost:5000/api/categories"),
-        fetch("http://localhost:5000/api/coupons")
+      const [analyticsRes, ordersRes, productsRes, categoriesRes, couponsRes, subscribersRes, faqsRes, announcementsRes] = await Promise.all([
+        authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/analytics`),
+        authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/orders`),
+        authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/products`),
+        authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/categories`),
+        authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/coupons`),
+        authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/newsletter`),
+        authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/faqs`),
+        authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/announcements`)
       ]);
 
       if (analyticsRes.ok) setAnalytics(await analyticsRes.json());
       if (ordersRes.ok) setOrders(await ordersRes.json());
       if (categoriesRes.ok) setCategories(await categoriesRes.json());
       if (couponsRes.ok) setCoupons(await couponsRes.json());
+      if (subscribersRes.ok) setSubscribers(await subscribersRes.json());
+      if (faqsRes.ok) setFaqs(await faqsRes.json());
+      if (announcementsRes.ok) setAnnouncements(await announcementsRes.json());
       
       if (productsRes.ok) {
         const prodData = await productsRes.json();
@@ -128,27 +172,54 @@ export default function AdminPage() {
     }
   };
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (passcode === "123456") {
-      setIsAuthenticated(true);
-      sessionStorage.setItem("admin_auth", "true");
-      setAuthError("");
-    } else {
-      setAuthError("ভুল পাসকোড! দয়া করে সঠিক পাসকোড দিন।");
+    setAuthError("");
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+        credentials: "include"
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.user && data.user.role === "ADMIN") {
+          setIsAuthenticated(true);
+          setAdminUser(data.user);
+          setEmail("");
+          setPassword("");
+        } else {
+          setAuthError("আপনার অ্যাডমিন পারমিশন নেই।");
+          await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/auth/logout`, { method: "POST", credentials: "include" });
+        }
+      } else {
+        const err = await res.json();
+        setAuthError(err.error || "লগইন ব্যর্থ হয়েছে।");
+      }
+    } catch (err) {
+      setAuthError("সার্ভারের সাথে সংযোগ স্থাপন করা যাচ্ছে না।");
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/auth/logout`, {
+        method: "POST",
+        credentials: "include"
+      });
+    } catch (e) {
+      console.error("Logout failed:", e);
+    }
     setIsAuthenticated(false);
-    sessionStorage.removeItem("admin_auth");
-    setPasscode("");
+    setAdminUser(null);
   };
 
   // Order status transitions
   const handleUpdateOrderStatus = async (orderId: string, status: string) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/orders/${orderId}`, {
+      const res = await authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/orders/${orderId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ orderStatus: status })
@@ -171,7 +242,7 @@ export default function AdminPage() {
 
   const handleUpdatePaymentStatus = async (orderId: string, status: string) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/orders/${orderId}`, {
+      const res = await authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/orders/${orderId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ paymentStatus: status })
@@ -194,7 +265,7 @@ export default function AdminPage() {
   // Detailed Order Contact Editing
   const handleUpdateOrderInfo = async (orderId: string, infoPayload: any) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/orders/${orderId}`, {
+      const res = await authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/orders/${orderId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(infoPayload)
@@ -218,7 +289,7 @@ export default function AdminPage() {
   const handleDeleteOrder = async (orderId: string) => {
     if (!confirm("আপনি কি নিশ্চিতভাবে এই অর্ডারটি মুছে ফেলতে চান? এটি মুছে ফেললে ডাটাবেজ থেকে অর্ডারটি সম্পূর্ণরূপে হারিয়ে যাবে এবং সমন্বয়কৃত স্টক থাকলে তা স্বয়ংক্রিয়ভাবে ফেরত যাবে।")) return;
     try {
-      const res = await fetch(`http://localhost:5000/api/orders/${orderId}`, {
+      const res = await authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/orders/${orderId}`, {
         method: "DELETE"
       });
       if (res.ok) {
@@ -238,12 +309,12 @@ export default function AdminPage() {
   const handleProductSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const url = editingProduct 
-      ? `http://localhost:5000/api/products/${editingProduct.id}` 
-      : "http://localhost:5000/api/products";
+      ? `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/products/${editingProduct.id}` 
+      : `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/products`;
     const method = editingProduct ? "PUT" : "POST";
 
     try {
-      const res = await fetch(url, {
+      const res = await authenticatedFetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(productForm)
@@ -278,7 +349,7 @@ export default function AdminPage() {
   const handleDeleteProduct = async (id: string) => {
     if (!confirm("আপনি কি নিশ্চিতভাবে এই পণ্যটি মুছে ফেলতে চান?")) return;
     try {
-      const res = await fetch(`http://localhost:5000/api/products/${id}`, {
+      const res = await authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/products/${id}`, {
         method: "DELETE"
       });
       if (res.ok) {
@@ -307,12 +378,20 @@ export default function AdminPage() {
   };
 
   // Category CRUD Handlers
-  const handleCreateCategory = async (name: string) => {
+  const handleCreateCategory = async (
+    name: string,
+    englishName?: string,
+    imgUrl?: string,
+    bannerUrl?: string,
+    order?: number,
+    bannerSubtitle?: string,
+    bannerDescription?: string
+  ) => {
     try {
-      const res = await fetch("http://localhost:5000/api/categories", {
+      const res = await authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/categories`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name })
+        body: JSON.stringify({ name, englishName, imgUrl, bannerUrl, order, bannerSubtitle, bannerDescription })
       });
       if (res.ok) {
         alert("ক্যাটাগরি সফলভাবে যুক্ত করা হয়েছে!");
@@ -327,12 +406,21 @@ export default function AdminPage() {
     }
   };
 
-  const handleUpdateCategory = async (id: string, name: string) => {
+  const handleUpdateCategory = async (
+    id: string,
+    name: string,
+    englishName?: string,
+    imgUrl?: string,
+    bannerUrl?: string,
+    order?: number,
+    bannerSubtitle?: string,
+    bannerDescription?: string
+  ) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/categories/${id}`, {
+      const res = await authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/categories/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name })
+        body: JSON.stringify({ name, englishName, imgUrl, bannerUrl, order, bannerSubtitle, bannerDescription })
       });
       if (res.ok) {
         alert("ক্যাটাগরি সফলভাবে হালনাগাদ করা হয়েছে!");
@@ -349,7 +437,7 @@ export default function AdminPage() {
 
   const handleDeleteCategory = async (id: string) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/categories/${id}`, {
+      const res = await authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/categories/${id}`, {
         method: "DELETE"
       });
       if (res.ok) {
@@ -368,7 +456,7 @@ export default function AdminPage() {
   // Coupon CRUD Handlers
   const handleCreateCoupon = async (code: string, type: string, value: number, minSubtotal: number) => {
     try {
-      const res = await fetch("http://localhost:5000/api/coupons", {
+      const res = await authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/coupons`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ code, type, value, minSubtotal })
@@ -388,7 +476,7 @@ export default function AdminPage() {
 
   const handleToggleCouponActive = async (id: string, isActive: boolean) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/coupons/${id}`, {
+      const res = await authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/coupons/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isActive })
@@ -408,7 +496,7 @@ export default function AdminPage() {
   const handleDeleteCoupon = async (id: string) => {
     if (!confirm("আপনি কি নিশ্চিতভাবে এই কুপনটি ডিলিট করতে চান?")) return;
     try {
-      const res = await fetch(`http://localhost:5000/api/coupons/${id}`, {
+      const res = await authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/coupons/${id}`, {
         method: "DELETE"
       });
       if (res.ok) {
@@ -428,7 +516,7 @@ export default function AdminPage() {
   const handleDeleteReview = async (id: string) => {
     if (!confirm("আপনি কি নিশ্চিতভাবে এই রিভিউটি মুছে ফেলতে চান?")) return;
     try {
-      const res = await fetch(`http://localhost:5000/api/reviews/${id}`, {
+      const res = await authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/reviews/${id}`, {
         method: "DELETE"
       });
       if (res.ok) {
@@ -445,6 +533,26 @@ export default function AdminPage() {
     }
   };
 
+  const handleDeleteSubscriber = async (id: string) => {
+    if (!confirm("আপনি কি নিশ্চিতভাবে এই গ্রাহককে নিউজলেটার থেকে বাদ দিতে চান?")) return;
+    try {
+      const res = await authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/newsletter/${id}`, {
+        method: "DELETE"
+      });
+      if (res.ok) {
+        showToast("নিউজলেটার গ্রাহক সফলভাবে মুছে ফেলা হয়েছে।");
+        setSubscribers(prev => prev.filter(sub => sub.id !== id));
+        fetchData();
+      } else {
+        const errData = await res.json();
+        alert("গ্রাহক মুছতে ব্যর্থ হয়েছে: " + (errData.error || res.statusText));
+      }
+    } catch (err: any) {
+      console.error("Failed to delete subscriber:", err);
+      alert("সংযোগ স্থাপন করতে ব্যর্থ হয়েছে: " + err.message);
+    }
+  };
+
   // --- RENDER LOGIN GATE ---
   if (!isAuthenticated) {
     return (
@@ -454,18 +562,33 @@ export default function AdminPage() {
             <Lock size={26} />
           </div>
           <h1 className="text-2xl font-extrabold font-display text-foreground mb-1 leading-tight">অ্যাডমিন প্যানেল প্রবেশ</h1>
-          <p className="text-xs text-muted-foreground mb-6 font-semibold">তানহা ফ্যাশন স্টোর পরিচালনার জন্য পাসকোড লিখুন</p>
+          <p className="text-xs text-muted-foreground mb-6 font-semibold">তানহা ফ্যাশন স্টোর পরিচালনার জন্য অ্যাডমিন লগইন করুন</p>
           
-          <div className="mb-4">
+          <div className="mb-4 text-left">
+            <label className="text-xs font-bold text-foreground mb-1 block">ইমেইল অ্যাড্রেস</label>
             <input 
-              type="password" 
-              placeholder="পাসকোড লিখুন (১২৩৪৫৬)" 
-              value={passcode}
-              onChange={(e) => setPasscode(e.target.value)}
-              className="w-full px-4 py-3 border border-border bg-secondary/30 rounded-xl text-center text-lg font-mono focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary focus:bg-white transition-all text-foreground font-black"
+              type="email" 
+              placeholder="admin@tanha.com" 
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full px-4 py-3 border border-border bg-[#FCFAF7] rounded-xl text-left text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all text-foreground font-semibold"
+              required
               autoFocus
             />
           </div>
+
+          <div className="mb-6 text-left">
+            <label className="text-xs font-bold text-foreground mb-1 block">পাসওয়ার্ড</label>
+            <input 
+              type="password" 
+              placeholder="••••••••" 
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full px-4 py-3 border border-border bg-[#FCFAF7] rounded-xl text-left text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all text-foreground font-semibold"
+              required
+            />
+          </div>
+
           {authError && <div className="text-xs text-primary font-bold mb-4 font-sans">{authError}</div>}
           
           <button 
@@ -485,7 +608,7 @@ export default function AdminPage() {
 
   // --- RENDER MAIN ADMIN DASHBOARD ---
   return (
-    <div className="min-h-screen bg-[#FCFAF7] text-foreground flex font-sans">
+    <div className="h-screen bg-[#FCFAF7] text-foreground flex font-sans overflow-hidden">
       
       {/* 1. Sidebar - Desktop view */}
       <aside className="hidden md:block">
@@ -497,6 +620,10 @@ export default function AdminPage() {
           reviewsCount={reviews.length}
           categoriesCount={categories.length}
           couponsCount={coupons.length}
+          newslettersCount={subscribers.length}
+          faqsCount={faqs.length}
+          announcementsCount={announcements.length}
+          adminName={adminUser?.name}
           onLogout={handleLogout}
         />
       </aside>
@@ -513,6 +640,10 @@ export default function AdminPage() {
               reviewsCount={reviews.length}
               categoriesCount={categories.length}
               couponsCount={coupons.length}
+              newslettersCount={subscribers.length}
+              faqsCount={faqs.length}
+              announcementsCount={announcements.length}
+              adminName={adminUser?.name}
               onLogout={handleLogout}
               onCloseMobile={() => setIsMobileSidebarOpen(false)}
             />
@@ -521,22 +652,25 @@ export default function AdminPage() {
       )}
 
       {/* 2. Main Work Area Container */}
-      <div className="flex-grow flex flex-col min-w-0">
-        <AdminHeader 
-          activeTab={activeTab}
-          onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}
-          onRefresh={fetchData}
-          isLoading={isLoading}
-          onLogout={handleLogout}
-        />
+      <div className="flex-grow flex flex-col min-w-0 h-full overflow-y-scroll relative">
+        {/* Floating Mobile Sidebar Toggle */}
+        <button 
+          onClick={() => setIsMobileSidebarOpen(true)} 
+          className="md:hidden fixed bottom-6 right-6 z-40 bg-primary hover:bg-primary/95 text-white p-3.5 rounded-full shadow-lg border-none cursor-pointer flex items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95"
+          aria-label="Open navigation menu"
+        >
+          <Menu size={20} />
+        </button>
 
         {/* Content Body */}
-        <main className="p-6 md:p-8 flex-grow overflow-y-auto max-w-[1440px] w-full mx-auto">
+        <div className="flex-grow w-full">
+          <main className="p-6 md:p-8 flex-grow max-w-[1440px] w-full mx-auto">
           {activeTab === "dashboard" && (
             <DashboardTab 
               analytics={analytics}
               products={products}
               setActiveTab={setActiveTab}
+              adminName={adminUser?.name}
             />
           )}
 
@@ -593,8 +727,31 @@ export default function AdminPage() {
               onDeleteReview={handleDeleteReview}
             />
           )}
-        </main>
+
+          {activeTab === "faqs" && (
+            <FaqsTab 
+              showToast={showToast}
+              onRefresh={fetchData}
+            />
+          )}
+
+          {activeTab === "announcements" && (
+            <AnnouncementsTab 
+              showToast={showToast}
+              onRefresh={fetchData}
+            />
+          )}
+
+          {activeTab === "newsletters" && (
+            <NewslettersTab 
+              subscribers={subscribers}
+              onDeleteSubscriber={handleDeleteSubscriber}
+            />
+          )}
+          </main>
+        </div>
       </div>
+      <ToastNotification isActive={toastActive} message={toastMsg} />
     </div>
   );
 }

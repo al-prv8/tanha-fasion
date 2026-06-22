@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { 
   Search, 
   Clock, 
@@ -41,6 +42,21 @@ export default function OrdersTab({
 }: OrdersTabProps) {
   // Tab-level filter status: "ALL" | "UNFULFILLED" | "UNPAID" | "PAID" | "DELIVERED" | "CANCELLED"
   const [activeFilter, setActiveFilter] = useState<string>("ALL");
+
+  const [isClient, setIsClient] = useState(false);
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  const getPaymentMethodLabel = (method: string) => {
+    switch (method) {
+      case "bkash": return "বিকাশ";
+      case "nagad": return "নগদ";
+      case "cod": return "ক্যাশ অন ডেলিভারি";
+      case "card": return "কার্ড";
+      default: return method;
+    }
+  };
 
   // Selection states for inline row expansion
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
@@ -152,12 +168,12 @@ export default function OrdersTab({
   };
 
   const filterTabs = [
-    { id: "ALL", label: "সব (All)" },
-    { id: "UNFULFILLED", label: "অসম্পূর্ণ (Unfulfilled)" },
-    { id: "UNPAID", label: "অপরিশোধিত (Unpaid)" },
-    { id: "PAID", label: "পরিশোধিত (Paid)" },
-    { id: "DELIVERED", label: "সম্পন্ন (Completed)" },
-    { id: "CANCELLED", label: "বাতিল (Cancelled)" },
+    { id: "ALL", label: "সব" },
+    { id: "UNFULFILLED", label: "অসম্পূর্ণ" },
+    { id: "UNPAID", label: "অপরিশোধিত" },
+    { id: "PAID", label: "পরিশোধিত" },
+    { id: "DELIVERED", label: "সম্পন্ন" },
+    { id: "CANCELLED", label: "বাতিল" },
   ];
 
   // Metric variables
@@ -168,6 +184,7 @@ export default function OrdersTab({
   }, 0);
   const totalCancelledCount = orders.filter(o => o.orderStatus === "CANCELLED").length;
   const totalDeliveredCount = orders.filter(o => o.orderStatus === "DELIVERED").length;
+  const activeOrderToPrint = orders.find(o => o.id === expandedOrderId);
 
   return (
     <div className="flex flex-col gap-6 font-sans">
@@ -177,18 +194,23 @@ export default function OrdersTab({
         <style dangerouslySetInnerHTML={{
           __html: `
             @media print {
-              body > * {
-                visibility: hidden !important;
+              html, body {
+                height: auto !important;
+                min-height: 0 !important;
+                overflow: visible !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                background: white !important;
               }
-              #printable-invoice-sheet-${expandedOrderId}, #printable-invoice-sheet-${expandedOrderId} * {
-                visibility: visible !important;
+              body > *:not([id^="printable-invoice-sheet-"]) {
+                display: none !important;
               }
-              #printable-invoice-sheet-${expandedOrderId} {
-                position: fixed !important;
-                top: 0 !important;
-                left: 0 !important;
-                width: 100vw !important;
-                height: 100vh !important;
+              [id^="printable-invoice-sheet-"] {
+                display: block !important;
+                position: relative !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                height: auto !important;
                 z-index: 9999999 !important;
                 box-shadow: none !important;
                 border: none !important;
@@ -196,6 +218,13 @@ export default function OrdersTab({
                 padding: 1.5cm !important;
                 background: white !important;
                 color: black !important;
+                page-break-inside: avoid !important;
+                page-break-after: avoid !important;
+                page-break-before: avoid !important;
+              }
+              @page {
+                size: auto;
+                margin: 0;
               }
             }
           `
@@ -489,7 +518,7 @@ export default function OrdersTab({
                               {/* Left Column: Clean Invoice Sheet */}
                               <div className="lg:col-span-7 flex flex-col gap-4">
                                 <div 
-                                  id={`printable-invoice-sheet-${o.id}`}
+                                  id={`preview-invoice-sheet-${o.id}`}
                                   className="bg-white border border-slate-200/80 rounded-xl p-6 shadow-xs text-slate-800 animate-fade-in"
                                 >
                                   {/* Brand Letterhead */}
@@ -529,7 +558,7 @@ export default function OrdersTab({
                                       <div className="mt-2.5">
                                         <span className="text-[9px] font-black text-slate-400 uppercase block">পেমেন্ট পদ্ধতি:</span>
                                         <span className="font-extrabold text-slate-900 uppercase text-[10px] mt-0.5 block">
-                                          {o.paymentMethod === "cod" ? "ক্যাশ অন ডেলিভারি (COD)" : o.paymentMethod}
+                                          {getPaymentMethodLabel(o.paymentMethod)}
                                         </span>
                                       </div>
                                     </div>
@@ -692,14 +721,14 @@ export default function OrdersTab({
                                             onChange={(e) => setFormCity(e.target.value)}
                                             className="w-full px-2.5 py-1.5 border border-border bg-slate-50 focus:bg-white rounded-lg text-foreground font-bold focus:outline-none focus:border-primary font-sans"
                                           >
-                                            <option value="Dhaka">ঢাকা (Dhaka)</option>
-                                            <option value="Chittagong">চট্টগ্রাম (Chittagong)</option>
-                                            <option value="Sylhet">সিলেট (Sylhet)</option>
-                                            <option value="Rajshahi">রাজশাহী (Rajshahi)</option>
-                                            <option value="Khulna">খুলনা (Khulna)</option>
-                                            <option value="Barisal">বরিশাল (Barisal)</option>
-                                            <option value="Rangpur">রংপুর (Rangpur)</option>
-                                            <option value="Mymensingh">ময়মনসিংহ (Mymensingh)</option>
+                                            <option value="Dhaka">ঢাকা</option>
+                                            <option value="Chittagong">চট্টগ্রাম</option>
+                                            <option value="Sylhet">সিলেট</option>
+                                            <option value="Rajshahi">রাজশাহী</option>
+                                            <option value="Khulna">খুলনা</option>
+                                            <option value="Barisal">বরিশাল</option>
+                                            <option value="Rangpur">রংপুর</option>
+                                            <option value="Mymensingh">ময়মনসিংহ</option>
                                           </select>
                                         </div>
                                         <div>
@@ -722,10 +751,10 @@ export default function OrdersTab({
                                             onChange={(e) => setFormPaymentMethod(e.target.value)}
                                             className="w-full px-2 py-1.5 border border-border bg-slate-50 focus:bg-white rounded-lg text-foreground font-bold focus:outline-none focus:border-primary font-sans"
                                           >
-                                            <option value="bkash">বিকাশ (bKash)</option>
-                                            <option value="nagad">নগদ (Nagad)</option>
-                                            <option value="cod">ক্যাশ অন ডেলিভারি (COD)</option>
-                                            <option value="card">কার্ড (Card)</option>
+                                            <option value="bkash">বিকাশ</option>
+                                            <option value="nagad">নগদ</option>
+                                            <option value="cod">ক্যাশ অন ডেলিভারি</option>
+                                            <option value="card">কার্ড</option>
                                           </select>
                                         </div>
                                         <div>
@@ -791,6 +820,124 @@ export default function OrdersTab({
           </div>
         )}
       </div>
+
+      {isClient && activeOrderToPrint && createPortal(
+        <div 
+          id={`printable-invoice-sheet-${activeOrderToPrint.id}`}
+          className="bg-white p-8 text-slate-800 hidden print:block"
+        >
+          {/* Brand Letterhead */}
+          <div className="flex justify-between items-start border-b-2 border-slate-900 pb-5 mb-6">
+            <div>
+              <h1 className="text-xl font-extrabold text-slate-900 tracking-tight">তানহা ফ্যাশন</h1>
+              <p className="text-[10px] text-slate-500 font-semibold mt-1">তানহা ফ্যাশন — অনন্য কালেকশন</p>
+              <p className="text-[9px] text-slate-400 mt-0.5">Mirpur, Dhaka, Bangladesh | Hotline: ০৯৬১২-৩৪৫৬৭৮</p>
+            </div>
+            <div className="text-right">
+              <div className="text-[9px] font-black uppercase text-slate-400 tracking-wider">রসিদ / ইনভয়েস</div>
+              <div className="text-base font-mono font-black text-slate-900 mt-1">#{activeOrderToPrint.orderNumber}</div>
+              <div className="text-[10px] text-slate-500 font-mono mt-1">
+                তারিখ: {new Date(activeOrderToPrint.createdAt).toLocaleDateString("bn-BD", { year: "numeric", month: "long", day: "numeric" })}
+              </div>
+            </div>
+          </div>
+
+          {/* Customer Contact Card */}
+          <div className="grid grid-cols-2 gap-6 text-[11px] mb-6">
+            <div>
+              <h4 className="font-extrabold text-slate-900 border-b border-slate-200 pb-1.5 mb-2 uppercase tracking-wide text-[9px]">ডেলিভারি ঠিকানা</h4>
+              <div className="font-black text-slate-900 text-xs mb-1">{activeOrderToPrint.name}</div>
+              <div className="text-slate-655 leading-relaxed font-semibold">{activeOrderToPrint.address}</div>
+              <div className="text-slate-655 font-bold mt-1">{activeOrderToPrint.city} - {activeOrderToPrint.postcode}</div>
+            </div>
+            <div>
+              <h4 className="font-extrabold text-slate-900 border-b border-slate-200 pb-1.5 mb-2 uppercase tracking-wide text-[9px]">পেমেন্ট ও কন্টাক্ট</h4>
+              <div className="flex items-center gap-1.5 text-slate-700 font-mono font-bold">
+                <Phone size={10} className="text-slate-400" /> {activeOrderToPrint.phone}
+              </div>
+              {activeOrderToPrint.email && (
+                <div className="flex items-center gap-1.5 text-slate-700 font-mono mt-1">
+                  <Mail size={10} className="text-slate-400" /> {activeOrderToPrint.email}
+                </div>
+              )}
+              <div className="mt-2.5">
+                <span className="text-[9px] font-black text-slate-400 uppercase block">পেমেন্ট পদ্ধতি:</span>
+                <span className="font-extrabold text-slate-900 uppercase text-[10px] mt-0.5 block">
+                  {getPaymentMethodLabel(activeOrderToPrint.paymentMethod)}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Items List Table */}
+          <div className="border border-slate-200 rounded-lg overflow-hidden mb-6 text-[11px] bg-slate-50/50">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-100 border-b border-slate-200 text-[9px] font-black text-slate-500 uppercase tracking-wider">
+                  <th className="py-2 px-3">আইটেম কোড</th>
+                  <th className="py-2 px-3 text-center">সাইজ</th>
+                  <th className="py-2 px-3 text-center">পরিমাণ</th>
+                  <th className="py-2 px-3 text-right">ইউনিট মূল্য</th>
+                  <th className="py-2 px-3 text-right">মোট মূল্য</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200 text-slate-800">
+                {activeOrderToPrint.items && activeOrderToPrint.items.map((item: any, idx: number) => (
+                  <tr key={idx} className="hover:bg-slate-100/30">
+                    <td className="py-2.5 px-3 font-mono font-semibold text-slate-500">{item.productId}</td>
+                    <td className="py-2.5 px-3 text-center font-bold">{item.size}</td>
+                    <td className="py-2.5 px-3 text-center font-bold">{toBanglaNumber(item.quantity)}</td>
+                    <td className="py-2.5 px-3 text-right font-mono">{formatBanglaPriceWithCommas(item.price)}</td>
+                    <td className="py-2.5 px-3 text-right font-mono font-bold">{formatBanglaPriceWithCommas(item.price * item.quantity)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Sums Section */}
+          <div className="max-w-xs ml-auto text-[11px] flex flex-col gap-1.5 border-t border-slate-200 pt-3 mb-4">
+            <div className="flex justify-between text-slate-500 font-semibold">
+              <span>উপমোট:</span>
+              <span className="font-bold text-slate-800">{formatBanglaPriceWithCommas(activeOrderToPrint.subtotal)}</span>
+            </div>
+            <div className="flex justify-between text-slate-500 font-semibold">
+              <span>ডেলিভারি খরচ:</span>
+              <span className="font-bold text-slate-800">{formatBanglaPriceWithCommas(activeOrderToPrint.shippingCost)}</span>
+            </div>
+            {activeOrderToPrint.discount > 0 && (
+              <div className="flex justify-between text-rose-600 font-bold">
+                <span>ছাড় (কুপন):</span>
+                <span>-{formatBanglaPriceWithCommas(activeOrderToPrint.discount)}</span>
+              </div>
+            )}
+            <div className="flex justify-between text-xs font-black border-t border-dashed border-slate-300 pt-2 text-slate-900">
+              <span>সর্বমোট পরিশোধযোগ্য:</span>
+              <span className="text-primary font-display">{formatBanglaPriceWithCommas(activeOrderToPrint.grandTotal)}</span>
+            </div>
+          </div>
+
+          {/* Transaction ID */}
+          {activeOrderToPrint.trxId && (
+            <div className="bg-slate-50 border border-slate-200/80 p-2.5 rounded-lg text-[9px] font-bold text-slate-600 text-center font-mono">
+              লেনদেন আইডি (TrxID): <span className="text-slate-900 select-all font-black">{activeOrderToPrint.trxId}</span>
+            </div>
+          )}
+
+          {/* Signatures bottom panel */}
+          <div className="grid grid-cols-2 gap-8 mt-8 pt-6 border-t border-dashed border-slate-200 text-[9px] text-slate-400 font-bold">
+            <div className="text-left">
+              <div className="h-6"></div>
+              <div className="border-t border-slate-200 pt-1.5 w-24">ক্রেতার স্বাক্ষর</div>
+            </div>
+            <div className="text-right flex flex-col items-end">
+              <div className="h-6"></div>
+              <div className="border-t border-slate-200 pt-1.5 w-36 text-center">তানহা ফ্যাশন অনুমোদিত স্বাক্ষর</div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
 
     </div>
   );

@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 
 interface HeaderProps {
-  activeTab: "dashboard" | "orders" | "products" | "reviews" | "categories" | "coupons";
+  activeTab: "dashboard" | "orders" | "products" | "reviews" | "categories" | "coupons" | "faqs" | "announcements";
   onOpenMobileSidebar: () => void;
   onRefresh: () => void;
   isLoading: boolean;
@@ -30,6 +30,8 @@ export default function AdminHeader({
       case "categories": return "ক্যাটাগরি মডারেশন";
       case "coupons": return "কুপন পরিচালনা";
       case "reviews": return "রিভিউ মডারেশন";
+      case "faqs": return "এফএকিউ পরিচালনা";
+      case "announcements": return "ঘোষণা পরিচালনা";
       default: return "";
     }
   };

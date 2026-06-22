@@ -376,12 +376,12 @@ export function getProductById(id: string | number): Product | undefined {
 }
 
 // Helper to convert number to Bangla numerals
-export function toBanglaNumber(n: number): string {
+export function toBanglaNumber(n: number | string): string {
   const banglaDigits = ["০", "১", "২", "৩", "৪", "৫", "৬", "৭", "৮", "৯"];
   return n
     .toString()
     .split("")
-    .map((char) => (isNaN(Number(char)) ? char : banglaDigits[Number(char)]))
+    .map((char) => (isNaN(Number(char)) || char === " " ? char : banglaDigits[Number(char)]))
     .join("");
 }
 
