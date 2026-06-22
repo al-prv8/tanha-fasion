@@ -34,6 +34,7 @@ export default function AdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [adminUser, setAdminUser] = useState<any>(null);
   const [authError, setAuthError] = useState("");
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
   // Navigation State
   const [activeTab, setActiveTab] = useState<"dashboard" | "orders" | "products" | "reviews" | "categories" | "coupons" | "faqs" | "announcements" | "newsletters" | "activity-logs">("dashboard");
@@ -111,6 +112,9 @@ export default function AdminPage() {
       })
       .catch(() => {
         setIsAuthenticated(false);
+      })
+      .finally(() => {
+        setIsCheckingAuth(false);
       });
   }, []);
 
@@ -559,6 +563,16 @@ export default function AdminPage() {
       alert("সংযোগ স্থাপন করতে ব্যর্থ হয়েছে: " + err.message);
     }
   };
+
+  // --- RENDER LOADING STATE WHILE CHECKING AUTH ---
+  if (isCheckingAuth) {
+    return (
+      <div className="grain-bg min-h-screen flex flex-col items-center justify-center p-4">
+        <div className="w-10 h-10 border-3 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p className="text-xs font-bold text-muted-foreground font-sans">অ্যাডমিন প্রবেশাধিকার যাচাই করা হচ্ছে...</p>
+      </div>
+    );
+  }
 
   // --- RENDER LOGIN GATE ---
   if (!isAuthenticated) {
