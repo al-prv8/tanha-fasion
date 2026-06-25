@@ -877,7 +877,30 @@ app.get("/api/products", async (req, res) => {
 // 4. Create Order Route
 app.post("/api/orders", async (req, res) => {
   try {
-    const { name, phone, email, address, city, postcode, paymentMethod, shippingMethod, items, trxId } = req.body;
+    let { 
+      name, 
+      phone, 
+      email, 
+      address, 
+      city, 
+      postcode, 
+      paymentMethod, 
+      shippingMethod, 
+      items, 
+      trxId,
+      orderStatus,
+      paymentStatus,
+      discount
+    } = req.body;
+
+    // Default fields for showroom/walkin POS checkouts to save cashier time
+    if (shippingMethod === "showroom" || shippingMethod === "walkin") {
+      if (!name) name = "শোরুম কাস্টমার";
+      if (!phone) phone = "01700000000";
+      if (!address) address = "বসুন্ধরা সিটি শোরুম";
+      if (!city) city = "Dhaka";
+      if (!postcode) postcode = "1215";
+    }
 
     // Validation
     if (!name || !phone || !address || !city || !postcode || !paymentMethod || !items || !Array.isArray(items) || items.length === 0) {
@@ -918,11 +941,41 @@ app.post("/api/orders", async (req, res) => {
       });
     }
 
-    const { discount } = req.body;
     const discountAmount = Number(discount || 0);
-    const shippingCost = shippingMethod === "outside" ? 150 : 80;
+    
+    let shippingCost = 80;
+    if (shippingMethod === "outside") {
+      shippingCost = 150;
+    } else if (shippingMethod === "showroom" || shippingMethod === "walkin") {
+      shippingCost = 0;
+    }
+
     const grandTotal = subtotal - discountAmount + shippingCost;
     const orderNumber = "TF-" + Math.floor(100000 + Math.random() * 900000);
+
+    // Deduct stock if starting in a deduct state (like DELIVERED)
+    const targetOrderStatus = orderStatus || "PENDING";
+    const targetPaymentStatus = paymentStatus || "UNPAID";
+    const isDeductState = ["CONFIRMED", "SHIPPED", "DELIVERED"].includes(targetOrderStatus);
+    let stockAdjusted = false;
+
+    if (isDeductState) {
+      for (const item of items) {
+        const productId = item.id || "1";
+        const prod = await prisma.product.findUnique({ where: { id: productId } });
+        if (prod) {
+          const size = item.size || "M";
+          const qty = Number(item.quantity);
+          const sizes = JSON.parse(prod.sizesJson || "{}");
+          sizes[size] = Math.max(0, Number(sizes[size] || 0) - qty);
+          await prisma.product.update({
+            where: { id: productId },
+            data: { sizesJson: JSON.stringify(sizes) }
+          });
+        }
+      }
+      stockAdjusted = true;
+    }
 
     const order = await prisma.order.create({
       data: {
@@ -938,6 +991,9 @@ app.post("/api/orders", async (req, res) => {
         discount: discountAmount,
         grandTotal,
         paymentMethod,
+        paymentStatus: targetPaymentStatus,
+        orderStatus: targetOrderStatus,
+        stockAdjusted,
         trxId: trxId || null,
         items: {
           create: orderItemsToCreate
@@ -949,6 +1005,25 @@ app.post("/api/orders", async (req, res) => {
     });
 
     console.log(`Order placed successfully: ${orderNumber}`);
+
+    // Verify optional admin session to log activity
+    const token = req.cookies?.token;
+    if (token) {
+      try {
+        const decoded: any = jwt.verify(token, JWT_SECRET);
+        if (decoded && decoded.role === "ADMIN") {
+          await logActivity(
+            decoded.email,
+            decoded.name || "অ্যাডমিন",
+            "POS_ORDER_CREATE",
+            `শোরুম থেকে বিক্রয় সম্পন্ন করা হয়েছে (অর্ডার নম্বর: ${orderNumber}, মোট টাকা: ৳${grandTotal}, পেমেন্ট: ${paymentMethod.toUpperCase()})`
+          );
+        }
+      } catch (err) {
+        // Ignore token errors
+      }
+    }
+
     res.status(201).json(order);
   } catch (error: any) {
     console.error("Order Creation Error:", error);
@@ -1037,6 +1112,55 @@ app.get("/api/analytics", authenticateToken, requireRole(["ADMIN"]), async (req,
     const totalReviews = await prisma.review.count();
     const totalSubscribers = await prisma.newsletterSubscriber.count();
 
+    // Calculate Cost of Goods Sold (COGS) & Net Profit
+    const purchases = await prisma.stockPurchase.findMany();
+    const productSizeCostMap: { [key: string]: { totalCost: number; totalQty: number } } = {};
+    for (const p of purchases) {
+      const key = `${p.productId}-${p.size}`;
+      if (!productSizeCostMap[key]) {
+        productSizeCostMap[key] = { totalCost: 0, totalQty: 0 };
+      }
+      productSizeCostMap[key].totalCost += p.totalCost;
+      productSizeCostMap[key].totalQty += p.quantity;
+    }
+
+    const productCostMap: { [productId: string]: { totalCost: number; totalQty: number } } = {};
+    for (const p of purchases) {
+      if (!productCostMap[p.productId]) {
+        productCostMap[p.productId] = { totalCost: 0, totalQty: 0 };
+      }
+      productCostMap[p.productId].totalCost += p.totalCost;
+      productCostMap[p.productId].totalQty += p.quantity;
+    }
+
+    const orderItems = await prisma.orderItem.findMany({
+      where: {
+        order: {
+          orderStatus: { not: "CANCELLED" }
+        }
+      },
+      include: {
+        product: true
+      }
+    });
+
+    let totalCostOfGoods = 0;
+    for (const item of orderItems) {
+      const key = `${item.productId}-${item.size}`;
+      if (productSizeCostMap[key] && productSizeCostMap[key].totalQty > 0) {
+        const avgCost = productSizeCostMap[key].totalCost / productSizeCostMap[key].totalQty;
+        totalCostOfGoods += avgCost * item.quantity;
+      } else if (productCostMap[item.productId] && productCostMap[item.productId].totalQty > 0) {
+        const avgCost = productCostMap[item.productId].totalCost / productCostMap[item.productId].totalQty;
+        totalCostOfGoods += avgCost * item.quantity;
+      } else {
+        const fallbackCost = (item.product?.price || item.price) * 0.6;
+        totalCostOfGoods += fallbackCost * item.quantity;
+      }
+    }
+
+    const netProfit = totalEarnings - totalCostOfGoods;
+
     // Last 7 days daily sales log for dashboard charts
     const last7DaysSales: { [date: string]: number } = {};
     for (let i = 6; i >= 0; i--) {
@@ -1073,6 +1197,8 @@ app.get("/api/analytics", authenticateToken, requireRole(["ADMIN"]), async (req,
       totalCoupons,
       totalReviews,
       totalSubscribers,
+      totalCostOfGoods,
+      netProfit,
       salesChartData
     });
   } catch (error: any) {
@@ -1646,6 +1772,289 @@ app.get("/api/logs", authenticateToken, requireRole(["ADMIN"]), async (req, res)
     res.json(logs);
   } catch (error: any) {
     res.status(500).json({ error: "Failed to load activity logs: " + error.message });
+  }
+});
+
+// --- Suppliers and Wholesale Purchases Endpoints ---
+
+// 1. List all suppliers
+app.get("/api/suppliers", authenticateToken, requireRole(["ADMIN"]), async (req, res) => {
+  try {
+    const suppliers = await prisma.supplier.findMany({
+      orderBy: { createdAt: "desc" }
+    });
+    res.json(suppliers);
+  } catch (error: any) {
+    res.status(500).json({ error: "Failed to list suppliers: " + error.message });
+  }
+});
+
+// 2. Create supplier
+app.post("/api/suppliers", authenticateToken, requireRole(["ADMIN"]), async (req, res) => {
+  try {
+    const { name, phone, company } = req.body;
+    if (!name) {
+      return res.status(400).json({ error: "Supplier name is required" });
+    }
+    const supplier = await prisma.supplier.create({
+      data: { name, phone, company }
+    });
+    logAdminActivity(req, "SUPPLIER_CREATE", `Created supplier: ${name} (${company || "No Company"})`);
+    res.json(supplier);
+  } catch (error: any) {
+    res.status(500).json({ error: "Failed to create supplier: " + error.message });
+  }
+});
+
+// 3. Delete supplier
+app.delete("/api/suppliers/:id", authenticateToken, requireRole(["ADMIN"]), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const supplier = await prisma.supplier.findUnique({ where: { id } });
+    if (!supplier) {
+      return res.status(404).json({ error: "Supplier not found" });
+    }
+    await prisma.supplier.delete({ where: { id } });
+    logAdminActivity(req, "SUPPLIER_DELETE", `Deleted supplier: ${supplier.name}`);
+    res.json({ message: "Supplier deleted successfully" });
+  } catch (error: any) {
+    res.status(500).json({ error: "Failed to delete supplier: " + error.message });
+  }
+});
+
+// 4. Retrieve purchase logs
+app.get("/api/purchases", authenticateToken, requireRole(["ADMIN"]), async (req, res) => {
+  try {
+    const purchases = await prisma.stockPurchase.findMany({
+      include: {
+        supplier: true,
+        product: true
+      },
+      orderBy: { createdAt: "desc" }
+    });
+    res.json(purchases);
+  } catch (error: any) {
+    res.status(500).json({ error: "Failed to list purchases: " + error.message });
+  }
+});
+
+// 5. Record new purchase and increment stock atomically
+app.post("/api/purchases", authenticateToken, requireRole(["ADMIN"]), async (req, res) => {
+  try {
+    const { supplierId, productId, size, quantity, buyingPrice } = req.body;
+    if (!productId || !size || !quantity || !buyingPrice) {
+      return res.status(400).json({ error: "Product ID, size, quantity, and buying price are required" });
+    }
+
+    const qty = parseInt(quantity);
+    const price = parseFloat(buyingPrice);
+    if (isNaN(qty) || qty <= 0) {
+      return res.status(400).json({ error: "Quantity must be a positive number" });
+    }
+    if (isNaN(price) || price <= 0) {
+      return res.status(400).json({ error: "Buying price must be a positive number" });
+    }
+
+    // Verify product exists
+    const product = await prisma.product.findUnique({ where: { id: productId } });
+    if (!product) {
+      return res.status(404).json({ error: "Product not found" });
+    }
+
+    // Increment stock count in sizesJson
+    let sizes: any = {};
+    try {
+      sizes = JSON.parse(product.sizesJson || "{}");
+    } catch (e) {
+      sizes = {};
+    }
+    sizes[size] = (sizes[size] || 0) + qty;
+
+    // Use Prisma transaction to ensure atomicity
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. Create StockPurchase record
+      const purchase = await tx.stockPurchase.create({
+        data: {
+          supplierId: supplierId || null,
+          productId,
+          size,
+          quantity: qty,
+          buyingPrice: price,
+          totalCost: qty * price
+        },
+        include: {
+          supplier: true,
+          product: true
+        }
+      });
+
+      // 2. Update Product sizesJson
+      await tx.product.update({
+        where: { id: productId },
+        data: {
+          sizesJson: JSON.stringify(sizes)
+        }
+      });
+
+      return purchase;
+    });
+
+    logAdminActivity(req, "STOCK_PURCHASE", `পাইকারি ক্রয় নথিভুক্ত করেছেন (SKU: ${product.sku}, সাইজ: ${size}, পরিমাণ: ${qty}, মূল্য: ৳${price})`);
+    res.json(result);
+  } catch (error: any) {
+    res.status(500).json({ error: "Failed to record purchase: " + error.message });
+  }
+});
+
+
+// --- Steadfast Courier Integration Endpoints ---
+
+// 1. Book order to Steadfast Courier
+app.post("/api/orders/:id/book-steadfast", authenticateToken, requireRole(["ADMIN"]), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { codAmount, note } = req.body;
+
+    const order = await prisma.order.findUnique({
+      where: { id }
+    });
+    if (!order) {
+      return res.status(404).json({ error: "Order not found" });
+    }
+
+    if (order.courierConsignmentId) {
+      return res.status(400).json({ error: "Order is already booked with Steadfast" });
+    }
+
+    // Clean recipient phone to be 11-digit starting with 01
+    let cleanPhone = order.phone.replace(/\D/g, "");
+    if (cleanPhone.startsWith("880")) {
+      cleanPhone = cleanPhone.substring(3);
+    } else if (cleanPhone.startsWith("88")) {
+      cleanPhone = cleanPhone.substring(2);
+    }
+    if (!cleanPhone.startsWith("0")) {
+      cleanPhone = "0" + cleanPhone;
+    }
+
+    const parsedCod = parseFloat(codAmount);
+    const finalCodAmount = isNaN(parsedCod) ? (order.paymentMethod === "cod" && order.paymentStatus === "UNPAID" ? order.grandTotal : 0) : parsedCod;
+
+    const apiKey = process.env.STEADFAST_API_KEY || "";
+    const secretKey = process.env.STEADFAST_SECRET_KEY || "";
+
+    const payload = {
+      invoice: order.orderNumber,
+      recipient_name: order.name,
+      recipient_phone: cleanPhone,
+      recipient_address: `${order.address}, ${order.city} - ${order.postcode}`,
+      cod_amount: finalCodAmount,
+      note: note || ""
+    };
+
+    const response = await fetch("https://portal.packzy.com/api/v1/create_order", {
+      method: "POST",
+      headers: {
+        "Api-Key": apiKey,
+        "Secret-Key": secretKey,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const data: any = await response.json();
+
+    if (data.status === 200 && data.consignment) {
+      const consignment = data.consignment;
+      const updatedOrder = await prisma.order.update({
+        where: { id },
+        data: {
+          courierConsignmentId: String(consignment.consignment_id),
+          courierTrackingCode: consignment.tracking_code,
+          courierStatus: "pending",
+          orderStatus: "SHIPPED" // Mark as shipped since it has been sent to courier
+        }
+      });
+
+      logAdminActivity(
+        req,
+        "STEADFAST_BOOKING",
+        `অর্ডার #${order.orderNumber} কুরিয়ারে পাঠিয়েছেন (কনসাইনমেন্ট আইডি: ${consignment.consignment_id}, ট্র্যাকিং কোড: ${consignment.tracking_code}, COD: ৳${finalCodAmount})`
+      );
+
+      res.json(updatedOrder);
+    } else {
+      res.status(400).json({ error: data.message || "Steadfast Courier API returned an error" });
+    }
+  } catch (error: any) {
+    res.status(500).json({ error: "Failed to book with Steadfast: " + error.message });
+  }
+});
+
+// 2. Sync order status from Steadfast Courier
+app.post("/api/orders/:id/sync-steadfast", authenticateToken, requireRole(["ADMIN"]), async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const order = await prisma.order.findUnique({
+      where: { id }
+    });
+    if (!order) {
+      return res.status(404).json({ error: "Order not found" });
+    }
+
+    if (!order.courierConsignmentId) {
+      return res.status(400).json({ error: "Order has no Steadfast Consignment ID to sync" });
+    }
+
+    const apiKey = process.env.STEADFAST_API_KEY || "";
+    const secretKey = process.env.STEADFAST_SECRET_KEY || "";
+
+    const response = await fetch(`https://portal.packzy.com/api/v1/status_by_cid/${order.courierConsignmentId}`, {
+      method: "GET",
+      headers: {
+        "Api-Key": apiKey,
+        "Secret-Key": secretKey,
+        "Content-Type": "application/json"
+      }
+    });
+
+    const data: any = await response.json();
+
+    if (data.status === 200 && data.delivery_status) {
+      const deliveryStatus = data.delivery_status;
+      
+      let updatedOrderStatus = order.orderStatus;
+      let updatedPaymentStatus = order.paymentStatus;
+
+      if (deliveryStatus === "delivered") {
+        updatedOrderStatus = "DELIVERED";
+        updatedPaymentStatus = "PAID";
+      } else if (deliveryStatus === "cancelled") {
+        updatedOrderStatus = "CANCELLED";
+      }
+
+      const updatedOrder = await prisma.order.update({
+        where: { id },
+        data: {
+          courierStatus: deliveryStatus,
+          orderStatus: updatedOrderStatus,
+          paymentStatus: updatedPaymentStatus
+        }
+      });
+
+      logAdminActivity(
+        req,
+        "STEADFAST_SYNC",
+        `কুরিয়ার ট্র্যাক সিঙ্ক হয়েছে: #${order.orderNumber} এর কুরিয়ার স্ট্যাটাস: ${deliveryStatus}`
+      );
+
+      res.json(updatedOrder);
+    } else {
+      res.status(400).json({ error: data.message || "Steadfast Courier API returned an error" });
+    }
+  } catch (error: any) {
+    res.status(500).json({ error: "Failed to sync with Steadfast: " + error.message });
   }
 });
 

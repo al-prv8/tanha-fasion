@@ -29,6 +29,73 @@ interface OrdersTabProps {
   onUpdatePaymentStatus: (orderId: string, status: string) => Promise<void>;
   onUpdateOrderInfo: (orderId: string, info: any) => Promise<void>;
   onDeleteOrder: (orderId: string) => Promise<void>;
+  onBookSteadfast?: (orderId: string, codAmount: number, note: string) => Promise<any>;
+  onSyncSteadfast?: (orderId: string) => Promise<any>;
+}
+
+interface CourierBookingFormProps {
+  order: any;
+  onBook: (codAmount: number, note: string) => Promise<void>;
+}
+
+function CourierBookingForm({ order, onBook }: CourierBookingFormProps) {
+  const defaultCod = order.paymentMethod === "cod" && order.paymentStatus === "UNPAID" ? order.grandTotal : 0;
+  const [codAmount, setCodAmount] = useState<string>(String(defaultCod));
+  const [note, setNote] = useState<string>("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    try {
+      const parsedCod = parseFloat(codAmount);
+      await onBook(isNaN(parsedCod) ? 0 : parsedCod, note);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="flex flex-col gap-3 text-xs font-semibold text-slate-800">
+      <div className="grid grid-cols-2 gap-2 text-left">
+        <div>
+          <label className="block text-[10px] text-muted-foreground mb-1">সিওডি (COD) পরিমাণ *</label>
+          <input 
+            type="number" 
+            required
+            value={codAmount}
+            onChange={(e) => setCodAmount(e.target.value)}
+            className="w-full px-2.5 py-1.5 border border-border bg-slate-50 focus:bg-white rounded-lg text-foreground focus:outline-none focus:border-primary font-sans"
+          />
+        </div>
+        <div>
+          <label className="block text-[10px] text-muted-foreground mb-1">অর্ডার মোট মূল্য</label>
+          <div className="w-full px-2.5 py-1.5 bg-slate-100 border border-slate-200 rounded-lg text-slate-600 font-bold font-sans">
+            ৳ {formatBanglaPriceWithCommas(order.grandTotal)}
+          </div>
+        </div>
+      </div>
+      <div className="text-left">
+        <label className="block text-[10px] text-muted-foreground mb-1">কুরিয়ার ডেলিভারি নোট</label>
+        <input 
+          type="text" 
+          placeholder="যেমন: সাবধানে ডেলিভারি করুন"
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          className="w-full px-2 py-1.5 border border-border bg-slate-50 focus:bg-white rounded-lg text-foreground focus:outline-none focus:border-primary font-sans"
+        />
+      </div>
+      <button 
+        type="submit" 
+        disabled={isSubmitting}
+        className="w-full py-2 bg-primary hover:bg-primary/95 text-white border-none font-bold rounded-lg cursor-pointer flex items-center justify-center gap-1 shadow-2xs disabled:opacity-50"
+      >
+        <span>Steadfast এ বুক করুন</span>
+      </button>
+    </form>
+  );
 }
 
 export default function OrdersTab({
@@ -38,7 +105,9 @@ export default function OrdersTab({
   onUpdateOrderStatus,
   onUpdatePaymentStatus,
   onUpdateOrderInfo,
-  onDeleteOrder
+  onDeleteOrder,
+  onBookSteadfast,
+  onSyncSteadfast
 }: OrdersTabProps) {
   // Tab-level filter status: "ALL" | "UNFULFILLED" | "UNPAID" | "PAID" | "DELIVERED" | "CANCELLED"
   const [activeFilter, setActiveFilter] = useState<string>("ALL");
@@ -789,6 +858,62 @@ export default function OrdersTab({
                                   )}
                                 </div>
 
+                                {/* Steadfast Courier Integration Card */}
+                                {o.paymentMethod !== "showroom" && (
+                                  <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-2xs flex flex-col gap-3">
+                                    <h4 className="font-bold text-xs text-foreground font-display flex items-center gap-1.5 border-b border-border/40 pb-2 mb-1">
+                                      <Truck size={13} className="text-primary" />
+                                      <span>কুরিয়ার বুকিং (Steadfast Courier)</span>
+                                    </h4>
+                                    
+                                    {!o.courierConsignmentId ? (
+                                      /* Booking Form */
+                                      <CourierBookingForm 
+                                        order={o} 
+                                        onBook={async (cod, note) => {
+                                          if (onBookSteadfast) {
+                                            await onBookSteadfast(o.id, cod, note);
+                                          }
+                                        }} 
+                                      />
+                                    ) : (
+                                      /* Booking Details */
+                                      <div className="flex flex-col gap-3 text-xs text-muted-foreground font-semibold">
+                                        <div className="flex justify-between items-center bg-[#F4F9F4] text-emerald-800 border border-emerald-150 p-2.5 rounded-lg text-[10px] font-black">
+                                          <span>স্ট্যাটাস: {o.courierStatus || "বুকড"}</span>
+                                          <span>Steadfast Courier</span>
+                                        </div>
+                                        <div className="flex flex-col gap-1 text-[11px] text-muted-foreground text-left font-semibold">
+                                          <div>কনসাইনমেন্ট আইডি: <strong className="text-slate-800 font-mono">{o.courierConsignmentId}</strong></div>
+                                          <div>ট্র্যাকিং কোড: <strong className="text-slate-800 font-mono">{o.courierTrackingCode}</strong></div>
+                                        </div>
+                                        
+                                        <div className="flex gap-2 justify-end mt-1">
+                                          <button
+                                            type="button"
+                                            onClick={async () => {
+                                              if (onSyncSteadfast) {
+                                                await onSyncSteadfast(o.id);
+                                              }
+                                            }}
+                                            className="py-1.5 px-3 bg-secondary hover:bg-slate-100 border border-border text-foreground font-bold rounded-lg cursor-pointer flex items-center gap-1"
+                                          >
+                                            <span>স্ট্যাটাস সিঙ্ক করুন</span>
+                                          </button>
+                                          <a
+                                            href="https://portal.steadfast.com.bd"
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="py-1.5 px-3 bg-primary hover:bg-primary/95 text-white border-none font-bold rounded-lg cursor-pointer no-underline text-center flex items-center justify-center font-sans"
+                                          >
+                                            <span>কুরিয়ার পোর্টাল</span>
+                                          </a>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+ 
                                 {/* Danger Zone (Delete Order) */}
                                 <div className="bg-rose-50/50 border border-rose-200/80 rounded-xl p-5 shadow-2xs">
                                   <h4 className="font-bold text-xs text-rose-700 font-display flex items-center gap-1.5 border-b border-rose-250 pb-2 mb-3">

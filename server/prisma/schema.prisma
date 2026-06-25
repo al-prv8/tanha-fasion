@@ -8,38 +8,42 @@ generator client {
 }
 
 model Product {
-  id           String      @id @default(uuid())
-  sku          String      @unique
+  id           String          @id @default(uuid())
+  sku          String          @unique
   name         String
   price        Float
   category     String
   imgUrl       String
-  sizesJson    String      @default("{\"S\":10,\"M\":15,\"L\":15,\"XL\":5}")
+  sizesJson    String          @default("{\"S\":10,\"M\":15,\"L\":15,\"XL\":5}")
   reviews      Review[]
   orderItems   OrderItem[]
-  createdAt    DateTime    @default(now())
+  purchases    StockPurchase[]
+  createdAt    DateTime        @default(now())
 }
 
 model Order {
-  id            String        @id @default(uuid())
-  orderNumber   String        @unique // e.g., TF-123456
-  name          String
-  phone         String
-  email         String?
-  address       String
-  city          String
-  postcode      String
-  shippingCost  Float
-  subtotal      Float
-  discount      Float
-  grandTotal    Float
-  paymentMethod String        // bkash, nagad, cod, card
-  paymentStatus String        @default("UNPAID")    // UNPAID, PAID, REFUNDED
-  orderStatus   String        @default("PENDING")   // PENDING, CONFIRMED, SHIPPED, DELIVERED, CANCELLED
-  trxId         String?       // Transaction ID for MFS verification
-  stockAdjusted Boolean       @default(false)
-  items         OrderItem[]
-  createdAt     DateTime      @default(now())
+  id                   String      @id @default(uuid())
+  orderNumber          String      @unique // e.g., TF-123456
+  name                 String
+  phone                String
+  email                String?
+  address              String
+  city                 String
+  postcode             String
+  shippingCost         Float
+  subtotal             Float
+  discount             Float
+  grandTotal           Float
+  paymentMethod        String      // bkash, nagad, cod, card
+  paymentStatus        String      @default("UNPAID") // UNPAID, PAID, REFUNDED
+  orderStatus          String      @default("PENDING") // PENDING, CONFIRMED, SHIPPED, DELIVERED, CANCELLED
+  trxId                String?     // Transaction ID for MFS verification
+  stockAdjusted        Boolean     @default(false)
+  items                OrderItem[]
+  courierConsignmentId String?
+  courierTrackingCode  String?
+  courierStatus        String?
+  createdAt            DateTime    @default(now())
 }
 
 model OrderItem {
@@ -128,6 +132,28 @@ model ActivityLog {
   action    String
   details   String
   createdAt DateTime @default(now())
+}
+
+model Supplier {
+  id        String          @id @default(uuid())
+  name      String
+  phone     String?
+  company   String?
+  purchases StockPurchase[]
+  createdAt DateTime        @default(now())
+}
+
+model StockPurchase {
+  id          String    @id @default(uuid())
+  supplierId  String?
+  supplier    Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  productId   String
+  product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  size        String    // S, M, L, XL, etc.
+  quantity    Int
+  buyingPrice Float
+  totalCost   Float
+  createdAt   DateTime  @default(now())
 }
 
 

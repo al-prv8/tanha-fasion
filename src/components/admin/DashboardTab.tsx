@@ -14,7 +14,9 @@ import {
   CheckCircle2,
   Truck,
   XCircle,
-  BadgePercent
+  BadgePercent,
+  TrendingDown,
+  TrendingUp
 } from "lucide-react";
 import { formatBanglaPriceWithCommas, toBanglaNumber, getProductTotalStock } from "@/lib/products";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
@@ -33,6 +35,8 @@ interface DashboardTabProps {
     totalCustomers?: number;
     totalCoupons?: number;
     totalReviews?: number;
+    totalCostOfGoods?: number;
+    netProfit?: number;
     salesChartData: Array<{ date: string; sales: number }>;
   };
   products: any[];
@@ -133,6 +137,35 @@ export default function DashboardTab({
           </div>
           <div className="w-10 h-10 bg-purple-50 border border-purple-100 rounded-full flex items-center justify-center text-purple-650 flex-shrink-0">
             <Users size={20} />
+          </div>
+        </div>
+      </div>
+
+      {/* Financial Analytics Grid Row */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        {/* Cost of Goods Sold Card */}
+        <div className="bg-card border border-border/80 p-5 rounded-2xl shadow-2xs flex items-center justify-between transition-transform duration-300 hover:-translate-y-0.5">
+          <div className="min-w-0">
+            <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">বিক্রিত পণ্যের পাইকারি ক্রয়মূল্য (COGS)</span>
+            <span className="text-xl sm:text-2xl font-black text-slate-600 block mt-1.5 font-sans">
+              {formatBanglaPriceWithCommas(analytics.totalCostOfGoods || 0)}
+            </span>
+          </div>
+          <div className="w-10 h-10 bg-rose-50 border border-rose-100 rounded-full flex items-center justify-center text-rose-600 flex-shrink-0">
+            <TrendingDown size={20} />
+          </div>
+        </div>
+
+        {/* Net Profit Card */}
+        <div className="bg-card border border-border/80 p-5 rounded-2xl shadow-2xs flex items-center justify-between transition-transform duration-300 hover:-translate-y-0.5">
+          <div className="min-w-0">
+            <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">মোট আনুমানিক নিট লাভ (Net Profit)</span>
+            <span className="text-xl sm:text-2xl font-black text-emerald-600 block mt-1.5 font-sans">
+              {formatBanglaPriceWithCommas(analytics.netProfit || 0)}
+            </span>
+          </div>
+          <div className="w-10 h-10 bg-emerald-50 border border-emerald-100 rounded-full flex items-center justify-center text-emerald-600 flex-shrink-0">
+            <TrendingUp size={20} />
           </div>
         </div>
       </div>
