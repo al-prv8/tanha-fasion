@@ -10,7 +10,8 @@ import {
   ChevronDown,
   X,
   Save,
-  Layers
+  Layers,
+  Barcode
 } from "lucide-react";
 import { formatBanglaPriceWithCommas, toBanglaNumber, getProductTotalStock } from "@/lib/products";
 
@@ -84,6 +85,138 @@ export default function ProductsTab({
 }: ProductsTabProps) {
   // Tracking if Custom URL mode or Upload mode is active
   const [imageMode, setImageMode] = useState<"preset" | "custom" | "upload">("preset");
+
+  // Barcode Print Modal State
+  const [barcodeProduct, setBarcodeProduct] = useState<any>(null);
+  const [barcodeSize, setBarcodeSize] = useState<string>("M");
+
+  const getProductSizes = (prod: any) => {
+    try {
+      const sizesObj = JSON.parse(prod.sizesJson || "{}");
+      const keys = Object.keys(sizesObj);
+      return keys.length > 0 ? keys : ["S", "M", "L", "XL"];
+    } catch (e) {
+      return ["S", "M", "L", "XL"];
+    }
+  };
+
+  const handlePrintBarcode = (prod: any, size: string) => {
+    const sku = `TF-${prod.numericId}-${size}`;
+    // Uses the open-source, free bwip-js API to render Code 128 barcodes as high-quality PNGs
+    const barcodeUrl = `https://api-bwipjs.metafloor.com/?bcid=code128&text=${sku}&scale=2&height=10`;
+
+    const printWindow = window.open("", "_blank", "width=600,height=400");
+    if (!printWindow) return;
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>প্রিন্ট বারকোড - ${prod.name}</title>
+          <style>
+            @page {
+              size: 50mm 30mm;
+              margin: 0;
+            }
+            body {
+              margin: 0;
+              padding: 2mm;
+              font-family: Arial, sans-serif;
+              background: white;
+              color: black;
+              -webkit-print-color-adjust: exact;
+            }
+            .label-container {
+              width: 46mm;
+              height: 26mm;
+              display: flex;
+              flex-direction: column;
+              justify-content: space-between;
+              box-sizing: border-box;
+            }
+            .title {
+              font-size: 8pt;
+              font-weight: bold;
+              text-align: center;
+              border-bottom: 0.5px solid black;
+              padding-bottom: 2px;
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+            }
+            .name {
+              font-size: 7pt;
+              font-weight: bold;
+              margin-top: 2px;
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+            }
+            .meta-row {
+              display: flex;
+              justify-content: space-between;
+              font-size: 6pt;
+              margin-top: 1px;
+              font-weight: bold;
+            }
+            .barcode-area {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              margin-top: 2px;
+            }
+            .barcode-img {
+              height: 7mm;
+              max-width: 28mm;
+              object-fit: contain;
+            }
+            .price-block {
+              text-align: right;
+            }
+            .price-label {
+              font-size: 5pt;
+              color: #555;
+              display: block;
+            }
+            .price-val {
+              font-size: 9pt;
+              font-weight: 900;
+              white-space: nowrap;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="label-container">
+            <div class="title">TANHA FASHION (তানহা ফ্যাশন)</div>
+            <div class="name">${prod.name}</div>
+            <div class="meta-row">
+              <span>কোড: ${prod.numericId}</span>
+              <span>SKU: ${prod.sku || ""}</span>
+              <span>সাইজ: ${size}</span>
+            </div>
+            <div class="barcode-area">
+              <div style="display: flex; flex-direction: column; align-items: center;">
+                <img class="barcode-img" src="${barcodeUrl}" alt="${sku}" />
+                <span style="font-size: 5.5pt; font-family: monospace; font-weight: bold; margin-top: 1px; letter-spacing: 0.5px;">${sku}</span>
+              </div>
+              <div class="price-block">
+                <span class="price-label">মূল্য:</span>
+                <div class="price-val">${formatBanglaPriceWithCommas(prod.price)}</div>
+              </div>
+            </div>
+          </div>
+          <script>
+            window.onload = function() {
+              setTimeout(function() {
+                window.print();
+                window.close();
+              }, 300);
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
   
   // Selection states for inline row expansion
   const [expandedProductId, setExpandedProductId] = useState<string | null>(null);

@@ -9,7 +9,6 @@ import AdminSidebar from "@/components/admin/AdminSidebar";
 import DashboardTab from "@/components/admin/DashboardTab";
 import OrdersTab from "@/components/admin/OrdersTab";
 import ProductsTab from "@/components/admin/ProductsTab";
-import PurchasesTab from "@/components/admin/PurchasesTab";
 import CategoriesTab from "@/components/admin/CategoriesTab";
 import CouponsTab from "@/components/admin/CouponsTab";
 import ReviewsTab from "@/components/admin/ReviewsTab";
@@ -38,7 +37,7 @@ export default function AdminPage() {
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
   // Navigation State
-  const [activeTab, setActiveTab] = useState<"dashboard" | "orders" | "products" | "reviews" | "categories" | "coupons" | "faqs" | "announcements" | "newsletters" | "activity-logs" | "purchases">("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "orders" | "products" | "reviews" | "categories" | "coupons" | "faqs" | "announcements" | "newsletters" | "activity-logs">("dashboard");
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   // Toast Notification States
@@ -68,8 +67,6 @@ export default function AdminPage() {
   const [faqs, setFaqs] = useState<any[]>([]);
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [logs, setLogs] = useState<any[]>([]);
-  const [suppliers, setSuppliers] = useState<any[]>([]);
-  const [purchases, setPurchases] = useState<any[]>([]);
   const [isLogsLoading, setIsLogsLoading] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -142,7 +139,7 @@ export default function AdminPage() {
     setIsLoading(true);
     setIsLogsLoading(true);
     try {
-      const [analyticsRes, ordersRes, productsRes, categoriesRes, couponsRes, subscribersRes, faqsRes, announcementsRes, logsRes, suppliersRes, purchasesRes] = await Promise.all([
+      const [analyticsRes, ordersRes, productsRes, categoriesRes, couponsRes, subscribersRes, faqsRes, announcementsRes, logsRes] = await Promise.all([
         authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/analytics`),
         authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/orders`),
         authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/products`),
@@ -151,9 +148,7 @@ export default function AdminPage() {
         authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/newsletter`),
         authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/faqs`),
         authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/announcements`),
-        authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/logs`),
-        authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/suppliers`),
-        authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/purchases`)
+        authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/logs`)
       ]);
 
       if (analyticsRes.ok) setAnalytics(await analyticsRes.json());
@@ -164,12 +159,18 @@ export default function AdminPage() {
       if (faqsRes.ok) setFaqs(await faqsRes.json());
       if (announcementsRes.ok) setAnnouncements(await announcementsRes.json());
       if (logsRes.ok) setLogs(await logsRes.json());
-      if (suppliersRes && suppliersRes.ok) setSuppliers(await suppliersRes.json());
-      if (purchasesRes && purchasesRes.ok) setPurchases(await purchasesRes.json());
       
       if (productsRes.ok) {
         const prodData = await productsRes.json();
-        setProducts(prodData);
+        const enriched = prodData.map((p: any) => {
+          const englishDigits = p.id.split("").map((c: string) => {
+            const idx = ["০", "১", "২", "৩", "৪", "৫", "৬", "৭", "৮", "৯"].indexOf(c);
+            return idx !== -1 ? idx : c;
+          }).join("");
+          const parsed = parseInt(englishDigits, 10);
+          return { ...p, numericId: !isNaN(parsed) ? parsed : 999 };
+        });
+        setProducts(enriched);
         
         // Collate product reviews to display under reviews moderation
         const collatedReviews: any[] = [];
@@ -323,67 +324,7 @@ export default function AdminPage() {
     }
   };
 
-  // Supplier & Purchases Handlers
-  const handleAddSupplier = async (supplierPayload: { name: string; phone?: string; company?: string }) => {
-    try {
-      const res = await authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/suppliers`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(supplierPayload)
-      });
-      if (res.ok) {
-        alert("সরবরাহকারী সফলভাবে যুক্ত করা হয়েছে!");
-        fetchData();
-      } else {
-        const err = await res.json();
-        throw new Error(err.error || "সরবরাহকারী যুক্ত করতে ব্যর্থ হয়েছে");
-      }
-    } catch (err: any) {
-      console.error(err);
-      alert(err.message);
-      throw err;
-    }
-  };
-
-  const handleDeleteSupplier = async (supplierId: string) => {
-    try {
-      const res = await authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/suppliers/${supplierId}`, {
-        method: "DELETE"
-      });
-      if (res.ok) {
-        alert("সরবরাহকারী সফলভাবে মুছে ফেলা হয়েছে!");
-        fetchData();
-      } else {
-        const err = await res.json();
-        throw new Error(err.error || "সরবরাহকারী মুছতে ব্যর্থ হয়েছে");
-      }
-    } catch (err: any) {
-      console.error(err);
-      alert(err.message);
-      throw err;
-    }
-  };
-
-  const handleAddPurchase = async (purchasePayload: { supplierId?: string; productId: string; size: string; quantity: number; buyingPrice: number }) => {
-    try {
-      const res = await authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/purchases`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(purchasePayload)
-      });
-      if (res.ok) {
-        alert("ক্রয় সফলভাবে নথিভুক্ত এবং স্টক হালনাগাদ করা হয়েছে!");
-        fetchData();
-      } else {
-        const err = await res.json();
-        throw new Error(err.error || "ক্রয় এন্ট্রি ব্যর্থ হয়েছে");
-      }
-    } catch (err: any) {
-      console.error(err);
-      alert(err.message);
-      throw err;
-    }
-  };
+  // (Removed Supplier & Purchases Handlers for physical showroom separation)
 
   // Steadfast Courier Booking & Syncing Handlers
   const handleBookSteadfast = async (orderId: string, codAmount: number, note: string) => {
@@ -757,7 +698,6 @@ export default function AdminPage() {
           newslettersCount={subscribers.length}
           faqsCount={faqs.length}
           announcementsCount={announcements.length}
-          purchasesCount={purchases.length}
           adminName={adminUser?.name}
           onLogout={handleLogout}
         />
@@ -778,7 +718,6 @@ export default function AdminPage() {
               newslettersCount={subscribers.length}
               faqsCount={faqs.length}
               announcementsCount={announcements.length}
-              purchasesCount={purchases.length}
               adminName={adminUser?.name}
               onLogout={handleLogout}
               onCloseMobile={() => setIsMobileSidebarOpen(false)}
@@ -840,16 +779,7 @@ export default function AdminPage() {
             />
           )}
 
-          {activeTab === "purchases" && (
-            <PurchasesTab 
-              products={products}
-              suppliers={suppliers}
-              purchases={purchases}
-              onAddSupplier={handleAddSupplier}
-              onDeleteSupplier={handleDeleteSupplier}
-              onAddPurchase={handleAddPurchase}
-            />
-          )}
+          {/* (Removed PurchasesTab layout for physical showroom separation) */}
 
           {activeTab === "categories" && (
             <CategoriesTab 

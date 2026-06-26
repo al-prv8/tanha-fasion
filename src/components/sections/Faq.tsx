@@ -25,6 +25,26 @@ export default function Faq({ openFaq, setOpenFaq, scrollToSection }: FaqProps) 
 
   return (
     <section className="w-full bg-zinc-50/50 py-16 md:py-28 border-t border-border/40" id="faq">
+      {/* FAQ JSON-LD Schema for AEO / Search Engine Rich Results */}
+      {!loading && faqs.length > 0 && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "FAQPage",
+              "mainEntity": faqs.map((faq) => ({
+                "@type": "Question",
+                "name": faq.question,
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": faq.answer,
+                },
+              })),
+            }),
+          }}
+        />
+      )}
       <div className="max-w-[1440px] mx-auto px-4 md:px-12 grid grid-cols-1 lg:grid-cols-[5fr_7fr] gap-12 lg:gap-20">
         
         {/* Left Side Info - Centered on Mobile, Left-aligned on Desktop */}

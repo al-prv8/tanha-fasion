@@ -63,7 +63,7 @@ export default function PurchasesTab({
     const prod = products.find(p => p.id === selectedProductId);
     if (!prod) return [];
     try {
-      const parsed = JSON.parse(prod.sizesJson || "{}");
+      const parsed = JSON.parse(prod.showroomSizesJson || prod.sizesJson || "{}");
       return Object.keys(parsed);
     } catch (e) {
       return ["S", "M", "L", "XL", "XXL"];

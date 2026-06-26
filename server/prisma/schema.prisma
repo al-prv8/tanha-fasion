@@ -8,17 +8,18 @@ generator client {
 }
 
 model Product {
-  id           String          @id @default(uuid())
-  sku          String          @unique
-  name         String
-  price        Float
-  category     String
-  imgUrl       String
-  sizesJson    String          @default("{\"S\":10,\"M\":15,\"L\":15,\"XL\":5}")
-  reviews      Review[]
-  orderItems   OrderItem[]
-  purchases    StockPurchase[]
-  createdAt    DateTime        @default(now())
+  id                String          @id @default(uuid())
+  sku               String          @unique
+  name              String
+  price             Float
+  category          String
+  imgUrl            String
+  sizesJson         String          @default("{\"S\":10,\"M\":15,\"L\":15,\"XL\":5}")
+  showroomSizesJson String          @default("{\"S\":10,\"M\":15,\"L\":15,\"XL\":5}")
+  reviews           Review[]
+  orderItems        OrderItem[]
+  purchases         StockPurchase[]
+  createdAt         DateTime        @default(now())
 }
 
 model Order {
@@ -39,6 +40,7 @@ model Order {
   orderStatus          String      @default("PENDING") // PENDING, CONFIRMED, SHIPPED, DELIVERED, CANCELLED
   trxId                String?     // Transaction ID for MFS verification
   stockAdjusted        Boolean     @default(false)
+  isShowroom           Boolean     @default(false)
   items                OrderItem[]
   courierConsignmentId String?
   courierTrackingCode  String?
@@ -154,6 +156,15 @@ model StockPurchase {
   buyingPrice Float
   totalCost   Float
   createdAt   DateTime  @default(now())
+}
+
+model Expense {
+  id          String   @id @default(uuid())
+  category    String   // Rent, Utilities, Salary, Packaging, Entertainment, Other
+  amount      Float
+  description String?
+  date        DateTime @default(now())
+  createdAt   DateTime @default(now())
 }
 
 

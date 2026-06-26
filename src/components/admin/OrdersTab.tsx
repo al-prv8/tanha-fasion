@@ -111,6 +111,7 @@ export default function OrdersTab({
 }: OrdersTabProps) {
   // Tab-level filter status: "ALL" | "UNFULFILLED" | "UNPAID" | "PAID" | "DELIVERED" | "CANCELLED"
   const [activeFilter, setActiveFilter] = useState<string>("ALL");
+  const [channelFilter, setChannelFilter] = useState<"ALL" | "ONLINE" | "SHOWROOM">("ALL");
 
   const [isClient, setIsClient] = useState(false);
   useEffect(() => {
@@ -201,7 +202,7 @@ export default function OrdersTab({
     }, 150);
   };
 
-  // Filter orders by text search and status tab
+  // Filter orders by text search, status tab, and channel selection
   const filteredOrders = orders.filter((o) => {
     // 1. Text Search Filter
     const matchesSearch = 
@@ -222,17 +223,32 @@ export default function OrdersTab({
     } else if (activeFilter === "CANCELLED") {
       matchesStatus = o.orderStatus === "CANCELLED";
     }
+
+    // 3. Channel Filter
+    let matchesChannel = true;
+    if (channelFilter === "ONLINE") {
+      matchesChannel = !o.isShowroom;
+    } else if (channelFilter === "SHOWROOM") {
+      matchesChannel = o.isShowroom;
+    }
     
-    return matchesSearch && matchesStatus;
+    return matchesSearch && matchesStatus && matchesChannel;
   });
 
   const getStatusCount = (status: string) => {
-    if (status === "ALL") return orders.length;
-    if (status === "UNFULFILLED") return orders.filter(o => ["PENDING", "CONFIRMED", "SHIPPED"].includes(o.orderStatus)).length;
-    if (status === "UNPAID") return orders.filter(o => o.paymentStatus === "UNPAID").length;
-    if (status === "PAID") return orders.filter(o => o.paymentStatus === "PAID").length;
-    if (status === "DELIVERED") return orders.filter(o => o.orderStatus === "DELIVERED").length;
-    if (status === "CANCELLED") return orders.filter(o => o.orderStatus === "CANCELLED").length;
+    let baseOrders = orders;
+    if (channelFilter === "ONLINE") {
+      baseOrders = orders.filter(o => !o.isShowroom);
+    } else if (channelFilter === "SHOWROOM") {
+      baseOrders = orders.filter(o => o.isShowroom);
+    }
+
+    if (status === "ALL") return baseOrders.length;
+    if (status === "UNFULFILLED") return baseOrders.filter(o => ["PENDING", "CONFIRMED", "SHIPPED"].includes(o.orderStatus)).length;
+    if (status === "UNPAID") return baseOrders.filter(o => o.paymentStatus === "UNPAID").length;
+    if (status === "PAID") return baseOrders.filter(o => o.paymentStatus === "PAID").length;
+    if (status === "DELIVERED") return baseOrders.filter(o => o.orderStatus === "DELIVERED").length;
+    if (status === "CANCELLED") return baseOrders.filter(o => o.orderStatus === "CANCELLED").length;
     return 0;
   };
 
@@ -410,16 +426,55 @@ export default function OrdersTab({
             })}
           </div>
 
-          {/* Quick Search */}
-          <div className="relative w-full sm:max-w-xs">
-            <input 
-              type="text" 
-              placeholder="নাম, ফোন বা অর্ডার নং..."
-              value={orderSearch}
-              onChange={(e) => setOrderSearch(e.target.value)}
-              className="w-full pl-9 pr-4 py-1.5 border border-slate-200 bg-slate-50/50 focus:bg-white rounded-xl focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-xs text-foreground placeholder-slate-405 transition-all"
-            />
-            <Search size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+          <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+            {/* Channel Selector */}
+            <div className="flex bg-slate-100 p-0.5 rounded-xl border border-slate-200">
+              <button
+                type="button"
+                onClick={() => setChannelFilter("ALL")}
+                className={`px-3 py-1 rounded-lg text-[10px] font-black cursor-pointer transition-all border-none ${
+                  channelFilter === "ALL"
+                    ? "bg-white text-slate-800 shadow-3xs"
+                    : "bg-transparent text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                সব চ্যানেল
+              </button>
+              <button
+                type="button"
+                onClick={() => setChannelFilter("ONLINE")}
+                className={`px-3 py-1 rounded-lg text-[10px] font-black cursor-pointer transition-all border-none ${
+                  channelFilter === "ONLINE"
+                    ? "bg-white text-slate-800 shadow-3xs"
+                    : "bg-transparent text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                অনলাইন স্টোর
+              </button>
+              <button
+                type="button"
+                onClick={() => setChannelFilter("SHOWROOM")}
+                className={`px-3 py-1 rounded-lg text-[10px] font-black cursor-pointer transition-all border-none ${
+                  channelFilter === "SHOWROOM"
+                    ? "bg-white text-slate-800 shadow-3xs"
+                    : "bg-transparent text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                শোরুম কাউন্টার
+              </button>
+            </div>
+
+            {/* Quick Search */}
+            <div className="relative w-full sm:max-w-xs">
+              <input 
+                type="text" 
+                placeholder="নাম, ফোন বা অর্ডার নং..."
+                value={orderSearch}
+                onChange={(e) => setOrderSearch(e.target.value)}
+                className="w-full pl-9 pr-4 py-1.5 border border-slate-200 bg-slate-50/50 focus:bg-white rounded-xl focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-xs text-foreground placeholder-slate-405 transition-all"
+              />
+              <Search size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+            </div>
           </div>
         </div>
 
@@ -472,7 +527,16 @@ export default function OrdersTab({
                         </td>
                         
                         {/* Order Number */}
-                        <td className="py-3 px-4 font-mono font-bold text-primary select-all">#{o.orderNumber}</td>
+                        <td className="py-3 px-4 font-mono select-all">
+                          <div className="font-bold text-primary">#{o.orderNumber}</div>
+                          <span className={`inline-block text-[8.5px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md mt-1 border ${
+                            o.isShowroom
+                              ? "bg-amber-50 text-amber-600 border-amber-250"
+                              : "bg-blue-50 text-blue-600 border-blue-250"
+                          }`}>
+                            {o.isShowroom ? "শোরুম" : "অনলাইন"}
+                          </span>
+                        </td>
                         
                         {/* Date */}
                         <td className="py-3 px-4 font-mono text-slate-400 text-[10px]">

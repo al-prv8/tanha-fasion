@@ -435,27 +435,15 @@ app.put("/api/orders/:id/cancel", authenticateToken, async (req: any, res: any) 
       return res.status(400).json({ error: "আপনার অর্ডারটি ইতিমধ্যে প্রসেস করা হয়েছে, তাই এটি বাতিল করা সম্ভব নয়।" });
     }
 
-    // Restore stock if stock was adjusted
-    if (order.stockAdjusted) {
-      for (const item of order.items) {
-        const prod = await prisma.product.findUnique({ where: { id: item.productId } });
-        if (prod) {
-          const sizes = JSON.parse(prod.sizesJson || "{}");
-          sizes[item.size] = Number(sizes[item.size] || 0) + item.quantity;
-          await prisma.product.update({
-            where: { id: item.productId },
-            data: { sizesJson: JSON.stringify(sizes) }
-          });
-        }
-      }
-    }
+    const updatedOrder = await prisma.$transaction(async (tx) => {
+      await adjustOrderStock(id, "CANCELLED", tx);
 
-    const updatedOrder = await prisma.order.update({
-      where: { id },
-      data: {
-        orderStatus: "CANCELLED",
-        stockAdjusted: false
-      }
+      return await tx.order.update({
+        where: { id },
+        data: {
+          orderStatus: "CANCELLED"
+        }
+      });
     });
 
     res.json({
@@ -573,7 +561,8 @@ app.post("/api/seed", async (req, res) => {
           price: p.price,
           category: p.category,
           imgUrl: p.imgUrl,
-          sizesJson: '{"S":10,"M":15,"L":15,"XL":5}'
+          sizesJson: '{"S":10,"M":15,"L":15,"XL":5}',
+          showroomSizesJson: '{"S":10,"M":15,"L":15,"XL":5}'
         }
       });
       seeded.push(created);
@@ -872,7 +861,73 @@ app.get("/api/products", async (req, res) => {
   } catch (error: any) {
     res.status(500).json({ error: "Failed to load products: " + error.message });
   }
-});
+});// Helper function to adjust order stock atomically
+async function adjustOrderStock(orderId: string, nextStatus: string, txClient?: any) {
+  const prismaClient = txClient || prisma;
+  // Fetch order
+  const order = await prismaClient.order.findUnique({
+    where: { id: orderId },
+    include: { items: true }
+  });
+  if (!order) throw new Error("Order not found");
+
+  const isDeductState = ["CONFIRMED", "SHIPPED", "DELIVERED"].includes(nextStatus);
+  const isRestoreState = ["PENDING", "CANCELLED"].includes(nextStatus);
+
+  if (isDeductState && !order.stockAdjusted) {
+    // Validate stocks first
+    for (const item of order.items) {
+      const prod = await prismaClient.product.findUnique({ where: { id: item.productId } });
+      if (!prod) {
+        throw new Error(`পোশাকটি পাওয়া যায়নি (কোড/আইডি: ${item.productId})`);
+      }
+      const sizes = JSON.parse((order.isShowroom ? prod.showroomSizesJson : prod.sizesJson) || "{}");
+      const currentStock = Number(sizes[item.size] || 0);
+      if (currentStock < item.quantity) {
+        throw new Error(`দুঃখিত, "${prod.name}" (সাইজ: ${item.size}) এর পর্যাপ্ত স্টক নেই। বর্তমান স্টক: ${currentStock} টি, অর্ডার চাওয়া হয়েছে: ${item.quantity} টি।`);
+      }
+    }
+    // Deduct stocks
+    for (const item of order.items) {
+      const prod = await prismaClient.product.findUnique({ where: { id: item.productId } });
+      if (prod) {
+        const sizes = JSON.parse((order.isShowroom ? prod.showroomSizesJson : prod.sizesJson) || "{}");
+        sizes[item.size] = Math.max(0, Number(sizes[item.size] || 0) - item.quantity);
+        await prismaClient.product.update({
+          where: { id: item.productId },
+          data: {
+            [order.isShowroom ? "showroomSizesJson" : "sizesJson"]: JSON.stringify(sizes)
+          }
+        });
+      }
+    }
+    // Mark order as stockAdjusted
+    await prismaClient.order.update({
+      where: { id: orderId },
+      data: { stockAdjusted: true }
+    });
+  } else if (isRestoreState && order.stockAdjusted) {
+    // Restore stocks
+    for (const item of order.items) {
+      const prod = await prismaClient.product.findUnique({ where: { id: item.productId } });
+      if (prod) {
+        const sizes = JSON.parse((order.isShowroom ? prod.showroomSizesJson : prod.sizesJson) || "{}");
+        sizes[item.size] = Number(sizes[item.size] || 0) + item.quantity;
+        await prismaClient.product.update({
+          where: { id: item.productId },
+          data: {
+            [order.isShowroom ? "showroomSizesJson" : "sizesJson"]: JSON.stringify(sizes)
+          }
+        });
+      }
+    }
+    // Mark order as not stockAdjusted
+    await prismaClient.order.update({
+      where: { id: orderId },
+      data: { stockAdjusted: false }
+    });
+  }
+}
 
 // 4. Create Order Route
 app.post("/api/orders", async (req, res) => {
@@ -893,8 +948,10 @@ app.post("/api/orders", async (req, res) => {
       discount
     } = req.body;
 
+    const isShowroom = shippingMethod === "showroom" || shippingMethod === "walkin";
+
     // Default fields for showroom/walkin POS checkouts to save cashier time
-    if (shippingMethod === "showroom" || shippingMethod === "walkin") {
+    if (isShowroom) {
       if (!name) name = "শোরুম কাস্টমার";
       if (!phone) phone = "01700000000";
       if (!address) address = "বসুন্ধরা সিটি শোরুম";
@@ -907,104 +964,108 @@ app.post("/api/orders", async (req, res) => {
       return res.status(400).json({ error: "Missing required checkout fields or items is empty" });
     }
 
-    // Validate stock levels before creating order
-    for (const item of items) {
-      const productId = item.id || "1";
-      const prod = await prisma.product.findUnique({ where: { id: productId } });
-      if (!prod) {
-        return res.status(404).json({ error: `পোশাকটি পাওয়া যায়নি (কোড/আইডি: ${productId})` });
-      }
-      const size = item.size || "M";
-      const sizes = JSON.parse(prod.sizesJson || "{}");
-      const currentStock = Number(sizes[size] || 0);
-      const qty = Number(item.quantity);
-      if (currentStock < qty) {
-        return res.status(400).json({ 
-          error: `দুঃখিত, "${prod.name}" (সাইজ: ${size}) এর পর্যাপ্ত স্টক নেই। বর্তমান স্টক: ${currentStock} টি, অর্ডার চাওয়া হয়েছে: ${qty} টি।` 
-        });
-      }
-    }
-
-    let subtotal = 0;
-    const orderItemsToCreate = [];
-
-    for (const item of items) {
-      const price = Number(item.price);
-      const qty = Number(item.quantity);
-      subtotal += price * qty;
-
-      orderItemsToCreate.push({
-        productId: item.id || "1",
-        size: item.size || "M",
-        quantity: qty,
-        price: price
-      });
-    }
-
-    const discountAmount = Number(discount || 0);
-    
-    let shippingCost = 80;
-    if (shippingMethod === "outside") {
-      shippingCost = 150;
-    } else if (shippingMethod === "showroom" || shippingMethod === "walkin") {
-      shippingCost = 0;
-    }
-
-    const grandTotal = subtotal - discountAmount + shippingCost;
-    const orderNumber = "TF-" + Math.floor(100000 + Math.random() * 900000);
-
-    // Deduct stock if starting in a deduct state (like DELIVERED)
-    const targetOrderStatus = orderStatus || "PENDING";
-    const targetPaymentStatus = paymentStatus || "UNPAID";
-    const isDeductState = ["CONFIRMED", "SHIPPED", "DELIVERED"].includes(targetOrderStatus);
-    let stockAdjusted = false;
-
-    if (isDeductState) {
+    // Atomic transaction for validating stock and creating order
+    const order = await prisma.$transaction(async (tx) => {
+      // Validate stock levels before creating order
       for (const item of items) {
         const productId = item.id || "1";
-        const prod = await prisma.product.findUnique({ where: { id: productId } });
-        if (prod) {
-          const size = item.size || "M";
-          const qty = Number(item.quantity);
-          const sizes = JSON.parse(prod.sizesJson || "{}");
-          sizes[size] = Math.max(0, Number(sizes[size] || 0) - qty);
-          await prisma.product.update({
-            where: { id: productId },
-            data: { sizesJson: JSON.stringify(sizes) }
-          });
+        const prod = await tx.product.findUnique({ where: { id: productId } });
+        if (!prod) {
+          throw new Error(`পোশাকটি পাওয়া যায়নি (কোড/আইডি: ${productId})`);
+        }
+        const size = item.size || "M";
+        const sizes = JSON.parse((isShowroom ? prod.showroomSizesJson : prod.sizesJson) || "{}");
+        const currentStock = Number(sizes[size] || 0);
+        const qty = Number(item.quantity);
+        if (currentStock < qty) {
+          throw new Error(`দুঃখিত, "${prod.name}" (সাইজ: ${size}) এর পর্যাপ্ত স্টক নেই। বর্তমান স্টক: ${currentStock} টি, অর্ডার চাওয়া হয়েছে: ${qty} টি।`);
         }
       }
-      stockAdjusted = true;
-    }
 
-    const order = await prisma.order.create({
-      data: {
-        orderNumber,
-        name,
-        phone,
-        email: email || null,
-        address,
-        city,
-        postcode,
-        shippingCost,
-        subtotal,
-        discount: discountAmount,
-        grandTotal,
-        paymentMethod,
-        paymentStatus: targetPaymentStatus,
-        orderStatus: targetOrderStatus,
-        stockAdjusted,
-        trxId: trxId || null,
-        items: {
-          create: orderItemsToCreate
-        }
-      },
-      include: {
-        items: true
+      let subtotal = 0;
+      const orderItemsToCreate = [];
+
+      for (const item of items) {
+        const price = Number(item.price);
+        const qty = Number(item.quantity);
+        subtotal += price * qty;
+
+        orderItemsToCreate.push({
+          productId: item.id || "1",
+          size: item.size || "M",
+          quantity: qty,
+          price: price
+        });
       }
+
+      const discountAmount = Number(discount || 0);
+      
+      let shippingCost = 80;
+      if (shippingMethod === "outside") {
+        shippingCost = 150;
+      } else if (shippingMethod === "showroom" || shippingMethod === "walkin") {
+        shippingCost = 0;
+      }
+
+      const grandTotal = subtotal - discountAmount + shippingCost;
+      const orderNumber = "TF-" + Math.floor(100000 + Math.random() * 900000);
+
+      // Deduct stock if starting in a deduct state (like DELIVERED)
+      const targetOrderStatus = orderStatus || "PENDING";
+      const targetPaymentStatus = paymentStatus || "UNPAID";
+      const isDeductState = ["CONFIRMED", "SHIPPED", "DELIVERED"].includes(targetOrderStatus);
+      let stockAdjusted = false;
+
+      if (isDeductState) {
+        for (const item of items) {
+          const productId = item.id || "1";
+          const prod = await tx.product.findUnique({ where: { id: productId } });
+          if (prod) {
+            const size = item.size || "M";
+            const qty = Number(item.quantity);
+            const sizes = JSON.parse((isShowroom ? prod.showroomSizesJson : prod.sizesJson) || "{}");
+            sizes[size] = Math.max(0, Number(sizes[size] || 0) - qty);
+            await tx.product.update({
+              where: { id: productId },
+              data: { 
+                [isShowroom ? "showroomSizesJson" : "sizesJson"]: JSON.stringify(sizes) 
+              }
+            });
+          }
+        }
+        stockAdjusted = true;
+      }
+
+      return await tx.order.create({
+        data: {
+          orderNumber,
+          name,
+          phone,
+          email: email || null,
+          address,
+          city,
+          postcode,
+          shippingCost,
+          subtotal,
+          discount: discountAmount,
+          grandTotal,
+          paymentMethod,
+          paymentStatus: targetPaymentStatus,
+          orderStatus: targetOrderStatus,
+          stockAdjusted,
+          isShowroom,
+          trxId: trxId || null,
+          items: {
+            create: orderItemsToCreate
+          }
+        },
+        include: {
+          items: true
+        }
+      });
     });
 
-    console.log(`Order placed successfully: ${orderNumber}`);
+    console.log(`Order placed successfully: ${order.orderNumber}`);
 
     // Verify optional admin session to log activity
     const token = req.cookies?.token;
@@ -1016,7 +1077,7 @@ app.post("/api/orders", async (req, res) => {
             decoded.email,
             decoded.name || "অ্যাডমিন",
             "POS_ORDER_CREATE",
-            `শোরুম থেকে বিক্রয় সম্পন্ন করা হয়েছে (অর্ডার নম্বর: ${orderNumber}, মোট টাকা: ৳${grandTotal}, পেমেন্ট: ${paymentMethod.toUpperCase()})`
+            `শোরুম থেকে বিক্রয় সম্পন্ন করা হয়েছে (অর্ডার নম্বর: ${order.orderNumber}, মোট টাকা: ৳${order.grandTotal}, পেমেন্ট: ${paymentMethod.toUpperCase()})`
           );
         }
       } catch (err) {
@@ -1098,7 +1159,18 @@ app.get("/api/analytics", authenticateToken, requireRole(["ADMIN"]), async (req,
       .filter(o => o.orderStatus !== "CANCELLED")
       .reduce((acc, o) => acc + o.grandTotal, 0);
 
+    const onlineEarnings = orders
+      .filter(o => o.orderStatus !== "CANCELLED" && !o.isShowroom)
+      .reduce((acc, o) => acc + o.grandTotal, 0);
+
+    const showroomEarnings = orders
+      .filter(o => o.orderStatus !== "CANCELLED" && o.isShowroom)
+      .reduce((acc, o) => acc + o.grandTotal, 0);
+
     const totalOrders = orders.length;
+    const onlineOrdersCount = orders.filter(o => !o.isShowroom).length;
+    const showroomOrdersCount = orders.filter(o => o.isShowroom).length;
+
     const pendingOrders = orders.filter(o => o.orderStatus === "PENDING").length;
     const confirmedOrders = orders.filter(o => o.orderStatus === "CONFIRMED").length;
     const shippedOrders = orders.filter(o => o.orderStatus === "SHIPPED").length;
@@ -1159,7 +1231,11 @@ app.get("/api/analytics", authenticateToken, requireRole(["ADMIN"]), async (req,
       }
     }
 
-    const netProfit = totalEarnings - totalCostOfGoods;
+    // Fetch total showroom expenses
+    const expenses = await prisma.expense.findMany();
+    const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0);
+
+    const netProfit = totalEarnings - totalCostOfGoods - totalExpenses;
 
     // Last 7 days daily sales log for dashboard charts
     const last7DaysSales: { [date: string]: number } = {};
@@ -1185,7 +1261,11 @@ app.get("/api/analytics", authenticateToken, requireRole(["ADMIN"]), async (req,
 
     res.json({
       totalEarnings,
+      onlineEarnings,
+      showroomEarnings,
       totalOrders,
+      onlineOrdersCount,
+      showroomOrdersCount,
       pendingOrders,
       confirmedOrders,
       shippedOrders,
@@ -1198,6 +1278,7 @@ app.get("/api/analytics", authenticateToken, requireRole(["ADMIN"]), async (req,
       totalReviews,
       totalSubscribers,
       totalCostOfGoods,
+      totalExpenses,
       netProfit,
       salesChartData
     });
@@ -1233,77 +1314,29 @@ app.put("/api/orders/:id", authenticateToken, requireRole(["ADMIN"]), async (req
       return res.status(404).json({ error: "Order not found" });
     }
 
-    const targetOrderStatus = orderStatus || order.orderStatus;
-    const isDeductState = ["CONFIRMED", "SHIPPED", "DELIVERED"].includes(targetOrderStatus);
-    const isRestoreState = ["PENDING", "CANCELLED"].includes(targetOrderStatus);
-
-    let nextStockAdjusted = order.stockAdjusted;
-
-    // Deduct stock if transitioning to confirmed/shipped/delivered and not adjusted yet
-    if (isDeductState && !order.stockAdjusted) {
-      // First phase: validate all stocks
-      for (const item of order.items) {
-        const prod = await prisma.product.findUnique({ where: { id: item.productId } });
-        if (!prod) {
-          return res.status(400).json({ error: `পোশাকটি পাওয়া যায়নি (কোড/আইডি: ${item.productId})` });
-        }
-        const sizes = JSON.parse(prod.sizesJson || "{}");
-        const currentStock = Number(sizes[item.size] || 0);
-        if (currentStock < item.quantity) {
-          return res.status(400).json({ 
-            error: `দুঃখিত, "${prod.name}" (সাইজ: ${item.size}) এর পর্যাপ্ত স্টক নেই। বর্তমান স্টক: ${currentStock} টি, অর্ডার চাওয়া হয়েছে: ${item.quantity} টি।` 
-          });
-        }
+    const updatedOrder = await prisma.$transaction(async (tx) => {
+      if (orderStatus) {
+        await adjustOrderStock(id, orderStatus, tx);
       }
 
-      // Second phase: update stocks atomically
-      for (const item of order.items) {
-        const prod = await prisma.product.findUnique({ where: { id: item.productId } });
-        if (prod) {
-          const sizes = JSON.parse(prod.sizesJson || "{}");
-          sizes[item.size] = Math.max(0, Number(sizes[item.size] || 0) - item.quantity);
-          await prisma.product.update({
-            where: { id: item.productId },
-            data: { sizesJson: JSON.stringify(sizes) }
-          });
+      return await tx.order.update({
+        where: { id },
+        data: {
+          ...(name !== undefined && { name }),
+          ...(phone !== undefined && { phone }),
+          ...(email !== undefined && { email }),
+          ...(address !== undefined && { address }),
+          ...(city !== undefined && { city }),
+          ...(postcode !== undefined && { postcode }),
+          ...(paymentMethod !== undefined && { paymentMethod }),
+          ...(paymentStatus !== undefined && { paymentStatus }),
+          ...(orderStatus !== undefined && { orderStatus }),
+          ...(trxId !== undefined && { trxId })
+        },
+        include: {
+          items: true
         }
-      }
-      nextStockAdjusted = true;
-    }
-    // Restore stock if transitioning back to pending/cancelled and was adjusted
-    else if (isRestoreState && order.stockAdjusted) {
-      for (const item of order.items) {
-        const prod = await prisma.product.findUnique({ where: { id: item.productId } });
-        if (prod) {
-          const sizes = JSON.parse(prod.sizesJson || "{}");
-          sizes[item.size] = Number(sizes[item.size] || 0) + item.quantity;
-          await prisma.product.update({
-            where: { id: item.productId },
-            data: { sizesJson: JSON.stringify(sizes) }
-          });
-        }
-      }
-      nextStockAdjusted = false;
-    }
-
-    const updatedOrder = await prisma.order.update({
-      where: { id },
-      data: {
-        ...(name !== undefined && { name }),
-        ...(phone !== undefined && { phone }),
-        ...(email !== undefined && { email }),
-        ...(address !== undefined && { address }),
-        ...(city !== undefined && { city }),
-        ...(postcode !== undefined && { postcode }),
-        ...(paymentMethod !== undefined && { paymentMethod }),
-        ...(paymentStatus !== undefined && { paymentStatus }),
-        ...(orderStatus !== undefined && { orderStatus }),
-        ...(trxId !== undefined && { trxId }),
-        stockAdjusted: nextStockAdjusted
-      },
-      include: {
-        items: true
-      }
+      });
     });
 
     let logDetails = `Updated order: ${order.orderNumber}.`;
@@ -1328,7 +1361,7 @@ app.put("/api/orders/:id", authenticateToken, requireRole(["ADMIN"]), async (req
 // 10. Create Product Route
 app.post("/api/products", authenticateToken, requireRole(["ADMIN"]), async (req, res) => {
   try {
-    const { sku, name, price, category, imgUrl, sizesJson } = req.body;
+    const { sku, name, price, category, imgUrl, sizesJson, showroomSizesJson } = req.body;
 
     if (!sku || !name || !price || !category || !imgUrl) {
       return res.status(400).json({ error: "Missing required product fields" });
@@ -1347,7 +1380,8 @@ app.post("/api/products", authenticateToken, requireRole(["ADMIN"]), async (req,
         price: Number(price),
         category,
         imgUrl,
-        sizesJson: sizesJson || '{"S":10,"M":15,"L":15,"XL":5}'
+        sizesJson: sizesJson || '{"S":10,"M":15,"L":15,"XL":5}',
+        showroomSizesJson: showroomSizesJson || sizesJson || '{"S":10,"M":15,"L":15,"XL":5}'
       }
     });
     logAdminActivity(req, "PRODUCT_CREATE", `Created new product: ${name} (SKU: ${sku}, Price: ৳${price})`);
@@ -1361,7 +1395,7 @@ app.post("/api/products", authenticateToken, requireRole(["ADMIN"]), async (req,
 app.put("/api/products/:id", authenticateToken, requireRole(["ADMIN"]), async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, price, category, imgUrl, sizesJson } = req.body;
+    const { name, price, category, imgUrl, sizesJson, showroomSizesJson } = req.body;
 
     if (category) {
       // Verify category exists in database
@@ -1378,7 +1412,8 @@ app.put("/api/products/:id", authenticateToken, requireRole(["ADMIN"]), async (r
         ...(price && { price: Number(price) }),
         ...(category && { category }),
         ...(imgUrl && { imgUrl }),
-        ...(sizesJson && { sizesJson })
+        ...(sizesJson && { sizesJson }),
+        ...(showroomSizesJson && { showroomSizesJson })
       }
     });
     logAdminActivity(req, "PRODUCT_UPDATE", `Updated product: ${updatedProduct.name} (SKU: ${updatedProduct.sku}, Price: ৳${updatedProduct.price})`);
@@ -1441,24 +1476,14 @@ app.delete("/api/orders/:id", authenticateToken, requireRole(["ADMIN"]), async (
       return res.status(404).json({ error: "Order not found" });
     }
     
-    // If stock was adjusted and order is being deleted, restore stock
-    if (order.stockAdjusted) {
-      for (const item of order.items) {
-        const prod = await prisma.product.findUnique({ where: { id: item.productId } });
-        if (prod) {
-          const sizes = JSON.parse(prod.sizesJson || "{}");
-          sizes[item.size] = Number(sizes[item.size] || 0) + item.quantity;
-          await prisma.product.update({
-            where: { id: item.productId },
-            data: { sizesJson: JSON.stringify(sizes) }
-          });
-        }
-      }
-    }
-    
-    // Delete order (OrderItems will be cascade deleted)
-    await prisma.order.delete({
-      where: { id }
+    await prisma.$transaction(async (tx) => {
+      // Restore stock if adjusted
+      await adjustOrderStock(id, "CANCELLED", tx);
+
+      // Delete order (OrderItems will be cascade deleted)
+      await tx.order.delete({
+        where: { id }
+      });
     });
     
     logAdminActivity(req, "ORDER_DELETE", `Deleted order: ${order.orderNumber} (Grand Total: ৳${order.grandTotal})`);
@@ -1841,7 +1866,7 @@ app.get("/api/purchases", authenticateToken, requireRole(["ADMIN"]), async (req,
 // 5. Record new purchase and increment stock atomically
 app.post("/api/purchases", authenticateToken, requireRole(["ADMIN"]), async (req, res) => {
   try {
-    const { supplierId, productId, size, quantity, buyingPrice } = req.body;
+    const { supplierId, productId, size, quantity, buyingPrice, target } = req.body;
     if (!productId || !size || !quantity || !buyingPrice) {
       return res.status(400).json({ error: "Product ID, size, quantity, and buying price are required" });
     }
@@ -1861,10 +1886,12 @@ app.post("/api/purchases", authenticateToken, requireRole(["ADMIN"]), async (req
       return res.status(404).json({ error: "Product not found" });
     }
 
-    // Increment stock count in sizesJson
+    const isShowroom = target === "showroom";
+
+    // Increment stock count
     let sizes: any = {};
     try {
-      sizes = JSON.parse(product.sizesJson || "{}");
+      sizes = JSON.parse((isShowroom ? product.showroomSizesJson : product.sizesJson) || "{}");
     } catch (e) {
       sizes = {};
     }
@@ -1888,18 +1915,18 @@ app.post("/api/purchases", authenticateToken, requireRole(["ADMIN"]), async (req
         }
       });
 
-      // 2. Update Product sizesJson
+      // 2. Update Product sizesJson or showroomSizesJson
       await tx.product.update({
         where: { id: productId },
         data: {
-          sizesJson: JSON.stringify(sizes)
+          [isShowroom ? "showroomSizesJson" : "sizesJson"]: JSON.stringify(sizes)
         }
       });
 
       return purchase;
     });
 
-    logAdminActivity(req, "STOCK_PURCHASE", `পাইকারি ক্রয় নথিভুক্ত করেছেন (SKU: ${product.sku}, সাইজ: ${size}, পরিমাণ: ${qty}, মূল্য: ৳${price})`);
+    logAdminActivity(req, "STOCK_PURCHASE", `পাইকারি ক্রয় নথিভুক্ত করেছেন (SKU: ${product.sku}, সাইজ: ${size}, পরিমাণ: ${qty}, মূল্য: ৳${price}, টার্গেট: ${isShowroom ? "শোরুম" : "অনলাইন"})`);
     res.json(result);
   } catch (error: any) {
     res.status(500).json({ error: "Failed to record purchase: " + error.message });
@@ -1966,14 +1993,18 @@ app.post("/api/orders/:id/book-steadfast", authenticateToken, requireRole(["ADMI
 
     if (data.status === 200 && data.consignment) {
       const consignment = data.consignment;
-      const updatedOrder = await prisma.order.update({
-        where: { id },
-        data: {
-          courierConsignmentId: String(consignment.consignment_id),
-          courierTrackingCode: consignment.tracking_code,
-          courierStatus: "pending",
-          orderStatus: "SHIPPED" // Mark as shipped since it has been sent to courier
-        }
+      const updatedOrder = await prisma.$transaction(async (tx) => {
+        await adjustOrderStock(id, "SHIPPED", tx);
+
+        return await tx.order.update({
+          where: { id },
+          data: {
+            courierConsignmentId: String(consignment.consignment_id),
+            courierTrackingCode: consignment.tracking_code,
+            courierStatus: "pending",
+            orderStatus: "SHIPPED" // Mark as shipped since it has been sent to courier
+          }
+        });
       });
 
       logAdminActivity(
@@ -2034,13 +2065,19 @@ app.post("/api/orders/:id/sync-steadfast", authenticateToken, requireRole(["ADMI
         updatedOrderStatus = "CANCELLED";
       }
 
-      const updatedOrder = await prisma.order.update({
-        where: { id },
-        data: {
-          courierStatus: deliveryStatus,
-          orderStatus: updatedOrderStatus,
-          paymentStatus: updatedPaymentStatus
+      const updatedOrder = await prisma.$transaction(async (tx) => {
+        if (updatedOrderStatus !== order.orderStatus) {
+          await adjustOrderStock(id, updatedOrderStatus, tx);
         }
+
+        return await tx.order.update({
+          where: { id },
+          data: {
+            courierStatus: deliveryStatus,
+            orderStatus: updatedOrderStatus,
+            paymentStatus: updatedPaymentStatus
+          }
+        });
       });
 
       logAdminActivity(
@@ -2055,6 +2092,117 @@ app.post("/api/orders/:id/sync-steadfast", authenticateToken, requireRole(["ADMI
     }
   } catch (error: any) {
     res.status(500).json({ error: "Failed to sync with Steadfast: " + error.message });
+  }
+});
+
+// 12. Product Stock Transfer Route (Online ⇄ Showroom)
+app.post("/api/products/:id/transfer-stock", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
+  try {
+    const { id } = req.params;
+    const { size, quantity, direction } = req.body;
+
+    if (!size || !quantity || quantity <= 0 || !direction) {
+      return res.status(400).json({ error: "Invalid transfer parameters" });
+    }
+
+    const product = await prisma.product.findUnique({ where: { id } });
+    if (!product) {
+      return res.status(404).json({ error: "Product not found" });
+    }
+
+    const sizes = JSON.parse(product.sizesJson || "{}");
+    const showroomSizes = JSON.parse(product.showroomSizesJson || "{}");
+
+    if (direction === "online_to_showroom") {
+      const currentOnlineStock = Number(sizes[size] || 0);
+      if (currentOnlineStock < quantity) {
+        return res.status(400).json({ error: `Insufficient online stock. Available: ${currentOnlineStock}` });
+      }
+      sizes[size] = currentOnlineStock - quantity;
+      showroomSizes[size] = Number(showroomSizes[size] || 0) + quantity;
+    } else if (direction === "showroom_to_online") {
+      const currentShowroomStock = Number(showroomSizes[size] || 0);
+      if (currentShowroomStock < quantity) {
+        return res.status(400).json({ error: `Insufficient showroom stock. Available: ${currentShowroomStock}` });
+      }
+      showroomSizes[size] = currentShowroomStock - quantity;
+      sizes[size] = Number(sizes[size] || 0) + quantity;
+    } else {
+      return res.status(400).json({ error: "Invalid transfer direction" });
+    }
+
+    const updatedProduct = await prisma.product.update({
+      where: { id },
+      data: {
+        sizesJson: JSON.stringify(sizes),
+        showroomSizesJson: JSON.stringify(showroomSizes)
+      }
+    });
+
+    const dirLabel = direction === "online_to_showroom" ? "অনলাইন -> শোরুম" : "শোরুম -> অনলাইন";
+    logAdminActivity(
+      req,
+      "STOCK_TRANSFER",
+      `Transferred ${quantity} pcs of ${product.name} (Size: ${size}) from ${dirLabel}`
+    );
+
+    res.json(updatedProduct);
+  } catch (error: any) {
+    res.status(500).json({ error: "Stock transfer failed: " + error.message });
+  }
+});
+
+// 13. Expense API Routes
+app.get("/api/expenses", authenticateToken, requireRole(["ADMIN"]), async (req, res) => {
+  try {
+    const expenses = await prisma.expense.findMany({
+      orderBy: { date: "desc" }
+    });
+    res.json(expenses);
+  } catch (error: any) {
+    res.status(500).json({ error: "Failed to load expenses: " + error.message });
+  }
+});
+
+app.post("/api/expenses", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
+  try {
+    const { category, amount, description, date } = req.body;
+    if (!category || !amount || amount <= 0) {
+      return res.status(400).json({ error: "Category and valid amount are required" });
+    }
+
+    const parsedDate = date ? new Date(date) : new Date();
+
+    const expense = await prisma.expense.create({
+      data: {
+        category,
+        amount: Number(amount),
+        description: description || null,
+        date: parsedDate
+      }
+    });
+
+    logAdminActivity(req, "EXPENSE_CREATE", `Logged showroom expense: ${category} (Amount: ৳${amount})`);
+    res.status(201).json(expense);
+  } catch (error: any) {
+    res.status(500).json({ error: "Failed to log expense: " + error.message });
+  }
+});
+
+app.delete("/api/expenses/:id", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
+  try {
+    const { id } = req.params;
+    const expense = await prisma.expense.findUnique({ where: { id } });
+    if (!expense) {
+      return res.status(404).json({ error: "Expense not found" });
+    }
+
+    await prisma.expense.delete({ where: { id } });
+    logAdminActivity(req, "EXPENSE_DELETE", `Deleted expense entry: ${expense.category} (Amount: ৳${expense.amount})`);
+
+    res.json({ message: "Expense deleted successfully" });
+  } catch (error: any) {
+    res.status(500).json({ error: "Failed to delete expense: " + error.message });
   }
 });
 

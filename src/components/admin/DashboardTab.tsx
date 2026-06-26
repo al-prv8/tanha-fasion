@@ -16,7 +16,9 @@ import {
   XCircle,
   BadgePercent,
   TrendingDown,
-  TrendingUp
+  TrendingUp,
+  Store,
+  Globe
 } from "lucide-react";
 import { formatBanglaPriceWithCommas, toBanglaNumber, getProductTotalStock } from "@/lib/products";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
@@ -24,7 +26,11 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 interface DashboardTabProps {
   analytics: {
     totalEarnings: number;
+    onlineEarnings?: number;
+    showroomEarnings?: number;
     totalOrders: number;
+    onlineOrdersCount?: number;
+    showroomOrdersCount?: number;
     pendingOrders: number;
     confirmedOrders?: number;
     shippedOrders?: number;
@@ -138,6 +144,47 @@ export default function DashboardTab({
           <div className="w-10 h-10 bg-purple-50 border border-purple-100 rounded-full flex items-center justify-center text-purple-650 flex-shrink-0">
             <Users size={20} />
           </div>
+        </div>
+      </div>
+
+      {/* Sales Channel Analysis */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        {/* Online Sales Channel */}
+        <div className="bg-card border border-border/80 p-5 rounded-2xl shadow-2xs text-left">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center">
+                <Globe size={16} />
+              </div>
+              <h4 className="font-extrabold text-xs text-slate-800 uppercase tracking-wider">অনলাইন বিক্রয় চ্যানেল (Online Store)</h4>
+            </div>
+            <span className="text-[10px] bg-blue-50 text-blue-700 font-bold px-2 py-0.5 rounded-full border border-blue-150 font-sans">
+              {toBanglaNumber(analytics.onlineOrdersCount || 0)} টি অর্ডার
+            </span>
+          </div>
+          <div className="text-xl sm:text-2xl font-black text-foreground block">
+            {formatBanglaPriceWithCommas(analytics.onlineEarnings || 0)}
+          </div>
+          <p className="text-[10px] text-muted-foreground mt-1.5 font-semibold">ওয়েবসাইট ও অনলাইন পেমেন্ট গেটওয়ে থেকে অর্জিত মোট রাজস্ব।</p>
+        </div>
+
+        {/* Showroom Sales Channel */}
+        <div className="bg-card border border-border/80 p-5 rounded-2xl shadow-2xs text-left">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 border border-amber-100 flex items-center justify-center">
+                <Store size={16} />
+              </div>
+              <h4 className="font-extrabold text-xs text-slate-800 uppercase tracking-wider">শোরুম বিক্রয় কাউন্টার (Showroom POS)</h4>
+            </div>
+            <span className="text-[10px] bg-amber-50 text-amber-700 font-bold px-2 py-0.5 rounded-full border border-amber-150 font-sans">
+              {toBanglaNumber(analytics.showroomOrdersCount || 0)} টি রশিদ
+            </span>
+          </div>
+          <div className="text-xl sm:text-2xl font-black text-foreground block">
+            {formatBanglaPriceWithCommas(analytics.showroomEarnings || 0)}
+          </div>
+          <p className="text-[10px] text-muted-foreground mt-1.5 font-semibold">ফিজিক্যাল শোরুমের পিওএস কাউন্টার থেকে সরাসরি ক্যাশ ও কার্ড বিক্রয়।</p>
         </div>
       </div>
 

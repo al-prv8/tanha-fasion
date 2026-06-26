@@ -1,0 +1,740 @@
+import React, { useState, useEffect } from "react";
+import { 
+  Search, 
+  Barcode, 
+  Save, 
+  X, 
+  AlertTriangle, 
+  Edit3, 
+  Package,
+  RefreshCw
+} from "lucide-react";
+import { formatBanglaPriceWithCommas, toBanglaNumber } from "@/lib/products";
+
+interface ShowroomStockTabProps {
+  products: any[];
+  CATEGORIES: string[];
+  onUpdateProductShowroomStock: (id: string, showroomSizesJson: string) => Promise<void>;
+  onTransferProductStock?: (id: string, size: string, qty: number, direction: "online_to_showroom" | "showroom_to_online") => Promise<void>;
+}
+
+export default function ShowroomStockTab({
+  products,
+  CATEGORIES,
+  onUpdateProductShowroomStock,
+  onTransferProductStock
+}: ShowroomStockTabProps) {
+  const [productSearch, setProductSearch] = useState("");
+  const [activeCategoryFilter, setActiveCategoryFilter] = useState("ALL");
+
+  // Selection states for modal/editing
+  const [editingProductId, setEditingProductId] = useState<string | null>(null);
+  const [editingSizes, setEditingSizes] = useState<{ [size: string]: number }>({});
+  
+  // Barcode Printing State
+  const [barcodeProduct, setBarcodeProduct] = useState<any>(null);
+  const [barcodeSize, setBarcodeSize] = useState<string>("M");
+
+  // Stock Transfer State
+  const [transferProduct, setTransferProduct] = useState<any>(null);
+  const [transferSize, setTransferSize] = useState<string>("M");
+  const [transferQty, setTransferQty] = useState<number>(1);
+  const [transferDirection, setTransferDirection] = useState<"online_to_showroom" | "showroom_to_online">("online_to_showroom");
+  const [isTransferring, setIsTransferring] = useState(false);
+
+  const getProductSizes = (prod: any) => {
+    try {
+      const sizesObj = JSON.parse(prod.showroomSizesJson || prod.sizesJson || "{}");
+      const keys = Object.keys(sizesObj);
+      return keys.length > 0 ? keys : ["S", "M", "L", "XL"];
+    } catch (e) {
+      return ["S", "M", "L", "XL"];
+    }
+  };
+
+  const getProductTotalShowroomStock = (prod: any) => {
+    try {
+      const sizesObj = JSON.parse(prod.showroomSizesJson || "{}");
+      return Object.values(sizesObj).reduce((sum: number, val: any) => sum + Number(val || 0), 0);
+    } catch (e) {
+      return 0;
+    }
+  };
+
+  const lowStockShowroomProducts = products.filter(p => {
+    try {
+      const sizesObj = JSON.parse(p.showroomSizesJson || "{}");
+      return Object.values(sizesObj).some((qty: any) => Number(qty) < 5);
+    } catch(e) {
+      return false;
+    }
+  });
+
+  const handleStartEdit = (prod: any) => {
+    try {
+      setEditingSizes(JSON.parse(prod.showroomSizesJson || "{}"));
+      setEditingProductId(prod.id);
+    } catch (e) {
+      setEditingSizes({});
+    }
+  };
+
+  const handleSizeStockChange = (size: string, val: string) => {
+    setEditingSizes(prev => ({
+      ...prev,
+      [size]: Math.max(0, parseInt(val) || 0)
+    }));
+  };
+
+  const handleSaveStock = async () => {
+    if (!editingProductId) return;
+    await onUpdateProductShowroomStock(editingProductId, JSON.stringify(editingSizes));
+    setEditingProductId(null);
+  };
+
+  const handlePrintBarcode = (prod: any, size: string) => {
+    const sku = `TF-${prod.numericId}-${size}`;
+    const barcodeUrl = `https://api-bwipjs.metafloor.com/?bcid=code128&text=${sku}&scale=2&height=10`;
+
+    const printWindow = window.open("", "_blank", "width=600,height=400");
+    if (!printWindow) return;
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>প্রিন্ট বারকোড - ${prod.name}</title>
+          <style>
+            @page {
+              size: 50mm 30mm;
+              margin: 0;
+            }
+            body {
+              margin: 0;
+              padding: 2mm;
+              font-family: Arial, sans-serif;
+              background: white;
+              color: black;
+              -webkit-print-color-adjust: exact;
+            }
+            .label-container {
+              width: 46mm;
+              height: 26mm;
+              display: flex;
+              flex-direction: column;
+              justify-content: space-between;
+              box-sizing: border-box;
+            }
+            .title {
+              font-size: 8pt;
+              font-weight: bold;
+              text-align: center;
+              border-bottom: 0.5px solid black;
+              padding-bottom: 2px;
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+            }
+            .name {
+              font-size: 7pt;
+              font-weight: bold;
+              margin-top: 2px;
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+            }
+            .meta-row {
+              display: flex;
+              justify-content: space-between;
+              font-size: 6pt;
+              margin-top: 1px;
+              font-weight: bold;
+            }
+            .barcode-area {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              margin-top: 2px;
+            }
+            .barcode-img {
+              height: 7mm;
+              max-width: 28mm;
+              object-fit: contain;
+            }
+            .price-block {
+              text-align: right;
+            }
+            .price-label {
+              font-size: 5pt;
+              color: #555;
+              display: block;
+            }
+            .price-val {
+              font-size: 9pt;
+              font-weight: 900;
+              white-space: nowrap;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="label-container">
+            <div class="title">TANHA FASHION (তানহা ফ্যাশন)</div>
+            <div class="name">${prod.name}</div>
+            <div class="meta-row">
+              <span>কোড: ${prod.numericId}</span>
+              <span>SKU: ${prod.sku || ""}</span>
+              <span>সাইজ: ${size}</span>
+            </div>
+            <div class="barcode-area">
+              <div style="display: flex; flex-direction: column; align-items: center;">
+                <img class="barcode-img" src="${barcodeUrl}" alt="${sku}" />
+                <span style="font-size: 5.5pt; font-family: monospace; font-weight: bold; margin-top: 1px; letter-spacing: 0.5px;">${sku}</span>
+              </div>
+              <div class="price-block">
+                <span class="price-label">মূল্য:</span>
+                <div class="price-val">${formatBanglaPriceWithCommas(prod.price)}</div>
+              </div>
+            </div>
+          </div>
+          <script>
+            window.onload = function() {
+              setTimeout(function() {
+                window.print();
+                window.close();
+              }, 300);
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
+  const filteredProducts = products.filter((p) => {
+    const matchesSearch = 
+      p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
+      p.sku.toLowerCase().includes(productSearch.toLowerCase());
+      
+    const matchesCategory = 
+      activeCategoryFilter === "ALL" || 
+      p.category === activeCategoryFilter;
+
+    return matchesSearch && matchesCategory;
+  });
+
+  return (
+    <div className="flex flex-col gap-6 font-sans text-foreground">
+      
+      {/* Header */}
+      <div>
+        <h2 className="text-xl font-extrabold text-slate-900 tracking-tight font-display flex items-center gap-2">
+          <Package className="text-primary" />
+          <span>শোরুম ইনভেন্টরি ও বারকোড সেন্টার (Showroom Stock)</span>
+        </h2>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          বসুন্ধরা সিটি শোরুমের ফিজিক্যাল পোশাক স্টক নিরীক্ষণ, পরিমার্জন এবং কাস্টম বারকোড লেবেল তৈরি করুন।
+        </p>
+      </div>
+
+      {lowStockShowroomProducts.length > 0 && (
+        <div className="bg-amber-50/50 border border-amber-200 p-4 rounded-xl text-xs leading-relaxed font-semibold text-amber-700 flex gap-2.5 text-left">
+          <AlertTriangle size={16} className="text-amber-600 flex-shrink-0 mt-0.5" />
+          <div>
+            <h5 className="font-extrabold text-[11px] uppercase tracking-wider mb-1">শোরুম স্টক সতর্কতা</h5>
+            শোরুমের তাকে থাকা <span className="font-extrabold text-amber-900 font-sans">{toBanglaNumber(lowStockShowroomProducts.length)}</span> টি পোশাকের কিছু সাইজ স্টক খালি বা ৫টির নিচে রয়েছে। কার্টন বা গুদাম থেকে এনে স্টক রি-ফিল করুন।
+          </div>
+        </div>
+      )}
+
+      {/* Control Filters */}
+      <div className="bg-card border border-border/80 rounded-2xl p-6 shadow-2xs text-left">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+          {/* Categories Pills */}
+          <div className="flex gap-1.5 overflow-x-auto whitespace-nowrap py-1">
+            <button
+              onClick={() => setActiveCategoryFilter("ALL")}
+              className={`px-3.5 py-1.5 border text-[11px] font-black rounded-lg cursor-pointer transition-all ${
+                activeCategoryFilter === "ALL"
+                  ? "bg-slate-900 border-slate-900 text-white shadow-3xs"
+                  : "bg-white border-slate-200 text-slate-500 hover:text-slate-900 hover:bg-slate-50"
+              }`}
+            >
+              <span>সব শোরুম পোশাক</span>
+              <span className={`text-[9px] ml-1.5 px-1.5 py-0.5 rounded-md ${activeCategoryFilter === "ALL" ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-550 border border-slate-200'}`}>
+                {toBanglaNumber(products.length)}
+              </span>
+            </button>
+            {CATEGORIES.map((cat, idx) => {
+              const count = products.filter(p => p.category === cat).length;
+              const isActive = activeCategoryFilter === cat;
+              return (
+                <button
+                  key={idx}
+                  onClick={() => setActiveCategoryFilter(cat)}
+                  className={`px-3.5 py-1.5 border text-[11px] font-black rounded-lg cursor-pointer transition-all ${
+                    isActive
+                      ? "bg-slate-900 border-slate-900 text-white shadow-3xs"
+                      : "bg-white border-slate-200 text-slate-500 hover:text-slate-900 hover:bg-slate-50"
+                  }`}
+                >
+                  <span>{cat}</span>
+                  <span className={`text-[9px] ml-1.5 px-1.5 py-0.5 rounded-md ${isActive ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-550 border border-slate-200'}`}>
+                    {toBanglaNumber(count)}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Quick Search */}
+          <div className="relative w-full sm:max-w-xs">
+            <input 
+              type="text" 
+              placeholder="পণ্য বা SKU কোড খুঁজুন..."
+              value={productSearch}
+              onChange={(e) => setProductSearch(e.target.value)}
+              className="w-full pl-9 pr-4 py-1.5 border border-slate-200 bg-slate-50/50 focus:bg-white rounded-xl focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-xs text-foreground placeholder-slate-405 transition-all"
+            />
+            <Search size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+          </div>
+        </div>
+
+        {/* Showroom Products Table */}
+        {filteredProducts.length === 0 ? (
+          <div className="py-20 text-center text-slate-450 text-xs font-semibold">শোরুমে কোনো পণ্য পাওয়া যায়নি।</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-left text-xs text-slate-700">
+              <thead>
+                <tr className="border-b border-slate-200/80 bg-slate-50/60 text-slate-400 font-black text-[9px] uppercase tracking-wider">
+                  <th className="py-3 px-3 w-12 text-center">ছবি</th>
+                  <th className="py-3 px-3">পোশাক ও ক্যাটাগরি</th>
+                  <th className="py-3 px-3">SKU কোড</th>
+                  <th className="py-3 px-3 text-right">মূল্য</th>
+                  <th className="py-3 px-3 text-center">সাইজ ও শোরুম স্টক</th>
+                  <th className="py-3 px-3 text-center">মোট শোরুম স্টক</th>
+                  <th className="py-3 px-3 text-center">অ্যাকশন</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-slate-800">
+                {filteredProducts.map((p) => {
+                  const totalStock = getProductTotalShowroomStock(p);
+                  return (
+                    <tr key={p.id} className="hover:bg-slate-50/40 transition-colors">
+                      {/* Image */}
+                      <td className="py-2.5 px-3 text-center">
+                        <img 
+                          src={p.imgUrl} 
+                          alt={p.name} 
+                          className="w-9 h-12 object-cover bg-secondary border border-border/80 rounded-md mx-auto" 
+                        />
+                      </td>
+
+                      {/* Name & Category */}
+                      <td className="py-2.5 px-3">
+                        <div className="font-bold text-slate-900 truncate max-w-[200px]" title={p.name}>{p.name}</div>
+                        <div className="text-slate-400 text-[10px] mt-0.5">{p.category}</div>
+                      </td>
+
+                      {/* SKU */}
+                      <td className="py-2.5 px-3 font-mono font-bold text-slate-550">{p.sku}</td>
+
+                      {/* Price */}
+                      <td className="py-2.5 px-3 text-right font-black text-slate-900">৳{toBanglaNumber(p.price)}</td>
+
+                      {/* Showroom Sizes */}
+                      <td className="py-2.5 px-3 text-center">
+                        <div className="flex flex-wrap gap-1 justify-center max-w-[200px] mx-auto">
+                          {(() => {
+                            try {
+                              const sizesObj = JSON.parse(p.showroomSizesJson || p.sizesJson || "{}");
+                              return Object.entries(sizesObj).map(([sz, qty]) => {
+                                const quantity = Number(qty || 0);
+                                let badgeClass = "bg-secondary text-foreground border-border";
+                                if (quantity === 0) {
+                                  badgeClass = "bg-rose-50 text-rose-600 border-rose-200";
+                                } else if (quantity < 5) {
+                                  badgeClass = "bg-amber-50 text-amber-700 border-amber-250";
+                                }
+                                return (
+                                  <span key={sz} className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold border ${badgeClass}`}>
+                                    <span className="font-extrabold">{sz}:</span>
+                                    <span>{toBanglaNumber(quantity)}</span>
+                                  </span>
+                                );
+                              });
+                            } catch (e) {
+                              return <span className="text-[10px] text-rose-500 font-bold">ত্রুটি</span>;
+                            }
+                          })()}
+                        </div>
+                      </td>
+
+                      {/* Total Stock status badge */}
+                      <td className="py-2.5 px-3 text-center">
+                        {totalStock === 0 ? (
+                          <span className="inline-flex items-center py-0.5 px-2 text-[9px] font-black bg-rose-50 text-rose-600 border border-rose-200 rounded-md">স্টক শেষ</span>
+                        ) : totalStock < 5 ? (
+                          <span className="inline-flex items-center py-0.5 px-2 text-[9px] font-black bg-amber-50 text-amber-600 border border-amber-250 rounded-md">সীমিত: {toBanglaNumber(totalStock)}</span>
+                        ) : (
+                          <span className="inline-flex items-center py-0.5 px-2 text-[9px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-md">{toBanglaNumber(totalStock)} টি</span>
+                        )}
+                      </td>
+
+                      {/* Action buttons */}
+                      <td className="py-2.5 px-3 text-center">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button 
+                            onClick={() => handleStartEdit(p)}
+                            className="p-1.5 bg-slate-50 hover:bg-primary/10 border border-slate-200 hover:border-primary text-slate-700 hover:text-primary rounded-lg cursor-pointer transition-colors"
+                            title="শোরুম স্টক পরিমার্জন"
+                          >
+                            <Edit3 size={12} />
+                          </button>
+                          <button 
+                            onClick={() => {
+                              const sizes = getProductSizes(p);
+                              setTransferProduct(p);
+                              setTransferSize(sizes[0] || "M");
+                              setTransferQty(1);
+                              setTransferDirection("online_to_showroom");
+                            }}
+                            className="p-1.5 bg-slate-50 hover:bg-emerald-100 border border-slate-200 hover:border-emerald-600 text-slate-700 hover:text-emerald-700 rounded-lg cursor-pointer transition-colors"
+                            title="স্টক স্থানান্তর (Online ⇄ Showroom)"
+                          >
+                            <RefreshCw size={12} />
+                          </button>
+                          <button 
+                            onClick={() => {
+                              const sizes = getProductSizes(p);
+                              setBarcodeProduct(p);
+                              setBarcodeSize(sizes[0] || "M");
+                            }}
+                            className="p-1.5 bg-slate-50 hover:bg-slate-900 border border-slate-200 hover:border-slate-900 text-slate-700 hover:text-white rounded-lg cursor-pointer transition-colors"
+                            title="বারকোড লেবেল প্রিন্ট"
+                          >
+                            <Barcode size={12} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* 3. SHOWROOM STOCK EDIT MODAL */}
+      {editingProductId && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-lg border text-left flex flex-col gap-5 font-sans">
+            <div className="flex justify-between items-center border-b pb-3">
+              <h3 className="font-bold text-sm text-foreground flex items-center gap-1.5">
+                <Edit3 size={16} className="text-primary" />
+                <span>শোরুম স্টক পরিমার্জন</span>
+              </h3>
+              <button 
+                onClick={() => setEditingProductId(null)}
+                className="p-1 hover:bg-slate-100 rounded-full text-slate-450 border-none cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="text-xs space-y-4">
+              <div>
+                <span className="text-muted-foreground block mb-0.5">পোশাকের নাম:</span>
+                <span className="font-bold text-slate-900 text-[13px]">
+                  {products.find(p => p.id === editingProductId)?.name}
+                </span>
+              </div>
+
+              <div className="border border-border/60 bg-secondary/15 p-4 rounded-xl">
+                <span className="block text-[10px] text-primary font-black uppercase tracking-wider mb-3">প্রতি সাইজের স্টক সংখ্যা:</span>
+                <div className="grid grid-cols-2 gap-3">
+                  {Object.entries(editingSizes).map(([sz, qty]) => (
+                    <div key={sz} className="bg-white border p-2.5 rounded-lg flex flex-col gap-1 items-center">
+                      <span className="text-[9px] font-black text-slate-400">{sz}</span>
+                      <input 
+                        type="number" 
+                        min={0}
+                        value={qty}
+                        onChange={(e) => handleSizeStockChange(sz, e.target.value)}
+                        className="w-full px-1.5 py-0.5 border border-slate-200 text-center rounded text-xs font-bold focus:outline-none"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-2 justify-end border-t pt-3.5">
+              <button
+                onClick={handleSaveStock}
+                className="py-2 px-5 bg-primary hover:bg-primary/95 text-white font-bold rounded-xl border-none cursor-pointer flex items-center gap-1 shadow-xs text-xs"
+              >
+                <Save size={13} />
+                <span>সংরক্ষণ করুন</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setEditingProductId(null)}
+                className="py-2 px-5 bg-secondary hover:bg-slate-100 border border-border text-foreground font-bold rounded-xl cursor-pointer text-xs"
+              >
+                <span>বাতিল</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 4. BARCODE PRINT MODAL */}
+      {barcodeProduct && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-lg border text-left flex flex-col gap-5 font-sans">
+            <div className="flex justify-between items-center border-b pb-3">
+              <h3 className="font-bold text-sm text-foreground flex items-center gap-1.5">
+                <Barcode size={16} className="text-primary" />
+                <span>বারকোড লেবেল প্রিন্ট (Showroom)</span>
+              </h3>
+              <button 
+                onClick={() => setBarcodeProduct(null)}
+                className="p-1 hover:bg-slate-100 rounded-full text-slate-450 border-none cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="text-xs space-y-3">
+              <div>
+                <span className="text-muted-foreground block mb-0.5">পোশাকের নাম:</span>
+                <span className="font-bold text-slate-900 text-[13px]">{barcodeProduct.name}</span>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <span className="text-muted-foreground block mb-0.5">পণ্য কোড:</span>
+                  <span className="font-mono font-bold text-slate-800">{barcodeProduct.numericId}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground block mb-0.5">খুচরা মূল্য:</span>
+                  <span className="font-bold text-slate-950">৳{toBanglaNumber(barcodeProduct.price)}</span>
+                </div>
+              </div>
+
+              <div>
+                <span className="text-muted-foreground block mb-1">সাইজ সিলেক্ট করুন (Size):</span>
+                <div className="flex gap-1.5 flex-wrap">
+                  {getProductSizes(barcodeProduct).map((sz) => (
+                    <button
+                      key={sz}
+                      type="button"
+                      onClick={() => setBarcodeSize(sz)}
+                      className={`text-[10px] font-bold px-3 py-1.5 rounded-lg border cursor-pointer transition-all ${
+                        barcodeSize === sz
+                          ? "bg-slate-900 border-slate-900 text-white shadow-3xs"
+                          : "bg-white border-slate-200 text-slate-600 hover:border-slate-400"
+                      }`}
+                    >
+                      {sz}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Barcode Visual Preview Box */}
+              <div className="border border-border/80 rounded-xl p-4 bg-zinc-50/50 flex flex-col items-center gap-3">
+                <span className="text-[10px] font-black uppercase text-primary tracking-wider border-b w-full text-center pb-1">লেবেল প্রিভিউ (50mm x 30mm)</span>
+                <div className="w-[180px] bg-white border p-2 flex flex-col gap-1 text-black font-sans text-left shadow-2xs">
+                  <div className="text-[9px] font-black text-center border-b pb-0.5">TANHA FASHION</div>
+                  <div className="text-[8px] font-bold truncate">{barcodeProduct.name}</div>
+                  <div className="flex justify-between text-[7px] font-bold">
+                    <span>কোড: {barcodeProduct.numericId}</span>
+                    <span>SKU: {barcodeProduct.sku || ""}</span>
+                    <span>সাইজ: {barcodeSize}</span>
+                  </div>
+                  <div className="flex items-center justify-between mt-1">
+                    <div className="flex flex-col items-center">
+                      <img 
+                        src={`https://api-bwipjs.metafloor.com/?bcid=code128&text=TF-${barcodeProduct.numericId}-${barcodeSize}&scale=2&height=10`}
+                        alt="Barcode"
+                        className="h-6 w-24 object-contain"
+                      />
+                      <span className="text-[5.5px] font-mono font-bold mt-0.5">TF-{barcodeProduct.numericId}-{barcodeSize}</span>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-[6px] text-zinc-500">মূল্য:</div>
+                      <div className="text-[10px] font-extrabold">৳{barcodeProduct.price}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-2 justify-end border-t pt-3.5">
+              <button
+                onClick={() => {
+                  handlePrintBarcode(barcodeProduct, barcodeSize);
+                  setBarcodeProduct(null);
+                }}
+                className="py-2 px-5 bg-primary hover:bg-primary/95 text-white font-bold rounded-xl border-none cursor-pointer flex items-center gap-1 shadow-xs text-xs"
+              >
+                <span>বারকোড প্রিন্ট করুন</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setBarcodeProduct(null)}
+                className="py-2 px-5 bg-secondary hover:bg-slate-100 border border-border text-foreground font-bold rounded-xl cursor-pointer text-xs"
+              >
+                <span>বাতিল</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* 5. STOCK TRANSFER MODAL */}
+      {transferProduct && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-lg border text-left flex flex-col gap-5 font-sans">
+            <div className="flex justify-between items-center border-b pb-3">
+              <h3 className="font-bold text-sm text-foreground flex items-center gap-1.5">
+                <RefreshCw size={16} className="text-emerald-600 animate-spin-slow" />
+                <span>স্টক স্থানান্তর (Stock Transfer)</span>
+              </h3>
+              <button 
+                onClick={() => setTransferProduct(null)}
+                className="p-1 hover:bg-slate-100 rounded-full text-slate-450 border-none cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="text-xs space-y-4">
+              <div>
+                <span className="text-muted-foreground block mb-0.5">পোশাকের নাম:</span>
+                <span className="font-bold text-slate-900 text-[13px]">{transferProduct.name}</span>
+              </div>
+
+              {/* Sizes current stock comparison grid */}
+              <div className="border border-border/80 rounded-xl p-3 bg-slate-50/50">
+                <span className="block text-[10px] text-slate-400 font-extrabold uppercase mb-2">বর্তমান স্টক তুলনা (Online vs. Showroom)</span>
+                <div className="grid grid-cols-3 text-center font-bold gap-1 text-[10px] border-b pb-1.5 mb-1.5 text-slate-500 uppercase">
+                  <span>সাইজ</span>
+                  <span>অনলাইন</span>
+                  <span>শোরুম</span>
+                </div>
+                <div className="space-y-1 max-h-28 overflow-y-auto pr-1">
+                  {Object.entries(
+                    JSON.parse(transferProduct.sizesJson || "{}")
+                  ).map(([sz, onlineVal]) => {
+                    const onlineCount = Number(onlineVal || 0);
+                    const showroomSizes = JSON.parse(transferProduct.showroomSizesJson || "{}");
+                    const showroomCount = Number(showroomSizes[sz] || 0);
+
+                    return (
+                      <div key={sz} className="grid grid-cols-3 text-center text-xs font-semibold py-1 hover:bg-slate-150 rounded">
+                        <span className="font-bold text-slate-800">{sz}</span>
+                        <span className="text-slate-600 font-sans">{onlineCount}</span>
+                        <span className="text-slate-600 font-sans">{showroomCount}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Transfer Form inputs */}
+              <div className="space-y-3 pt-1">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-muted-foreground block mb-1">সাইজ সিলেক্ট:</label>
+                    <select
+                      value={transferSize}
+                      onChange={(e) => setTransferSize(e.target.value)}
+                      className="w-full px-2.5 py-1.5 border border-slate-200 bg-white rounded-lg text-xs font-bold focus:outline-none"
+                    >
+                      {getProductSizes(transferProduct).map((sz) => (
+                        <option key={sz} value={sz}>{sz}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-muted-foreground block mb-1">স্থানান্তর পরিমাণ (Qty):</label>
+                    <input
+                      type="number"
+                      min={1}
+                      value={transferQty}
+                      onChange={(e) => setTransferQty(Math.max(1, parseInt(e.target.value) || 1))}
+                      className="w-full px-2.5 py-1.5 border border-slate-200 bg-white rounded-lg text-xs font-bold focus:outline-none font-sans"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-muted-foreground block mb-1.5">স্থানান্তরের দিক (Direction):</label>
+                  <div className="grid grid-cols-2 border border-border rounded-xl overflow-hidden bg-slate-100 p-0.5">
+                    <button
+                      type="button"
+                      onClick={() => setTransferDirection("online_to_showroom")}
+                      className={`py-1.5 border-none rounded-lg text-[9px] font-black cursor-pointer transition-all ${
+                        transferDirection === "online_to_showroom"
+                          ? "bg-slate-900 text-white shadow-xs"
+                          : "bg-transparent text-slate-600 hover:text-slate-900"
+                      }`}
+                    >
+                      অনলাইন ➔ শোরুম
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTransferDirection("showroom_to_online")}
+                      className={`py-1.5 border-none rounded-lg text-[9px] font-black cursor-pointer transition-all ${
+                        transferDirection === "showroom_to_online"
+                          ? "bg-slate-900 text-white shadow-xs"
+                          : "bg-transparent text-slate-600 hover:text-slate-900"
+                      }`}
+                    >
+                      শোরুম ➔ অনলাইন
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-2 justify-end border-t pt-3.5">
+              <button
+                disabled={isTransferring}
+                onClick={async () => {
+                  if (onTransferProductStock) {
+                    setIsTransferring(true);
+                    try {
+                      await onTransferProductStock(
+                        transferProduct.id,
+                        transferSize,
+                        transferQty,
+                        transferDirection
+                      );
+                      setTransferProduct(null);
+                    } catch (e) {
+                      console.error(e);
+                    } finally {
+                      setIsTransferring(false);
+                    }
+                  }
+                }}
+                className="py-2 px-5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl border-none cursor-pointer flex items-center gap-1 shadow-xs text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <span>স্থানান্তর নিশ্চিত করুন</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setTransferProduct(null)}
+                className="py-2 px-5 bg-secondary hover:bg-slate-100 border border-border text-foreground font-bold rounded-xl cursor-pointer text-xs"
+              >
+                <span>বাতিল</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

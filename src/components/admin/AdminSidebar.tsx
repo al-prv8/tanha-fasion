@@ -15,14 +15,13 @@ import {
   Megaphone,
   Mail,
   Activity,
-  Store,
-  Truck
+  Barcode
 } from "lucide-react";
 import { toBanglaNumber } from "@/lib/products";
 
 interface SidebarProps {
-  activeTab: "dashboard" | "orders" | "products" | "reviews" | "categories" | "coupons" | "faqs" | "announcements" | "newsletters" | "activity-logs" | "purchases";
-  setActiveTab: (tab: "dashboard" | "orders" | "products" | "reviews" | "categories" | "coupons" | "faqs" | "announcements" | "newsletters" | "activity-logs" | "purchases") => void;
+  activeTab: "dashboard" | "orders" | "products" | "reviews" | "categories" | "coupons" | "faqs" | "announcements" | "newsletters" | "activity-logs";
+  setActiveTab: (tab: "dashboard" | "orders" | "products" | "reviews" | "categories" | "coupons" | "faqs" | "announcements" | "newsletters" | "activity-logs") => void;
   ordersCount: number;
   productsCount: number;
   reviewsCount: number;
@@ -31,7 +30,6 @@ interface SidebarProps {
   newslettersCount: number;
   faqsCount: number;
   announcementsCount: number;
-  purchasesCount: number;
   adminName?: string;
   onLogout: () => void;
   onCloseMobile?: () => void;
@@ -48,7 +46,6 @@ export default function AdminSidebar({
   newslettersCount,
   faqsCount,
   announcementsCount,
-  purchasesCount,
   adminName = "অ্যাডমিন",
   onLogout,
   onCloseMobile
@@ -56,8 +53,7 @@ export default function AdminSidebar({
   const navigationItems = [
     { id: "dashboard", label: "ড্যাশবোর্ড", icon: <BarChart3 size={16} /> },
     { id: "orders", label: "অর্ডার সমূহ", icon: <ShoppingBag size={16} />, count: ordersCount },
-    { id: "products", label: "পণ্য তালিকা", icon: <Package size={16} />, count: productsCount },
-    { id: "purchases", label: "ইনভেন্টরি ক্রয় (Wholesale)", icon: <Truck size={16} />, count: purchasesCount },
+    { id: "products", label: "অনলাইন পণ্য", icon: <Package size={16} />, count: productsCount },
     { id: "categories", label: "ক্যাটাগরি", icon: <Layers size={16} />, count: categoriesCount },
     { id: "coupons", label: "কুপন পরিচালনা", icon: <Tag size={16} />, count: couponsCount },
     { id: "faqs", label: "এফএকিউ পরিচালনা", icon: <HelpCircle size={16} />, count: faqsCount },
@@ -102,12 +98,11 @@ export default function AdminSidebar({
       {/* Navigation List */}
       <nav className="flex-1 p-4 flex flex-col gap-1.5 overflow-y-auto">
         <Link
-          href="/pos"
-          className="w-full text-left py-3 px-4 rounded-xl font-bold text-xs flex items-center gap-3 border transition-all cursor-pointer bg-primary/10 border-primary/20 text-primary hover:bg-primary/15 no-underline"
+          href="/admin/showroom"
+          className="w-full text-left py-3 px-4 rounded-xl font-bold text-xs flex items-center gap-3 border border-border/80 transition-all cursor-pointer bg-white text-slate-700 hover:bg-slate-50 no-underline"
         >
-          <span><Store size={16} /></span>
-          <span>পিওএস শোরুম বিক্রয় (POS)</span>
-          <span className="ml-auto text-[9px] bg-primary text-white px-1.5 py-0.5 rounded font-bold">লাইভ</span>
+          <span><Barcode size={16} className="text-primary" /></span>
+          <span>শোরুম প্যানেল (Showroom Panel)</span>
         </Link>
 
         <div className="h-px bg-border/60 my-1"></div>

@@ -271,8 +271,44 @@ export default function ProductDetailClient({ product }: { product: Product }) {
     }
   };
 
+  // Product structured JSON-LD data for AEO & SEO
+  const productImageUrl = product.img.src.startsWith("http")
+    ? product.img.src
+    : `https://tanhafasion.com${product.img.src}`;
+  
+  const isOutOfStock = product.tag === "স্টক শেষ";
+  const availability = isOutOfStock ? "https://schema.org/OutOfStock" : "https://schema.org/InStock";
+
+  const productSchema = {
+    "@context": "https://schema.org/",
+    "@type": "Product",
+    "name": product.name,
+    "image": [productImageUrl],
+    "description": product.desc || `${product.name} - Premium Quality Collection`,
+    "sku": (product as any).sku || product.id,
+    "brand": {
+      "@type": "Brand",
+      "name": "তানহা ফ্যাশন"
+    },
+    "offers": {
+      "@type": "Offer",
+      "url": typeof window !== "undefined" ? window.location.href : `https://tanhafasion.com/products/${product.id}`,
+      "priceCurrency": "BDT",
+      "price": product.price,
+      "priceValidUntil": "2030-12-31",
+      "availability": availability,
+      "itemCondition": "https://schema.org/NewCondition"
+    }
+  };
+
   return (
     <div className="grain-bg min-h-screen pb-24 md:pb-8">
+      {/* Product JSON-LD structured data */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(productSchema) }}
+      />
+
       {/* Announcement offer bar */}
       <AnnouncementBar scrollToSection={(index) => router.push(`/?sec=${index}`)} />
 
