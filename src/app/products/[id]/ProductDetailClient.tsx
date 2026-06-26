@@ -326,7 +326,7 @@ export default function ProductDetailClient({ product }: { product: Product }) {
   // Product structured JSON-LD data for AEO & SEO
   const productImageUrl = product.img.src.startsWith("http")
     ? product.img.src
-    : `https://tanhafasion.com${product.img.src}`;
+    : `https://tanhafashion.com${product.img.src}`;
   
   const isOutOfStock = product.tag === "স্টক শেষ";
   const availability = isOutOfStock ? "https://schema.org/OutOfStock" : "https://schema.org/InStock";
@@ -344,7 +344,7 @@ export default function ProductDetailClient({ product }: { product: Product }) {
     },
     "offers": {
       "@type": "Offer",
-      "url": typeof window !== "undefined" ? window.location.href : `https://tanhafasion.com/products/${product.id}`,
+      "url": typeof window !== "undefined" ? window.location.href : `https://tanhafashion.com/products/${product.id}`,
       "priceCurrency": "BDT",
       "price": activePrice,
       "priceValidUntil": "2030-12-31",
