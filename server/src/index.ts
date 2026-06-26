@@ -70,7 +70,7 @@ app.use(express.json());
 // Rate Limiting Middlewares
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
+  max: 1500,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "অতিরিক্ত রিকোয়েস্ট করা হয়েছে, অনুগ্রহ করে ১৫ মিনিট পর আবার চেষ্টা করুন।" }
