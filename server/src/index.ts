@@ -48,8 +48,9 @@ const upload = multer({
 
 const allowedOrigins = [
   "http://localhost:3000",
-  process.env.FRONTEND_URL
-].filter(Boolean);
+  process.env.FRONTEND_URL,
+  process.env.FRONTEND_URL ? process.env.FRONTEND_URL.replace("://", "://www.") : null
+].filter((val): val is string => Boolean(val));
 
 app.use(cors({
   origin: (origin, callback) => {
