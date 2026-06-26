@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import Image from "next/image";
 import { ChevronLeft, ChevronRight, Phone } from "lucide-react";
 import heroEverydayBanner from "@/assets/hero_everyday_banner.png";
 import showroomBanner from "@/assets/showroom_banner.png";
@@ -68,10 +69,13 @@ export default function Hero({ scrollToSection }: HeroProps) {
             >
               {/* Background Image with Darkened Top/Bottom Overlays */}
               <div className="absolute inset-0">
-                <img
-                  src={slide.img.src}
+                <Image
+                  src={slide.img}
                   alt={slide.subtitle}
-                  className="w-full h-full object-cover"
+                  fill
+                  className="object-cover"
+                  sizes="100vw"
+                  priority={idx === 0}
                 />
                 <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-transparent md:from-black/70 md:via-black/30" />
               </div>

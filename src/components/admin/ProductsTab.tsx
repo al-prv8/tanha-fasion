@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import Image from "next/image";
 import { 
   Search, 
   Plus, 
@@ -604,7 +605,7 @@ export default function ProductsTab({
               <div className="flex gap-3 items-center bg-white border border-border/80 p-2.5 rounded-lg">
                 <div className="w-10 h-13 bg-secondary rounded overflow-hidden flex-shrink-0 flex items-center justify-center text-muted-foreground/60 border border-border">
                   {productForm.imgUrl ? (
-                    <img src={productForm.imgUrl} alt="Preview" className="w-full h-full object-cover" />
+                    <Image src={productForm.imgUrl || "/assets/cotton_1.png"} alt="Preview" width={40} height={52} className="w-full h-full object-cover" />
                   ) : (
                     <ImageIcon size={16} />
                   )}
@@ -750,9 +751,11 @@ export default function ProductsTab({
 
                         {/* Image */}
                         <td className="py-2.5 px-3 text-center">
-                          <img 
-                            src={p.imgUrl} 
+                          <Image 
+                            src={p.imgUrl || "/assets/cotton_1.png"} 
                             alt={p.name} 
+                            width={36}
+                            height={48}
                             className="w-9 h-12 object-cover bg-secondary border border-border/80 rounded-md mx-auto" 
                           />
                         </td>
@@ -841,10 +844,12 @@ export default function ProductsTab({
                                   <span className="block text-[9px] font-black uppercase text-primary tracking-wider border-b border-slate-200 pb-1.5">গ্রাহক ভিউ প্রিভিউ (Storefront Preview)</span>
                                   
                                   <div className="relative aspect-[3/4] bg-secondary overflow-hidden w-full rounded-lg border border-slate-100">
-                                    <img
-                                      src={productForm.imgUrl || p.imgUrl}
+                                    <Image
+                                      src={productForm.imgUrl || p.imgUrl || "/assets/cotton_1.png"}
                                       alt={productForm.name || p.name}
-                                      className="w-full h-full object-cover"
+                                      fill
+                                      sizes="(max-width: 1024px) 50vw, 25vw"
+                                      className="object-cover"
                                     />
                                     {totalStock === 0 && (
                                       <span className="absolute top-3 left-3 bg-rose-600 text-white text-[9px] font-bold py-1 px-2.5 rounded-full uppercase">

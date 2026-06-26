@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import Image from "next/image";
 import { 
   Search, 
   Barcode, 
@@ -322,9 +323,11 @@ export default function ShowroomStockTab({
                     <tr key={p.id} className="hover:bg-slate-50/40 transition-colors">
                       {/* Image */}
                       <td className="py-2.5 px-3 text-center">
-                        <img 
-                          src={p.imgUrl} 
+                        <Image 
+                          src={p.imgUrl || "/assets/cotton_1.png"} 
                           alt={p.name} 
+                          width={36}
+                          height={48}
                           className="w-9 h-12 object-cover bg-secondary border border-border/80 rounded-md mx-auto" 
                         />
                       </td>

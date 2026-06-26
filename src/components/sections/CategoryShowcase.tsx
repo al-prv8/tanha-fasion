@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import Image from "next/image";
 import { Product } from "@/lib/products";
 import { ShoppingBag, Eye } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -53,10 +54,12 @@ export default function CategoryShowcase({
     <section id={sectionId} className="w-full py-8 max-w-[1440px] mx-auto px-4 md:px-8 reveal-item">
       {/* FULL WIDTH CATEGORY BANNER */}
       <div className="relative w-full h-[180px] sm:h-[220px] md:h-[260px] lg:h-[300px] overflow-hidden rounded-md mb-8 shadow-sm">
-        <img
-          src={bannerImg.src || bannerImg}
+        <Image
+          src={bannerImg}
           alt={title}
-          className="w-full h-full object-cover"
+          fill
+          sizes="100vw"
+          className="object-cover"
         />
         {/* Dark overlay & Text details */}
         <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/30 to-transparent flex flex-col justify-center px-6 sm:px-12 md:px-16 text-white">
@@ -81,14 +84,14 @@ export default function CategoryShowcase({
               key={prod.id}
               className="bg-background border border-border/60 hover:border-primary/50 rounded overflow-hidden flex flex-col justify-between group transition-all duration-300 shadow-sm hover:shadow-lg hover:-translate-y-1"
             >
-              {/* Product Image and badges */}
               <div className="relative aspect-[3/4] bg-secondary overflow-hidden w-full">
-                <Link href={`/products/${prod.id}`} className="block w-full h-full cursor-pointer">
-                  <img
-                    src={prod.img?.src || prod.img}
+                <Link href={`/products/${prod.id}`} className="relative block w-full h-full cursor-pointer">
+                  <Image
+                    src={prod.img}
                     alt={prod.name}
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                    loading="lazy"
+                    fill
+                    sizes="(max-width: 768px) 50vw, 25vw"
+                    className="object-cover transition-transform duration-500 group-hover:scale-105"
                   />
                 </Link>
                 

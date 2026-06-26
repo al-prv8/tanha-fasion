@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter, usePathname } from "next/navigation";
 import { useCart } from "@/lib/cart-context";
 import { Product, PRODUCTS, toBanglaNumber, formatBanglaPriceWithCommas } from "@/lib/products";
@@ -342,10 +343,13 @@ export default function ProductDetailClient({ product }: { product: Product }) {
           {/* Left Column: Image Gallery Container */}
           <div className="lg:col-span-5 flex flex-col gap-6">
             <div className="relative aspect-[3/4] w-full bg-secondary overflow-hidden rounded-lg border border-border shadow-sm group">
-              <img 
-                src={product.img.src || product.img} 
+              <Image 
+                src={product.img} 
                 alt={product.name} 
-                className="w-full h-full object-cover transition-transform duration-500 hover:scale-108 cursor-zoom-in animate-fade-in"
+                fill
+                sizes="(max-width: 1024px) 100vw, 45vw"
+                className="object-cover transition-transform duration-500 hover:scale-108 cursor-zoom-in animate-fade-in"
+                priority
               />
               {/* Product tag badge */}
               {product.tag && (
@@ -744,11 +748,12 @@ export default function ProductDetailClient({ product }: { product: Product }) {
                   className="bg-background border border-border/60 hover:border-primary/50 rounded overflow-hidden flex flex-col justify-between group transition-all duration-300 shadow-sm hover:shadow-lg"
                 >
                   <Link href={`/products/${prod.id}`} className="relative aspect-[3/4] bg-secondary overflow-hidden w-full block cursor-pointer">
-                    <img
-                      src={prod.img.src || prod.img}
+                    <Image
+                      src={prod.img}
                       alt={prod.name}
-                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                      loading="lazy"
+                      fill
+                      sizes="(max-width: 768px) 50vw, 25vw"
+                      className="object-cover transition-transform duration-500 group-hover:scale-105"
                     />
                     {prod.tag && (
                       <span className="absolute top-3 left-3 bg-primary text-primary-foreground text-[9px] sm:text-[10px] font-bold py-1 px-2.5 rounded-full uppercase tracking-wider shadow-sm">
@@ -883,10 +888,12 @@ export default function ProductDetailClient({ product }: { product: Product }) {
         }`}
       >
         <div className="flex items-center gap-2 max-w-[50%]">
-          <img 
-            src={product.img.src || product.img} 
+          <Image 
+            src={product.img} 
             alt={product.name} 
-            className="w-10 h-13 object-cover rounded bg-card flex-shrink-0" 
+            width={40}
+            height={52}
+            className="object-cover rounded bg-card flex-shrink-0" 
           />
           <div className="min-w-0">
             <h4 className="text-xs font-bold text-foreground truncate">{product.name}</h4>

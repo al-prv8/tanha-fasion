@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/lib/cart-context";
 import { 
@@ -131,10 +132,12 @@ export default function ShowroomClient() {
 
         {/* Hero image display */}
         <div className="relative w-full h-[220px] sm:h-[280px] md:h-[360px] lg:h-[420px] overflow-hidden rounded-2xl mb-12 shadow-md border border-border">
-          <img 
+          <Image 
             src="/assets/showroom_outlet.png" 
             alt="তানহা ফ্যাশন শোরুম" 
-            className="w-full h-full object-cover transition-transform duration-700 hover:scale-101" 
+            fill
+            sizes="100vw"
+            className="object-cover transition-transform duration-700 hover:scale-101" 
           />
           <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/20 to-transparent flex flex-col justify-end p-6 sm:p-12 text-white">
             <span className="text-xs sm:text-sm font-bold text-primary uppercase tracking-[0.2em] mb-2">VISIT TANHA FASHION OUTLETS</span>

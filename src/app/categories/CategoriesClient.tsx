@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, Suspense } from "react";
+import Image from "next/image";
 import { useCart } from "@/lib/cart-context";
 import { Product, PRODUCTS, toBanglaNumber, formatBanglaPriceWithCommas } from "@/lib/products";
 import { useSearchParams, useRouter } from "next/navigation";
@@ -431,11 +432,12 @@ function CategoriesContent() {
                     >
                       {/* Product Image Link */}
                       <Link href={`/products/${prod.id}`} className="relative aspect-[3/4] bg-secondary overflow-hidden w-full block cursor-pointer">
-                        <img
-                          src={prod.img?.src || prod.img}
+                        <Image
+                          src={prod.img}
                           alt={prod.name}
-                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                          loading="lazy"
+                          fill
+                          sizes="(max-width: 768px) 50vw, 33vw"
+                          className="object-cover transition-transform duration-500 group-hover:scale-105"
                         />
                         
                         {prod.tag && (

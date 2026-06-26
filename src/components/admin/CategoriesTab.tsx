@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import Image from "next/image";
 import { Plus, Trash2, Edit3, Save, X, Layers, AlertCircle, Upload, Image as ImageIcon } from "lucide-react";
 import { toBanglaNumber } from "@/lib/products";
 
@@ -359,9 +360,11 @@ export default function CategoriesTab({
               {/* Thumb Preview */}
               {(editingId ? editingImgUrl : imgUrlInput) && (
                 <div className="mt-3 flex items-center gap-2 border-t border-border/30 pt-2.5">
-                  <img 
-                    src={editingId ? editingImgUrl : imgUrlInput} 
+                  <Image 
+                    src={(editingId ? editingImgUrl : imgUrlInput) || "/assets/cotton_1.png"} 
                     alt="Preview" 
+                    width={32}
+                    height={32}
                     className="w-8 h-8 rounded-full border object-cover"
                     onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
                   />
@@ -448,10 +451,12 @@ export default function CategoriesTab({
               {(editingId ? editingBannerUrl : bannerUrlInput) && (
                 <div className="mt-3 border-t border-border/30 pt-2.5">
                   <div className="relative aspect-[3/1] rounded-lg overflow-hidden border border-border max-w-xs">
-                    <img 
-                      src={editingId ? editingBannerUrl : bannerUrlInput} 
+                    <Image 
+                      src={(editingId ? editingBannerUrl : bannerUrlInput) || "/assets/cotton_3pc_banner.png"} 
                       alt="Banner Preview" 
-                      className="w-full h-full object-cover"
+                      fill
+                      sizes="320px"
+                      className="object-cover"
                       onError={(e) => { (e.target as HTMLElement).parentElement!.style.display = 'none'; }}
                     />
                   </div>
@@ -560,9 +565,11 @@ export default function CategoriesTab({
                       <td className="py-3 px-4 text-center">
                         <div className="w-8 h-8 rounded-full overflow-hidden border border-border/80 bg-slate-100 flex items-center justify-center mx-auto">
                           {cat.imgUrl ? (
-                            <img 
-                              src={cat.imgUrl} 
-                              alt="" 
+                            <Image 
+                              src={cat.imgUrl || "/assets/cotton_1.png"} 
+                              alt={cat.name} 
+                              width={32}
+                              height={32}
                               className="w-full h-full object-cover"
                             />
                           ) : (

@@ -1,4 +1,5 @@
 import React from "react";
+import Image from "next/image";
 
 interface CategoryItem {
   id: string;
@@ -48,12 +49,13 @@ export default function Categories({ scrollToSection, categories }: CategoriesPr
               }}
             >
               {/* Circular Thumbnail Container */}
-              <div className="w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 rounded-full overflow-hidden border-2 border-border group-hover:border-primary transition-all duration-300 shadow-sm flex items-center justify-center bg-secondary">
-                <img
+              <div className="relative w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 rounded-full overflow-hidden border-2 border-border group-hover:border-primary transition-all duration-300 shadow-sm flex items-center justify-center bg-secondary">
+                <Image
                   src={imgSrc}
                   alt={cat.name}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  loading="lazy"
+                  fill
+                  sizes="(max-width: 640px) 80px, (max-width: 768px) 96px, 112px"
+                  className="object-cover group-hover:scale-105 transition-transform duration-500"
                 />
               </div>
               {/* Category Name */}

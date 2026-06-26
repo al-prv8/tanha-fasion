@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import { Product } from "@/lib/products";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -42,12 +43,15 @@ export default function SpotlightModal({
         className={`bg-background border border-ink/15 rounded-sm max-w-[600px] w-full overflow-hidden shadow-2xl transition-all duration-300 ${isOpen ? "scale-100" : "scale-95"}`} 
         onClick={(e) => e.stopPropagation()}
       >
-        <img 
-          src={modalData.imgSrc?.src || modalData.imgSrc} 
-          id="spotlight-modal-img" 
-          className="aspect-[16/10] w-full object-cover" 
-          alt="Spotlight" 
-        />
+        <div className="relative w-full h-[250px] sm:h-[350px]">
+          <Image 
+            src={modalData.imgSrc?.src || modalData.imgSrc} 
+            alt={modalData.title}
+            fill
+            sizes="(max-width: 600px) 100vw, 600px"
+            className="object-cover"
+          />
+        </div>
         <div className="p-6 md:p-8">
           <span className="text-xs uppercase tracking-[0.2em] text-primary mb-2 block" id="spotlight-modal-loc">
             {modalData.location}

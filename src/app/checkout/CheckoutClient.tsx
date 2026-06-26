@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { useState, useEffect } from "react";
 import { useCart } from "@/lib/cart-context";
 import { toBanglaNumber, formatBanglaPriceWithCommas } from "@/lib/products";
@@ -1043,7 +1044,7 @@ export default function CheckoutClient() {
               <div className="summary-items">
                 {items.map((item) => (
                   <div key={`${item.id}-${item.size}`} className="summary-item">
-                    <img src={item.img.src || item.img} alt={item.name} className="summary-item-img" />
+                    <Image src={item.img} alt={item.name} width={50} height={65} className="summary-item-img" />
                     <div className="summary-item-details">
                       <h3 className="summary-item-name">{item.name}</h3>
                       <div className="summary-item-meta">সাইজ: {item.size} | পরিমাণ: {toBanglaNumber(item.quantity)}</div>

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { 
   Search, 
@@ -673,12 +674,16 @@ export default function POSTab({ embedded = false }: POSTabProps) {
                       }`}
                     >
                       <div className="relative aspect-square w-full rounded-lg overflow-hidden bg-slate-50 border border-slate-100 mb-2.5">
-                        <img 
-                          src={prod.imgUrl} 
+                        <Image 
+                          src={prod.imgUrl || "/assets/cotton_1.png"} 
                           alt={prod.name} 
-                          className="object-cover w-full h-full"
+                          fill
+                          sizes="(max-width: 1024px) 50vw, 25vw"
+                          className="object-cover"
                           onError={(e) => {
-                            (e.target as HTMLImageElement).src = "/assets/cotton_1.png";
+                            const target = e.target as HTMLImageElement;
+                            target.srcset = "";
+                            target.src = "/assets/cotton_1.png";
                           }}
                         />
                         {!hasStock && (
@@ -1151,13 +1156,17 @@ export default function POSTab({ embedded = false }: POSTabProps) {
             {/* Modal Header */}
             <div className="p-4 border-b border-border bg-[#FCFAF7]/40 flex items-start justify-between gap-3">
               <div className="flex gap-3">
-                <div className="w-16 h-16 rounded-lg overflow-hidden border border-border/80 flex-shrink-0 bg-slate-50">
-                  <img 
-                    src={selectedProdForSize.imgUrl} 
+                <div className="w-16 h-16 rounded-lg overflow-hidden border border-border/80 flex-shrink-0 bg-slate-50 relative">
+                  <Image 
+                    src={selectedProdForSize.imgUrl || "/assets/cotton_1.png"} 
                     alt={selectedProdForSize.name} 
+                    width={64}
+                    height={64}
                     className="w-full h-full object-cover"
                     onError={(e) => {
-                      (e.target as HTMLImageElement).src = "/assets/cotton_1.png";
+                      const target = e.target as HTMLImageElement;
+                      target.srcset = "";
+                      target.src = "/assets/cotton_1.png";
                     }}
                   />
                 </div>

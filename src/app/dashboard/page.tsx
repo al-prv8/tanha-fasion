@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { useAuth } from "@/lib/auth-context";
 import { 
   User, 
@@ -671,14 +672,18 @@ export default function CustomerDashboardPage() {
                                     {order.items.map((item: any) => (
                                       <div key={item.id} className="flex items-center justify-between gap-4 py-2 border-b border-border/40 last:border-none">
                                         <div className="flex items-center gap-4">
-                                          <div className="w-14 h-18 bg-zinc-100 rounded-xl overflow-hidden flex-shrink-0 border border-border/60">
+                                          <div className="w-14 h-18 bg-zinc-100 rounded-xl overflow-hidden flex-shrink-0 border border-border/60 relative">
                                             {item.product?.imgUrl ? (
-                                              <img 
-                                                src={item.product.imgUrl} 
+                                              <Image 
+                                                src={item.product.imgUrl || '/assets/cotton_1.png'} 
                                                 alt={item.product.name} 
+                                                width={56}
+                                                height={72}
                                                 className="w-full h-full object-cover"
                                                 onError={(e) => {
-                                                  (e.target as HTMLImageElement).src = '/assets/cotton_1.png';
+                                                  const target = e.target as HTMLImageElement;
+                                                  target.srcset = "";
+                                                  target.src = '/assets/cotton_1.png';
                                                 }}
                                               />
                                             ) : (
