@@ -58,12 +58,11 @@ sudo npm install -y -g pm2
 ## Step 2: Clone and Configure the Application
 
 ### 1. Clone the Project
-Navigate to the web root directory and clone your repository:
+Navigate to your root home directory and clone your repository:
 ```bash
-cd /var/www
-sudo git clone https://github.com/al-prv8/tanha-fasion.git tanha-fasion
-sudo chown -R $USER:$USER /var/www/tanha-fasion
-cd /var/www/tanha-fasion
+cd ~
+git clone https://github.com/al-prv8/tanha-fasion.git tanha-fasion
+cd ~/tanha-fasion
 ```
 
 ### 2. Configure Backend Environment (`server/.env`)
@@ -120,15 +119,18 @@ npx prisma generate
 ```
 
 ### 3. Initialize SQLite Database
-Push the database schema rules to the production SQLite file and seed initial admin credentials and default categories:
+Push the database schema rules to the production SQLite file:
 ```bash
 npx prisma db push
-# If you have a custom seeding script:
-npm run seed  # Or trigger via seed endpoint once server runs
 ```
+*Note: The database is seeded via a built-in Express API endpoint. Once the backend server is running (Step 5), you can seed/reset the database with default categories, 24 catalog products, coupons, FAQs, announcements, and the admin user (`admin@tanha.com` / `adminpassword123`) by running the following command:*
+```bash
+curl -X POST http://localhost:5000/api/seed
+```
+
 Navigate back to the project root:
 ```bash
-cd /var/www/tanha-fasion
+cd ~/tanha-fasion
 ```
 
 ---
@@ -152,13 +154,13 @@ Create an ecosystem config file in the root workspace directory:
 ```bash
 nano ecosystem.config.cjs
 ```
-Paste the configuration layout:
+Paste the configuration layout (configured for absolute path `/root/tanha-fasion`):
 ```javascript
 module.exports = {
   apps: [
     {
       name: "tanha-backend",
-      cwd: "/var/www/tanha-fasion/server",
+      cwd: "/root/tanha-fasion/server",
       script: "dist/index.js",
       env: {
         NODE_ENV: "production",
@@ -167,7 +169,7 @@ module.exports = {
     },
     {
       name: "tanha-frontend",
-      cwd: "/var/www/tanha-fasion",
+      cwd: "/root/tanha-fasion",
       script: "node_modules/next/dist/bin/next",
       args: "start -p 3000",
       env: {
@@ -243,7 +245,7 @@ server {
 
     # Statically serve backend uploads directory
     location /uploads {
-        alias /var/www/tanha-fasion/server/uploads;
+        alias /root/tanha-fasion/server/uploads;
         expires 30d;
         add_header Cache-Control "public, no-transform";
     }
@@ -305,13 +307,13 @@ Create a shell script to run daily backups:
 mkdir -p ~/backups
 nano ~/backup_db.sh
 ```
-Paste this command:
+Paste this command (configured to use `/root` folders):
 ```bash
 #!/bin/bash
 BACKUP_NAME="db_backup_$(date +%F_%T).sql"
-sqlite3 /var/www/tanha-fasion/server/prisma/dev.db ".backup '/home/ubuntu/backups/$BACKUP_NAME'"
+sqlite3 /root/tanha-fasion/server/prisma/dev.db ".backup '/root/backups/$BACKUP_NAME'"
 # Keep only the last 30 days of backups
-find /home/ubuntu/backups/ -type f -mtime +30 -name '*.sql' -exec rm -- {} \;
+find /root/backups/ -type f -mtime +30 -name '*.sql' -exec rm -- {} \;
 ```
 Make the script executable:
 ```bash
@@ -319,7 +321,7 @@ chmod +x ~/backup_db.sh
 ```
 Add it to your crontab (`crontab -e`) to run at midnight every day:
 ```cron
-0 0 * * * /home/ubuntu/backup_db.sh
+0 0 * * * /root/backup_db.sh
 ```
 
 ---
@@ -328,7 +330,7 @@ Add it to your crontab (`crontab -e`) to run at midnight every day:
 
 When you push new changes to GitHub and need to deploy them to your server:
 ```bash
-cd /var/www/tanha-fasion
+cd ~/tanha-fasion
 git pull
 npm install
 cd server && npm install && npx prisma db push && cd ..
