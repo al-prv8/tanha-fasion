@@ -63,7 +63,7 @@ export default function CartDrawer({ showToast }: CartDrawerProps) {
           ) : (
             items.map((item) => (
               <div key={`${item.id}-${item.size}`} className="flex gap-4 pb-5 border-b border-ink/5">
-                <Image src={item.img} alt={item.name} width={70} height={90} className="object-cover rounded bg-card" />
+                <Image src={item.img?.src || item.img} alt={item.name} width={70} height={90} className="object-cover rounded bg-card" />
                 <div className="flex-1 flex flex-col justify-between">
                   <div>
                     <h3 className="text-sm font-semibold text-foreground line-clamp-2">{item.name}</h3>

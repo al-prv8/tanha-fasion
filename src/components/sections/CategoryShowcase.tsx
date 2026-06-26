@@ -55,7 +55,7 @@ export default function CategoryShowcase({
       {/* FULL WIDTH CATEGORY BANNER */}
       <div className="relative w-full h-[180px] sm:h-[220px] md:h-[260px] lg:h-[300px] overflow-hidden rounded-md mb-8 shadow-sm">
         <Image
-          src={bannerImg}
+          src={bannerImg?.src || bannerImg || "/assets/cotton_3pc_banner.png"}
           alt={title}
           fill
           sizes="100vw"
@@ -87,7 +87,7 @@ export default function CategoryShowcase({
               <div className="relative aspect-[3/4] bg-secondary overflow-hidden w-full">
                 <Link href={`/products/${prod.id}`} className="relative block w-full h-full cursor-pointer">
                   <Image
-                    src={prod.img}
+                    src={prod.img?.src || prod.img}
                     alt={prod.name}
                     fill
                     sizes="(max-width: 768px) 50vw, 25vw"

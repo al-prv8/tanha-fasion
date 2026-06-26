@@ -44,13 +44,15 @@ export default function SpotlightModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="relative w-full h-[250px] sm:h-[350px]">
-          <Image 
-            src={modalData.imgSrc?.src || modalData.imgSrc} 
-            alt={modalData.title}
-            fill
-            sizes="(max-width: 600px) 100vw, 600px"
-            className="object-cover"
-          />
+          {(modalData.imgSrc?.src || modalData.imgSrc) && (
+            <Image 
+              src={modalData.imgSrc?.src || modalData.imgSrc} 
+              alt={modalData.title}
+              fill
+              sizes="(max-width: 600px) 100vw, 600px"
+              className="object-cover"
+            />
+          )}
         </div>
         <div className="p-6 md:p-8">
           <span className="text-xs uppercase tracking-[0.2em] text-primary mb-2 block" id="spotlight-modal-loc">

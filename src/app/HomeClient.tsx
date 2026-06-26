@@ -331,7 +331,7 @@ export default function HomeClient() {
                     {/* Product Image Link */}
                     <Link href={`/products/${prod.id}`} className="relative aspect-[3/4] bg-secondary overflow-hidden w-full block cursor-pointer">
                       <Image
-                        src={prod.img}
+                        src={prod.img?.src || prod.img}
                         alt={prod.name}
                         fill
                         sizes="(max-width: 768px) 50vw, 25vw"

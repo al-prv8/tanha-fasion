@@ -344,7 +344,7 @@ export default function ProductDetailClient({ product }: { product: Product }) {
           <div className="lg:col-span-5 flex flex-col gap-6">
             <div className="relative aspect-[3/4] w-full bg-secondary overflow-hidden rounded-lg border border-border shadow-sm group">
               <Image 
-                src={product.img} 
+                src={product.img?.src || product.img} 
                 alt={product.name} 
                 fill
                 sizes="(max-width: 1024px) 100vw, 45vw"
@@ -749,7 +749,7 @@ export default function ProductDetailClient({ product }: { product: Product }) {
                 >
                   <Link href={`/products/${prod.id}`} className="relative aspect-[3/4] bg-secondary overflow-hidden w-full block cursor-pointer">
                     <Image
-                      src={prod.img}
+                      src={prod.img?.src || prod.img}
                       alt={prod.name}
                       fill
                       sizes="(max-width: 768px) 50vw, 25vw"
@@ -889,7 +889,7 @@ export default function ProductDetailClient({ product }: { product: Product }) {
       >
         <div className="flex items-center gap-2 max-w-[50%]">
           <Image 
-            src={product.img} 
+            src={product.img?.src || product.img} 
             alt={product.name} 
             width={40}
             height={52}

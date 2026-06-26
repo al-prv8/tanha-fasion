@@ -1044,7 +1044,7 @@ export default function CheckoutClient() {
               <div className="summary-items">
                 {items.map((item) => (
                   <div key={`${item.id}-${item.size}`} className="summary-item">
-                    <Image src={item.img} alt={item.name} width={50} height={65} className="summary-item-img" />
+                    <Image src={item.img?.src || item.img} alt={item.name} width={50} height={65} className="summary-item-img" />
                     <div className="summary-item-details">
                       <h3 className="summary-item-name">{item.name}</h3>
                       <div className="summary-item-meta">সাইজ: {item.size} | পরিমাণ: {toBanglaNumber(item.quantity)}</div>

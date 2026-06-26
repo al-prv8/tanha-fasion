@@ -30,7 +30,7 @@ export default function Collection({
             onClick={() => openSpotlight(prod)}
           >
             <div className="relative aspect-[3/4] overflow-hidden rounded-sm bg-card">
-              <Image src={prod.img} alt={prod.name} fill sizes="(max-width: 1024px) 50vw, 33vw" className="object-cover transition-transform duration-700 group-hover:scale-[1.05]" />
+              <Image src={prod.img?.src || prod.img} alt={prod.name} fill sizes="(max-width: 1024px) 50vw, 33vw" className="object-cover transition-transform duration-700 group-hover:scale-[1.05]" />
               <span className="absolute top-3 left-3 md:top-4 md:left-4 bg-background/90 py-1 px-3 rounded-full text-[9px] md:text-[10px] font-semibold uppercase tracking-wide">{prod.tag}</span>
               <div className="absolute bottom-3 left-3 right-3 md:bottom-4 md:left-4 md:right-4 flex gap-1.5 md:gap-2 transition-all duration-300 z-10 opacity-100 translate-y-0 lg:opacity-0 lg:translate-y-2 lg:group-hover:opacity-100 lg:group-hover:translate-y-0">
                 <button
