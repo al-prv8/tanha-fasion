@@ -826,31 +826,6 @@ export default function ShowroomAdminPage() {
             </div>
           )}
 
-          {activeTab === "pos" && (
-            <div className="space-y-4">
-              <div>
-                <h2 className="text-xl font-extrabold text-slate-900 tracking-tight font-display text-left">শোরুম লাইভ বিক্রয় কাউন্টার (POS Client)</h2>
-                <p className="text-xs text-muted-foreground mt-0.5 text-left">বারকোড স্ক্যানার দিয়ে পোশাক যুক্ত করুন এবং সরাসরি বিক্রয় রশিদ প্রিন্ট করুন।</p>
-              </div>
-              <POSTab embedded={true} activeBranchId={activeBranchId} />
-            </div>
-          )}
-
-          {activeTab === "purchases" && (
-            <div className="space-y-4">
-              <PurchasesTab 
-                products={products}
-                suppliers={suppliers}
-                purchases={purchases}
-                onAddSupplier={handleAddSupplier}
-                onDeleteSupplier={handleDeleteSupplier}
-                onAddPurchase={handleAddPurchase}
-                onRefresh={fetchData}
-                isLoading={isLoading}
-              />
-            </div>
-          )}
-
           {activeTab === "orders" && (
             <div className="space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -858,15 +833,20 @@ export default function ShowroomAdminPage() {
                   <h2 className="text-xl font-extrabold text-slate-900 tracking-tight font-display text-left">শোরুম বিক্রয় ইতিহাস (POS Sales Log)</h2>
                   <p className="text-xs text-muted-foreground mt-0.5 text-left">শোরুমের বিক্রয় রশিদ অনুসন্ধান, পর্যালোচনা ও পুনরায় প্রিন্ট করুন।</p>
                 </div>
-                <button
-                  onClick={() => fetchData()}
-                  disabled={isLoading}
-                  className="inline-flex items-center gap-1.5 py-2 px-4 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold rounded-xl cursor-pointer transition-all shadow-3xs disabled:opacity-50 self-start"
-                  title="রিফ্রেশ করুন"
-                >
-                  <RefreshCw size={13} className={isLoading ? "animate-spin" : ""} />
-                  <span>রিফ্রেশ</span>
-                </button>
+                <div className="flex items-center gap-2 self-start">
+                  <div className="text-xs text-muted-foreground font-bold font-sans bg-white border border-border/80 px-3.5 py-2 rounded-xl shadow-3xs">
+                    মোট বিক্রয়: <span className="text-primary font-black">{toBanglaNumber(showroomOrders.length)}</span> টি
+                  </div>
+                  <button
+                    onClick={() => fetchData()}
+                    disabled={isLoading}
+                    className="inline-flex items-center gap-1.5 py-2 px-4 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold rounded-xl cursor-pointer transition-all shadow-3xs disabled:opacity-50 self-start"
+                    title="রিফ্রেশ করুন"
+                  >
+                    <RefreshCw size={13} className={isLoading ? "animate-spin" : ""} />
+                    <span>রিফ্রেশ</span>
+                  </button>
+                </div>
               </div>
 
               {isLoading ? (
@@ -877,7 +857,6 @@ export default function ShowroomAdminPage() {
               ) : (
                 <div className="bg-card border border-border/80 rounded-2xl overflow-hidden shadow-2xs text-left">
                   <div className="p-6 border-b border-border/60 flex items-center justify-between gap-4">
-                    <span className="text-xs font-bold text-slate-800">সর্বমোট শোরুম বিক্রয়: <strong className="font-sans text-primary">{toBanglaNumber(showroomOrders.length)}</strong> টি</span>
                   </div>
 
                   <div className="overflow-x-auto">

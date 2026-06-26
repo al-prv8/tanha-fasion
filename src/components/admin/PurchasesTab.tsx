@@ -191,6 +191,9 @@ export default function PurchasesTab({
         </div>
 
         <div className="flex items-center gap-2">
+          <div className="text-xs text-muted-foreground font-bold font-sans bg-white border border-border/80 px-3.5 py-2 rounded-xl shadow-3xs">
+            মোট ক্রয়: <span className="text-primary font-black">{toBanglaNumber(purchases.length)}</span> টি
+          </div>
           {onRefresh && (
             <button
               onClick={() => onRefresh()}

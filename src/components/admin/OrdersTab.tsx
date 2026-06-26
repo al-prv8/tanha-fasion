@@ -156,6 +156,14 @@ export default function OrdersTab({
   const [isUpdatingPayment, setIsUpdatingPayment] = useState<string | null>(null);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState<string | null>(null);
 
+  // Bulk selection state
+  const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
+
+  // Reset selection when page/filter changes
+  useEffect(() => {
+    setSelectedOrderIds([]);
+  }, [currentPage, channelFilter, activeFilter, orderSearch]);
+
   // Initialize fields on editing selection change
   useEffect(() => {
     if (editingOrderId) {
@@ -290,6 +298,76 @@ export default function OrdersTab({
   const totalDeliveredCount = orders.filter(o => o.orderStatus === "DELIVERED").length;
   const activeOrderToPrint = orders.find(o => o.id === expandedOrderId);
 
+  const isAllPageSelected = paginatedOrders.length > 0 && paginatedOrders.every(o => selectedOrderIds.includes(o.id));
+
+  const toggleSelectAll = () => {
+    if (isAllPageSelected) {
+      setSelectedOrderIds(prev => prev.filter(id => !paginatedOrders.some(o => o.id === id)));
+    } else {
+      const newIds = paginatedOrders.map(o => o.id).filter(id => !selectedOrderIds.includes(id));
+      setSelectedOrderIds(prev => [...prev, ...newIds]);
+    }
+  };
+
+  const toggleSelectOrder = (id: string) => {
+    setSelectedOrderIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  const handleBulkStatusUpdate = async (status: string) => {
+    if (selectedOrderIds.length === 0) return;
+    for (const id of selectedOrderIds) {
+      await onUpdateOrderStatus(id, status);
+    }
+    setSelectedOrderIds([]);
+    if (onRefresh) onRefresh();
+  };
+
+  const handleBulkPaymentUpdate = async (status: string) => {
+    if (selectedOrderIds.length === 0) return;
+    for (const id of selectedOrderIds) {
+      await onUpdatePaymentStatus(id, status);
+    }
+    setSelectedOrderIds([]);
+    if (onRefresh) onRefresh();
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedOrderIds.length === 0) return;
+    if (!confirm(`আপনি কি নিশ্চিত? নির্বাচিত ${toBanglaNumber(selectedOrderIds.length)}টি অর্ডার স্থায়ীভাবে মুছে ফেলা হবে।`)) return;
+    if (!confirm('এই কাজটি পূর্বাবস্থায় ফেরানো যাবে না। আবার নিশ্চিত করুন।')) return;
+    for (const id of selectedOrderIds) {
+      await onDeleteOrder(id);
+    }
+    setSelectedOrderIds([]);
+    if (onRefresh) onRefresh();
+  };
+
+  const handleBulkExportCSV = () => {
+    const selectedOrders = orders.filter(o => selectedOrderIds.includes(o.id));
+    if (selectedOrders.length === 0) return;
+    const headers = ['Order#', 'Date', 'Customer', 'Phone', 'Address', 'Status', 'Payment', 'Total'];
+    const rows = selectedOrders.map(o => [
+      o.orderNumber,
+      new Date(o.createdAt).toLocaleDateString('en-GB'),
+      o.customerName,
+      o.phone,
+      `"${(o.address || '').replace(/"/g, '\"')}"`,
+      o.status,
+      o.paymentStatus,
+      o.grandTotal
+    ]);
+    const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `tanha_orders_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="flex flex-col gap-6 font-sans">
       
@@ -346,17 +424,31 @@ export default function OrdersTab({
           <h2 className="text-xl font-extrabold text-slate-900 tracking-tight font-display">অর্ডার ও শিপমেন্ট সেন্টার (Orders)</h2>
           <p className="text-xs text-muted-foreground mt-0.5">সব গ্রাহকের কেনাকাটা, পেমেন্ট ট্র্যাকিং ও শিপমেন্ট স্থিতি পরিচালনা করুন।</p>
         </div>
-
         <div className="flex items-center gap-2">
+          <div className="text-xs text-muted-foreground font-bold font-sans bg-white border border-border/80 px-3.5 py-2 rounded-xl shadow-3xs">
+            মোট: <span className="text-primary font-black">{toBanglaNumber(orders.length)}</span> টি
+          </div>
+          {onRefresh && (
+            <button
+              type="button"
+              onClick={onRefresh}
+              disabled={isLoading}
+              className="py-2 px-4 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl transition-all cursor-pointer shadow-3xs flex items-center justify-center gap-1.5 text-xs font-bold disabled:opacity-50"
+              title="রিলোড করুন"
+            >
+              <RefreshCw size={13} className={isLoading ? "animate-spin" : ""} />
+              <span>রিফ্রেশ</span>
+            </button>
+          )}
           <button 
-            onClick={() => alert("অর্ডার ডেটা CSV ফাইল হিসেবে ডাউনলোডের জন্য প্রস্তুত হচ্ছে...")}
+            onClick={() => alert('অর্ডার ডেটা CSV ফাইল হিসেবে ডাউনলোডের জন্য প্রস্তুত হচ্ছে...')}
             className="inline-flex items-center gap-1.5 py-1.5 px-3 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold rounded-lg cursor-pointer transition-colors shadow-3xs"
           >
             <Printer size={12} />
-            <span>অর্ডার এক্সপোর্ট (Export)</span>
+            <span>এক্সপোর্ট</span>
           </button>
           <button 
-            onClick={() => alert("ম্যানুয়াল অর্ডার তৈরি করার ফর্মটি লোড হচ্ছে...")}
+            onClick={() => alert('ম্যানুয়াল অর্ডার তৈরি করার ফর্মটি লোড হচ্ছে...')}
             className="inline-flex items-center gap-1.5 py-1.5 px-3 bg-primary hover:bg-primary/95 text-white text-xs font-bold rounded-lg cursor-pointer transition-all shadow-2xs border-none"
           >
             <span>নতুন অর্ডার তৈরি (Create Order)</span>
@@ -422,97 +514,119 @@ export default function OrdersTab({
       {/* Grid container for filters and table */}
       <div className="bg-white border border-slate-200/80 rounded-2xl shadow-3xs p-6">
         
-        {/* Filter tabs and search control row */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-          
-          {/* ShopZen outline tabs */}
-          <div className="flex gap-1.5 overflow-x-auto whitespace-nowrap py-1">
-            {filterTabs.map((tab) => {
-              const count = getStatusCount(tab.id);
-              const isActive = activeFilter === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setActiveFilter(tab.id)}
-                  className={`px-3.5 py-1.5 border text-[11px] font-black rounded-lg cursor-pointer transition-all flex items-center gap-1.5 ${
-                    isActive
-                      ? "bg-slate-900 border-slate-900 text-white shadow-3xs"
-                      : "bg-white border-slate-200 text-slate-500 hover:text-slate-900 hover:bg-slate-50"
-                  }`}
-                >
-                  <span>{tab.label}</span>
-                  <span className={`text-[9px] px-1.5 py-0.5 rounded-md ${isActive ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500 border border-slate-200'}`}>
-                    {toBanglaNumber(count)}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
-            {/* Channel Selector */}
-            <div className="flex bg-slate-100 p-0.5 rounded-xl border border-slate-200">
-              <button
-                type="button"
-                onClick={() => setChannelFilter("ALL")}
-                className={`px-3 py-1 rounded-lg text-[10px] font-black cursor-pointer transition-all border-none ${
-                  channelFilter === "ALL"
-                    ? "bg-white text-slate-800 shadow-3xs"
-                    : "bg-transparent text-slate-500 hover:text-slate-700"
-                }`}
-              >
-                সব চ্যানেল
-              </button>
-              <button
-                type="button"
-                onClick={() => setChannelFilter("ONLINE")}
-                className={`px-3 py-1 rounded-lg text-[10px] font-black cursor-pointer transition-all border-none ${
-                  channelFilter === "ONLINE"
-                    ? "bg-white text-slate-800 shadow-3xs"
-                    : "bg-transparent text-slate-500 hover:text-slate-700"
-                }`}
-              >
-                অনলাইন স্টোর
-              </button>
-              <button
-                type="button"
-                onClick={() => setChannelFilter("SHOWROOM")}
-                className={`px-3 py-1 rounded-lg text-[10px] font-black cursor-pointer transition-all border-none ${
-                  channelFilter === "SHOWROOM"
-                    ? "bg-white text-slate-800 shadow-3xs"
-                    : "bg-transparent text-slate-500 hover:text-slate-700"
-                }`}
-              >
-                শোরুম কাউন্টার
-              </button>
+        {/* Filter toolbar — single compact row */}
+        <div className="flex flex-col gap-3 mb-5">
+          {/* Row 1: Status pill tabs (scrollable) + search + channel toggle inline */}
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            {/* Status Pills */}
+            <div className="flex gap-1 overflow-x-auto whitespace-nowrap py-0.5 flex-1 min-w-0">
+              {filterTabs.map((tab) => {
+                const count = getStatusCount(tab.id);
+                const isActive = activeFilter === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setActiveFilter(tab.id)}
+                    className={`px-3 py-1.5 border text-[11px] font-black rounded-lg cursor-pointer transition-all flex items-center gap-1.5 flex-shrink-0 ${
+                      isActive
+                        ? "bg-slate-900 border-slate-900 text-white shadow-3xs"
+                        : "bg-white border-slate-200 text-slate-500 hover:text-slate-900 hover:bg-slate-50"
+                    }`}
+                  >
+                    <span>{tab.label}</span>
+                    <span className={`text-[9px] px-1.5 py-0.5 rounded-md ${isActive ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500 border border-slate-200'}`}>
+                      {toBanglaNumber(count)}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
 
-            {/* Quick Search */}
-            <div className="relative w-full sm:max-w-xs">
-              <input 
-                type="text" 
-                placeholder="নাম, ফোন বা অর্ডার নং..."
-                value={orderSearch}
-                onChange={(e) => setOrderSearch(e.target.value)}
-                className="w-full pl-9 pr-4 py-1.5 border border-slate-200 bg-slate-50/50 focus:bg-white rounded-xl focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-xs text-foreground placeholder-slate-405 transition-all"
-              />
-              <Search size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-            </div>
+            {/* Right: Channel toggle + Search inline */}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <div className="flex bg-slate-100 p-0.5 rounded-xl border border-slate-200">
+                {[
+                  { id: "ALL", label: "সব" },
+                  { id: "ONLINE", label: "অনলাইন" },
+                  { id: "SHOWROOM", label: "শোরুম" },
+                ].map((ch) => (
+                  <button
+                    key={ch.id}
+                    type="button"
+                    onClick={() => setChannelFilter(ch.id as any)}
+                    className={`px-2.5 py-1 rounded-lg text-[10px] font-black cursor-pointer transition-all border-none ${
+                      channelFilter === ch.id
+                        ? "bg-white text-slate-800 shadow-3xs"
+                        : "bg-transparent text-slate-500 hover:text-slate-700"
+                    }`}
+                  >
+                    {ch.label}
+                  </button>
+                ))}
+              </div>
 
-            {onRefresh && (
-              <button
-                type="button"
-                onClick={onRefresh}
-                className="p-2 bg-white hover:bg-slate-50 text-slate-655 hover:text-slate-800 border border-slate-200 rounded-xl transition-all cursor-pointer shadow-3xs flex items-center justify-center gap-1.5"
-                title="রিলোড করুন"
-              >
-                <RefreshCw size={13} className={isLoading ? "animate-spin" : ""} />
-                <span className="text-[10px] font-bold hidden sm:inline">রিফ্রেশ</span>
-              </button>
-            )}
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="নাম, ফোন, অর্ডার নং..."
+                  value={orderSearch}
+                  onChange={(e) => setOrderSearch(e.target.value)}
+                  className="w-52 pl-8 pr-3 py-1.5 border border-slate-200 bg-slate-50/50 focus:bg-white rounded-xl focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-xs text-foreground placeholder-slate-400 transition-all"
+                />
+                <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              </div>
+            </div>
           </div>
         </div>
+
+        {/* Bulk Actions Bar */}
+        {selectedOrderIds.length > 0 && (
+          <div className="bg-slate-900 text-white rounded-xl p-3 flex flex-wrap items-center gap-3 text-xs font-bold no-print-inline">
+            <span className="text-slate-300">{toBanglaNumber(selectedOrderIds.length)}টি অর্ডার নির্বাচিত</span>
+            <div className="flex flex-wrap items-center gap-2 ml-auto">
+              <select
+                onChange={(e) => { if (e.target.value) { handleBulkStatusUpdate(e.target.value); e.target.value = ''; } }}
+                defaultValue=""
+                className="bg-white/10 border border-white/20 text-white rounded-lg px-2 py-1.5 text-[10px] font-bold cursor-pointer focus:outline-none"
+              >
+                <option value="" disabled>ফুলফিলমেন্ট স্ট্যাটাস পরিবর্তন</option>
+                <option value="PENDING">মুলতুবি (Pending)</option>
+                <option value="PROCESSING">প্রক্রিয়াধীন (Processing)</option>
+                <option value="SHIPPED">শিপড (Shipped)</option>
+                <option value="DELIVERED">ডেলিভারি সম্পন্ন (Delivered)</option>
+                <option value="CANCELLED">বাতিল (Cancelled)</option>
+              </select>
+              <select
+                onChange={(e) => { if (e.target.value) { handleBulkPaymentUpdate(e.target.value); e.target.value = ''; } }}
+                defaultValue=""
+                className="bg-white/10 border border-white/20 text-white rounded-lg px-2 py-1.5 text-[10px] font-bold cursor-pointer focus:outline-none"
+              >
+                <option value="" disabled>পেমেন্ট স্ট্যাটাস পরিবর্তন</option>
+                <option value="PAID">পেইড (Paid)</option>
+                <option value="UNPAID">আনপেইড (Unpaid)</option>
+              </select>
+              <button
+                onClick={handleBulkExportCSV}
+                className="bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold cursor-pointer transition-colors border-none flex items-center gap-1"
+              >
+                <span>CSV ডাউনলোড</span>
+              </button>
+              <button
+                onClick={handleBulkDelete}
+                className="bg-rose-500 hover:bg-rose-600 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold cursor-pointer transition-colors border-none"
+              >
+                মুছে ফেলুন
+              </button>
+              <button
+                onClick={() => setSelectedOrderIds([])}
+                className="bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold cursor-pointer transition-colors border-none"
+              >
+                বাতিল
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Orders Table Grid */}
         {filteredOrders.length === 0 ? (
@@ -524,7 +638,7 @@ export default function OrdersTab({
                 <tr className="border-b border-slate-200/80 bg-slate-50/60 text-slate-400 font-black text-[9px] uppercase tracking-wider">
                   <th className="py-3 px-2 w-8 text-center"></th>
                   <th className="py-3 px-4 w-12 text-center">
-                    <input type="checkbox" className="w-3.5 h-3.5 border-slate-200 rounded accent-slate-900 cursor-pointer" readOnly checked={false} />
+                    <input type="checkbox" className="w-3.5 h-3.5 border-slate-200 rounded accent-slate-900 cursor-pointer" checked={isAllPageSelected} onChange={toggleSelectAll} />
                   </th>
                   <th className="py-3 px-4">অর্ডার নং</th>
                   <th className="py-3 px-4">তারিখ</th>
@@ -545,7 +659,7 @@ export default function OrdersTab({
                   return (
                     <React.Fragment key={o.id}>
                       {/* Standard row */}
-                      <tr className={`hover:bg-slate-50/40 transition-colors ${isExpanded ? 'bg-slate-50/50' : ''}`}>
+                      <tr className={`hover:bg-slate-50/40 transition-colors ${isExpanded ? 'bg-slate-50/50' : ''} ${selectedOrderIds.includes(o.id) ? 'bg-primary/5 ring-1 ring-inset ring-primary/20' : ''}`}>
                         {/* Chevron Expand Toggle */}
                         <td className="py-3 px-2 text-center">
                           <button
@@ -559,7 +673,7 @@ export default function OrdersTab({
                         
                         {/* Checkbox */}
                         <td className="py-3 px-4 text-center">
-                          <input type="checkbox" className="w-3.5 h-3.5 border-slate-200 rounded accent-slate-900 cursor-pointer" readOnly checked={false} />
+                          <input type="checkbox" className="w-3.5 h-3.5 border-slate-200 rounded accent-slate-900 cursor-pointer" checked={selectedOrderIds.includes(o.id)} onChange={() => toggleSelectOrder(o.id)} />
                         </td>
                         
                         {/* Order Number */}

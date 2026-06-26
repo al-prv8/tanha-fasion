@@ -83,7 +83,7 @@ export default function SpotlightModal({
                         }
                       } catch (e) {}
                     }
-                    return `৳ ${formatBanglaPriceWithCommas(activePrice)}`;
+                    return formatBanglaPriceWithCommas(activePrice);
                   })()}
                 </span>
               </div>

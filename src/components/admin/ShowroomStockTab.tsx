@@ -256,17 +256,22 @@ export default function ShowroomStockTab({
           </p>
         </div>
 
-        {onRefresh && (
-          <button
-            onClick={() => onRefresh()}
-            disabled={isLoading}
-            className="inline-flex items-center gap-1.5 py-2.5 px-4 bg-white hover:bg-slate-50 border border-slate-200 text-slate-705 text-xs font-bold rounded-xl cursor-pointer transition-all shadow-3xs disabled:opacity-50"
-            title="রিফ্রেশ করুন"
-          >
-            <RefreshCw size={14} className={isLoading ? "animate-spin" : ""} />
-            <span>রিফ্রেশ</span>
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          <div className="text-xs text-muted-foreground font-bold font-sans bg-white border border-border/80 px-3.5 py-2 rounded-xl shadow-3xs">
+            মোট: <span className="text-primary font-black">{toBanglaNumber(products.length)}</span> টি
+          </div>
+          {onRefresh && (
+            <button
+              onClick={() => onRefresh()}
+              disabled={isLoading}
+              className="inline-flex items-center gap-1.5 py-2.5 px-4 bg-white hover:bg-slate-50 border border-slate-200 text-slate-705 text-xs font-bold rounded-xl cursor-pointer transition-all shadow-3xs disabled:opacity-50"
+              title="রিফ্রেশ করুন"
+            >
+              <RefreshCw size={14} className={isLoading ? "animate-spin" : ""} />
+              <span>রিফ্রেশ</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {lowStockShowroomProducts.length > 0 && (

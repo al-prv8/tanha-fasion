@@ -44,6 +44,7 @@ export default function ReviewsTab({
     <div className="flex flex-col gap-6 font-sans">
       
       {/* Header Info */}
+      {/* Header Info */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h2 className="text-xl font-extrabold text-slate-900 tracking-tight font-display">
@@ -52,6 +53,23 @@ export default function ReviewsTab({
           <p className="text-xs text-muted-foreground mt-0.5">
             গ্রাহকদের মন্তব্য পর্যালোচনা করুন এবং অপ্রীতিকর মন্তব্য মুছে ফেলুন।
           </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="text-xs text-muted-foreground font-bold font-sans bg-white border border-border/80 px-3.5 py-2 rounded-xl shadow-3xs">
+            মোট: <span className="text-primary font-black">{toBanglaNumber(reviews.length)}</span> টি
+          </div>
+          {onRefresh && (
+            <button
+              type="button"
+              onClick={onRefresh}
+              disabled={isLoading}
+              className="py-2 px-4 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl transition-all cursor-pointer shadow-3xs flex items-center justify-center gap-1.5 text-xs font-bold disabled:opacity-50"
+              title="রিলোড করুন"
+            >
+              <RefreshCw size={13} className={isLoading ? "animate-spin" : ""} />
+              <span>রিফ্রেশ</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -71,21 +89,6 @@ export default function ReviewsTab({
               />
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={13} />
             </div>
-            {onRefresh && (
-              <button
-                type="button"
-                onClick={onRefresh}
-                className="p-2 bg-white hover:bg-slate-50 text-slate-655 hover:text-slate-800 border border-slate-200 rounded-xl transition-all cursor-pointer shadow-3xs flex items-center justify-center gap-1.5"
-                title="রিলোড করুন"
-              >
-                <RefreshCw size={13} className={isLoading ? "animate-spin" : ""} />
-                <span className="text-[10px] font-bold hidden sm:inline">রিফ্রেশ</span>
-              </button>
-            )}
-          </div>
-
-          <div className="text-xs text-muted-foreground font-bold font-sans">
-            মোট ফলাফল: <span className="text-primary font-black">{toBanglaNumber(filteredReviews.length)}</span> টি
           </div>
         </div>
 

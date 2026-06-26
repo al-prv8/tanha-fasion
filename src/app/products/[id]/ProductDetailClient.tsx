@@ -84,6 +84,21 @@ export default function ProductDetailClient({ product }: { product: Product }) {
   
   // Interactive Reviews States
   const [reviews, setReviews] = useState<Array<{ name: string; rating: number; date: string; comment: string }>>([]);
+  const [relatedProducts, setRelatedProducts] = useState<any[]>(() => {
+    const categoryName = product.loc || (product as any).category;
+    return PRODUCTS.filter((p) => {
+      const pCat = p.loc || (p as any).category;
+      return pCat === categoryName && p.id !== product.id;
+    })
+      .slice(0, 4)
+      .map((p) => ({
+        id: p.id,
+        name: p.name,
+        price: p.price,
+        imgUrl: p.img?.src || p.img || '/assets/cotton_1.png',
+        category: p.loc || (p as any).category,
+      }));
+  });
   const [newReviewName, setNewReviewName] = useState("");
   const [newReviewComment, setNewReviewComment] = useState("");
   const [newReviewRating, setNewReviewRating] = useState(5);
@@ -126,6 +141,28 @@ export default function ProductDetailClient({ product }: { product: Product }) {
         ];
         setReviews(defaults);
       });
+  }, [product.id]);
+
+  // Fetch related products from the same category
+  useEffect(() => {
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/products`)
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.length > 0) {
+          const related = data
+            .filter((p: any) => p.category === (product as any).category && p.id !== product.id)
+            .slice(0, 4)
+            .map((p: any) => ({
+              id: p.id,
+              name: p.name,
+              price: p.price,
+              imgUrl: p.imgUrl,
+              category: p.category,
+            }));
+          setRelatedProducts(related);
+        }
+      })
+      .catch(() => {});
   }, [product.id]);
 
   // Scroll listener to show sticky mobile bar when main buttons scroll off screen
@@ -267,14 +304,11 @@ export default function ProductDetailClient({ product }: { product: Product }) {
   };
 
   const activePrice = getPriceForSize(selectedSize);
-  const activePriceDisplay = `৳ ${formatBanglaPriceWithCommas(activePrice)}`;
+  const activePriceDisplay = formatBanglaPriceWithCommas(activePrice);
   const originalPrice = Math.round(activePrice * 1.25);
   const discountPercentStr = toBanglaNumber(20);
 
-  // Get related products (same category/location, max 4, excluding current product)
-  const relatedProducts = PRODUCTS.filter(
-    (p) => p.loc === product.loc && p.id !== product.id
-  ).slice(0, 4);
+
 
   // Helper to map category/loc to homepage section index
   const getCategoryIndex = (loc: string) => {
@@ -958,6 +992,44 @@ export default function ProductDetailClient({ product }: { product: Product }) {
         setCartDrawerOpen={setCartDrawerOpen}
         showToast={showToast}
       />
+
+      {/* Related Products Section */}
+      {relatedProducts.length > 0 && (
+        <section className="max-w-[1440px] mx-auto px-4 md:px-12 py-12">
+          <div className="mb-6 flex items-end justify-between">
+            <div>
+              <div className="text-[11px] uppercase tracking-[0.35em] text-muted-foreground mb-1">আরও দেখুন</div>
+              <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight font-display">একই <span className="text-primary">ক্যাটাগরি</span>র পোশাক</h2>
+            </div>
+            <Link href={`/categories?type=${encodeURIComponent((product as any).category || '')}`} className="text-xs font-bold text-primary hover:underline no-underline">
+              সব দেখুন →
+            </Link>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+            {relatedProducts.map((rp) => (
+              <Link
+                key={rp.id}
+                href={`/products/${rp.id}`}
+                className="group block bg-background border border-border/60 hover:border-primary/40 rounded overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 no-underline hover:-translate-y-1"
+              >
+                <div className="relative aspect-[3/4] bg-secondary overflow-hidden">
+                  <Image
+                    src={rp.imgUrl || '/assets/cotton_1.png'}
+                    alt={rp.name}
+                    fill
+                    sizes="(max-width: 768px) 50vw, 25vw"
+                    className="object-cover transition-transform duration-500 group-hover:scale-105"
+                  />
+                </div>
+                <div className="p-3">
+                  <h3 className="text-xs font-bold text-foreground line-clamp-1 group-hover:text-primary transition-colors">{rp.name}</h3>
+                  <p className="text-xs font-extrabold text-foreground mt-1">৳ {rp.price?.toLocaleString('bn-BD')}</p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Newsletter & Global Footer */}
       <Cta scrollToSection={(index) => router.push(`/?sec=${index}`)} />

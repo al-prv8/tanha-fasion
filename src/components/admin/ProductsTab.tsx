@@ -448,27 +448,43 @@ export default function ProductsTab({
           <h2 className="text-xl font-extrabold text-slate-900 tracking-tight font-display">পণ্য সম্ভার ও ইনভেন্টরি সেন্টার (Products)</h2>
           <p className="text-xs text-muted-foreground mt-0.5">পোশাকের স্টক কোড (SKU), মূল্য, ছবি এবং সাইজ ভিত্তিক স্টক লেভেল পরিচালনা করুন।</p>
         </div>
-
-        <button 
-          onClick={() => {
-            setExpandedProductId(null);
-            setEditingProduct(null);
-            setProductForm({
-              sku: "",
-              name: "",
-              price: "",
-              category: CATEGORIES[0] || "",
-              imgUrl: "/assets/cotton_1.png",
-              sizesJson: '{"S":10,"M":15,"L":15,"XL":5}',
-              sizePricesJson: '{}'
-            });
-            setShowAddForm(!showAddForm);
-          }}
-          className="inline-flex items-center gap-1.5 py-2.5 px-4 bg-primary hover:bg-primary/95 text-white text-xs font-bold rounded-xl cursor-pointer transition-all shadow-2xs border-none"
-        >
-          {showAddForm ? <X size={14} /> : <Plus size={14} />}
-          <span>{showAddForm ? "ফর্ম বন্ধ করুন" : "নতুন পোশাক যোগ করুন (Add Product)"}</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <div className="text-xs text-muted-foreground font-bold font-sans bg-white border border-border/80 px-3.5 py-2 rounded-xl shadow-3xs">
+            মোট: <span className="text-primary font-black">{toBanglaNumber(products.length)}</span> টি
+          </div>
+          {onRefresh && (
+            <button
+              type="button"
+              onClick={onRefresh}
+              disabled={isLoading}
+              className="py-2 px-4 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl transition-all cursor-pointer shadow-3xs flex items-center justify-center gap-1.5 text-xs font-bold disabled:opacity-50"
+              title="রিলোড করুন"
+            >
+              <RefreshCw size={13} className={isLoading ? "animate-spin" : ""} />
+              <span>রিফ্রেশ</span>
+            </button>
+          )}
+          <button
+            onClick={() => {
+              setExpandedProductId(null);
+              setEditingProduct(null);
+              setProductForm({
+                sku: "",
+                name: "",
+                price: "",
+                category: CATEGORIES[0] || "",
+                imgUrl: "/assets/cotton_1.png",
+                sizesJson: '{"S":10,"M":15,"L":15,"XL":5}',
+                sizePricesJson: '{}'
+              });
+              setShowAddForm(!showAddForm);
+            }}
+            className="inline-flex items-center gap-1.5 py-2.5 px-4 bg-primary hover:bg-primary/95 text-white text-xs font-bold rounded-xl cursor-pointer transition-all shadow-2xs border-none"
+          >
+            {showAddForm ? <X size={14} /> : <Plus size={14} />}
+            <span>{showAddForm ? 'ফর্ম বন্ধ করুন' : 'নতুন পণ্য যুক্ত করুন (Add Product)'}</span>
+          </button>
+        </div>
       </div>
 
       {/* 1. CREATOR PANEL (Toggled at Top) */}
@@ -790,17 +806,7 @@ export default function ProductsTab({
               <Search size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
             </div>
 
-            {onRefresh && (
-              <button
-                type="button"
-                onClick={onRefresh}
-                className="p-2 bg-white hover:bg-slate-50 text-slate-655 hover:text-slate-800 border border-slate-200 rounded-xl transition-all cursor-pointer shadow-3xs flex items-center justify-center gap-1.5"
-                title="রিলোড করুন"
-              >
-                <RefreshCw size={13} className={isLoading ? "animate-spin" : ""} />
-                <span className="text-[10px] font-bold hidden sm:inline">রিফ্রেশ</span>
-              </button>
-            )}
+
           </div>
         </div>
 
@@ -813,9 +819,7 @@ export default function ProductsTab({
               <thead>
                 <tr className="border-b border-slate-200/80 bg-slate-50/60 text-slate-400 font-black text-[9px] uppercase tracking-wider">
                   <th className="py-3 px-2 w-8 text-center"></th>
-                  <th className="py-3 px-3 w-10 text-center">
-                    <input type="checkbox" className="w-3.5 h-3.5 border-slate-200 rounded accent-slate-900 cursor-pointer" readOnly checked={false} />
-                  </th>
+
                   <th className="py-3 px-3 w-12 text-center font-display">ছবি</th>
                   <th className="py-3 px-3">পোশাক ও ক্যাটাগরি</th>
                   <th className="py-3 px-3">SKU কোড</th>
@@ -845,10 +849,7 @@ export default function ProductsTab({
                           </button>
                         </td>
 
-                        {/* Checkbox */}
-                        <td className="py-3 px-3 text-center">
-                          <input type="checkbox" className="w-3.5 h-3.5 border-slate-200 rounded accent-slate-900 cursor-pointer" readOnly checked={false} />
-                        </td>
+
 
                         {/* Image */}
                         <td className="py-2.5 px-3 text-center">

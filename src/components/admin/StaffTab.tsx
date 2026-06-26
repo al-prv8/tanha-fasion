@@ -216,13 +216,30 @@ export default function StaffTab({ staff, branches, onCreateStaff, onUpdateStaff
             সুপার অ্যাডমিন এখান থেকে নতুন শোরুম ম্যানেজার বা অ্যাডমিন যুক্ত করতে পারেন এবং তাদের ব্যক্তিগত মডিউল অ্যাক্সেস কন্ট্রোল করতে পারেন।
           </p>
         </div>
-        <button
-          onClick={openAddModal}
-          className="bg-primary hover:bg-primary/95 text-white font-bold text-xs py-3 px-5 rounded-xl border-none cursor-pointer flex items-center justify-center gap-2 transition-all shadow-xs self-start"
-        >
-          <Plus size={15} />
-          <span>কর্মী যুক্ত করুন</span>
-        </button>
+        <div className="flex items-center gap-2 self-start">
+          <div className="text-xs text-muted-foreground font-bold font-sans bg-white border border-border/80 px-3.5 py-2 rounded-xl shadow-3xs">
+            মোট: <span className="text-primary font-black">{toBanglaNumber(staff.length)}</span> জন
+          </div>
+          {onRefresh && (
+            <button
+              type="button"
+              onClick={onRefresh}
+              disabled={isLoading}
+              className="py-2 px-4 bg-white hover:bg-slate-50 text-slate-700 border border-border rounded-xl transition-all cursor-pointer shadow-3xs flex items-center justify-center gap-1.5 text-xs font-bold disabled:opacity-50"
+              title="রিলোড করুন"
+            >
+              <RefreshCw size={13} className={isLoading ? "animate-spin" : ""} />
+              <span>রিফ্রেশ</span>
+            </button>
+          )}
+          <button
+            onClick={openAddModal}
+            className="bg-primary hover:bg-primary/95 text-white font-bold text-xs py-2 px-4 rounded-xl border-none cursor-pointer flex items-center justify-center gap-2 transition-all shadow-xs"
+          >
+            <Plus size={15} />
+            <span>কর্মী যুক্ত করুন</span>
+          </button>
+        </div>
       </div>
 
       {/* Control bar */}
@@ -240,17 +257,6 @@ export default function StaffTab({ staff, branches, onCreateStaff, onUpdateStaff
               <User size={15} />
             </div>
           </div>
-          {onRefresh && (
-            <button
-              type="button"
-              onClick={onRefresh}
-              className="p-2 bg-white hover:bg-slate-50 text-slate-655 hover:text-slate-800 border border-border rounded-xl transition-all cursor-pointer shadow-3xs flex items-center justify-center gap-1.5"
-              title="রিলোড করুন"
-            >
-              <RefreshCw size={13} className={isLoading ? "animate-spin" : ""} />
-              <span className="text-[10px] font-bold hidden sm:inline">রিফ্রেশ</span>
-            </button>
-          )}
         </div>
       </div>
 

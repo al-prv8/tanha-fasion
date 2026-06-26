@@ -45,6 +45,7 @@ function CategoriesContent() {
   const [selectedCategory, setSelectedCategory] = useState("ALL");
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<"default" | "price-asc" | "price-desc">("default");
+  const [inStockOnly, setInStockOnly] = useState(false);
 
   // Size Picker States for individual cards
   const [cardSizes, setCardSizes] = useState<{ [productId: string]: string }>({});
@@ -214,7 +215,10 @@ function CategoriesContent() {
       p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
       p.loc.toLowerCase().includes(searchQuery.toLowerCase());
 
-    return matchesCategory && matchesSize && matchesSearch;
+    // 4. In-stock filter
+    const matchesStock = !inStockOnly || p.tag !== 'স্টক শেষ';
+
+    return matchesCategory && matchesSize && matchesSearch && matchesStock;
   });
 
   // Sort
@@ -336,6 +340,20 @@ function CategoriesContent() {
               </div>
             </div>
 
+            {/* In-Stock Only Toggle - Desktop */}
+            <div>
+              <h4 className="text-xs font-black uppercase tracking-wider text-primary border-b border-border/60 pb-2 mb-3">প্রাপ্যতা</h4>
+              <label className="flex items-center justify-between cursor-pointer py-1.5">
+                <span className="text-xs font-bold text-foreground">শুধু স্টকে আছে</span>
+                <div className="relative">
+                  <input type="checkbox" className="sr-only" checked={inStockOnly} onChange={(e) => setInStockOnly(e.target.checked)} />
+                  <div className={`w-10 h-5 rounded-full transition-colors duration-300 ${inStockOnly ? 'bg-primary' : 'bg-slate-200'}`}>
+                    <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-300 ${inStockOnly ? 'translate-x-5' : 'translate-x-0'}`} />
+                  </div>
+                </div>
+              </label>
+            </div>
+
             {/* Sorting */}
             <div>
               <h4 className="text-xs font-black uppercase tracking-wider text-primary border-b border-border/60 pb-2 mb-3">মূল্য ক্রমানুসার</h4>
@@ -401,11 +419,68 @@ function CategoriesContent() {
                   </select>
                 </div>
               </div>
+
+              {/* In-Stock Only Toggle - Mobile */}
+              <div>
+                <span className="text-[10px] font-black uppercase tracking-wider text-primary block mb-2">প্রাপ্যতা</span>
+                <label className="flex items-center justify-between cursor-pointer py-1.5">
+                  <span className="text-xs font-bold text-foreground">শুধু স্টকে আছে</span>
+                  <div className="relative">
+                    <input type="checkbox" className="sr-only" checked={inStockOnly} onChange={(e) => setInStockOnly(e.target.checked)} />
+                    <div className={`w-10 h-5 rounded-full transition-colors duration-300 ${inStockOnly ? 'bg-primary' : 'bg-slate-200'}`}>
+                      <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-300 ${inStockOnly ? 'translate-x-5' : 'translate-x-0'}`} />
+                    </div>
+                  </div>
+                </label>
+              </div>
             </div>
           )}
 
           {/* C. PRODUCTS LIST GRID (Right Column) */}
           <div className="md:col-span-9">
+
+            {/* Results Header */}
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
+              <div className="text-xs text-muted-foreground font-semibold">
+                <span className="font-black text-foreground text-sm">{toBanglaNumber(sortedProducts.length)}</span>টি পোশাক পাওয়া গেছে
+                {sortedProducts.length !== productsList.length && (
+                  <button
+                    onClick={() => { setSelectedCategory('ALL'); setSelectedSize(null); setInStockOnly(false); setSortBy('default'); }}
+                    className="ml-3 text-primary hover:underline font-bold cursor-pointer"
+                  >
+                    সব দেখুন
+                  </button>
+                )}
+              </div>
+              {/* Active filter chips */}
+              <div className="flex flex-wrap gap-1.5">
+                {selectedCategory !== 'ALL' && (
+                  <span className="inline-flex items-center gap-1 bg-primary/10 text-primary border border-primary/20 text-[10px] font-black px-2.5 py-1 rounded-full">
+                    {selectedCategory}
+                    <button onClick={() => setSelectedCategory('ALL')} className="ml-0.5 hover:text-primary/70 cursor-pointer border-none bg-transparent p-0">×</button>
+                  </span>
+                )}
+                {selectedSize && (
+                  <span className="inline-flex items-center gap-1 bg-primary/10 text-primary border border-primary/20 text-[10px] font-black px-2.5 py-1 rounded-full">
+                    সাইজ: {selectedSize}
+                    <button onClick={() => setSelectedSize(null)} className="ml-0.5 hover:text-primary/70 cursor-pointer border-none bg-transparent p-0">×</button>
+                  </span>
+                )}
+                {inStockOnly && (
+                  <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-black px-2.5 py-1 rounded-full">
+                    স্টকে আছে
+                    <button onClick={() => setInStockOnly(false)} className="ml-0.5 hover:text-emerald-600 cursor-pointer border-none bg-transparent p-0">×</button>
+                  </span>
+                )}
+                {sortBy !== 'default' && (
+                  <span className="inline-flex items-center gap-1 bg-slate-100 text-slate-700 border border-slate-200 text-[10px] font-black px-2.5 py-1 rounded-full">
+                    {sortBy === 'price-asc' ? 'মূল্য: কম→বেশি' : 'মূল্য: বেশি→কম'}
+                    <button onClick={() => setSortBy('default')} className="ml-0.5 hover:text-slate-600 cursor-pointer border-none bg-transparent p-0">×</button>
+                  </span>
+                )}
+              </div>
+            </div>
+
             {isLoading ? (
               /* Loading Skeletons */
               <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
@@ -419,8 +494,22 @@ function CategoriesContent() {
                 ))}
               </div>
             ) : sortedProducts.length === 0 ? (
-              <div className="py-24 text-center text-muted-foreground text-sm font-semibold bg-card border border-border/60 rounded-2xl">
-                দুঃখিত, আপনার নির্বাচিত ফিল্টারের সাথে মিলে যায় এমন কোনো পোশাক পাওয়া যায়নি।
+              <div className="col-span-2 md:col-span-3 py-20 flex flex-col items-center gap-4 text-center">
+                <div className="w-20 h-20 rounded-full bg-secondary flex items-center justify-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-10 h-10 text-muted-foreground">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-base font-extrabold text-foreground">কোনো পোশাক পাওয়া যায়নি</p>
+                  <p className="text-xs text-muted-foreground mt-1 max-w-xs">আপনার ফিল্টার পরিবর্তন করুন অথবা সব পোশাক ব্রাউজ করুন।</p>
+                </div>
+                <button
+                  onClick={() => { setSelectedCategory('ALL'); setSelectedSize(null); setInStockOnly(false); setSortBy('default'); }}
+                  className="mt-2 py-2.5 px-6 bg-primary text-white text-xs font-bold rounded-full cursor-pointer border-none hover:bg-primary/90 transition-colors"
+                >
+                  সব পোশাক দেখুন
+                </button>
               </div>
             ) : (
               <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
@@ -498,7 +587,7 @@ function CategoriesContent() {
                                     }
                                   } catch (e) {}
                                 }
-                                return `৳ ${formatBanglaPriceWithCommas(activePrice)}`;
+                                return formatBanglaPriceWithCommas(activePrice);
                               })()}
                             </span>
                             <Link

@@ -88,13 +88,30 @@ export default function NewslettersTab({
           </p>
         </div>
 
-        <button 
-          onClick={handleExportCSV}
-          className="inline-flex items-center gap-1.5 py-2 px-4 bg-primary hover:bg-primary/95 text-white text-xs font-bold rounded-lg cursor-pointer transition-all shadow-xs border-none"
-        >
-          <Download size={13} />
-          <span>CSV ফাইল ডাউনলোড (Export)</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <div className="text-xs text-muted-foreground font-bold font-sans bg-white border border-border/80 px-3.5 py-2 rounded-xl shadow-3xs">
+            মোট: <span className="text-primary font-black">{toBanglaNumber(subscribers.length)}</span> জন
+          </div>
+          {onRefresh && (
+            <button
+              type="button"
+              onClick={onRefresh}
+              disabled={isLoading}
+              className="py-2 px-4 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl transition-all cursor-pointer shadow-3xs flex items-center justify-center gap-1.5 text-xs font-bold disabled:opacity-50"
+              title="রিলোড করুন"
+            >
+              <RefreshCw size={13} className={isLoading ? "animate-spin" : ""} />
+              <span>রিফ্রেশ</span>
+            </button>
+          )}
+          <button 
+            onClick={handleExportCSV}
+            className="inline-flex items-center gap-1.5 py-2 px-4 bg-primary hover:bg-primary/95 text-white text-xs font-bold rounded-lg cursor-pointer transition-all shadow-xs border-none"
+          >
+            <Download size={13} />
+            <span>CSV ফাইল ডাউনলোড (Export)</span>
+          </button>
+        </div>
       </div>
 
       {/* Main Container */}
@@ -113,21 +130,6 @@ export default function NewslettersTab({
               />
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={13} />
             </div>
-            {onRefresh && (
-              <button
-                type="button"
-                onClick={onRefresh}
-                className="p-2 bg-white hover:bg-slate-50 text-slate-655 hover:text-slate-800 border border-slate-200 rounded-xl transition-all cursor-pointer shadow-3xs flex items-center justify-center gap-1.5"
-                title="রিলোড করুন"
-              >
-                <RefreshCw size={13} className={isLoading ? "animate-spin" : ""} />
-                <span className="text-[10px] font-bold hidden sm:inline">রিফ্রেশ</span>
-              </button>
-            )}
-          </div>
-
-          <div className="text-xs text-muted-foreground font-bold font-sans">
-            মোট ফলাফল: <span className="text-primary font-black">{toBanglaNumber(filteredSubscribers.length)}</span> জন
           </div>
         </div>
 

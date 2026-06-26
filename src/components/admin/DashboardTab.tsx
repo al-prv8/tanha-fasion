@@ -1,9 +1,11 @@
+"use client";
+
 import React from "react";
-import { 
-  DollarSign, 
-  ShoppingBag, 
-  Clock, 
-  Package, 
+import {
+  DollarSign,
+  ShoppingBag,
+  Clock,
+  Package,
   AlertCircle,
   ArrowRight,
   Sparkles,
@@ -18,10 +20,13 @@ import {
   TrendingDown,
   TrendingUp,
   Store,
-  Globe
+  Globe,
+  BarChart2,
+  Wallet,
+  Zap,
 } from "lucide-react";
-import { formatBanglaPriceWithCommas, toBanglaNumber, getProductTotalStock } from "@/lib/products";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { formatBanglaPriceWithCommas, toBanglaNumber } from "@/lib/products";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from "recharts";
 
 interface DashboardTabProps {
   analytics: {
@@ -54,10 +59,9 @@ export default function DashboardTab({
   analytics,
   products,
   setActiveTab,
-  adminName = "অ্যাডমিন"
+  adminName = "অ্যাডমিন",
 }: DashboardTabProps) {
-  // Filter products that are running low on stock (any size quantity < 5)
-  const lowStockProducts = products.filter(p => {
+  const lowStockProducts = products.filter((p) => {
     try {
       const sizesObj = JSON.parse(p.sizesJson || "{}");
       return Object.values(sizesObj).some((qty: any) => Number(qty) < 5);
@@ -66,320 +70,372 @@ export default function DashboardTab({
     }
   });
 
-  const avgOrderValue = analytics.totalOrders > 0 
-    ? Math.round(analytics.totalEarnings / analytics.totalOrders) 
-    : 0;
+  const avgOrderValue =
+    analytics.totalOrders > 0
+      ? Math.round(analytics.totalEarnings / analytics.totalOrders)
+      : 0;
+
+  const totalOrders = analytics.totalOrders || 0;
+  const fulfillmentSteps = [
+    { label: "অপেক্ষমান", labelEn: "Pending", count: analytics.pendingOrders || 0, color: "bg-amber-500", textColor: "text-amber-600", bgLight: "bg-amber-50", icon: <Clock size={13} /> },
+    { label: "নিশ্চিত", labelEn: "Confirmed", count: analytics.confirmedOrders || 0, color: "bg-indigo-500", textColor: "text-indigo-600", bgLight: "bg-indigo-50", icon: <CheckCircle2 size={13} /> },
+    { label: "শিপড", labelEn: "Shipped", count: analytics.shippedOrders || 0, color: "bg-blue-500", textColor: "text-blue-600", bgLight: "bg-blue-50", icon: <Truck size={13} /> },
+    { label: "ডেলিভারড", labelEn: "Delivered", count: analytics.deliveredOrders || 0, color: "bg-emerald-500", textColor: "text-emerald-600", bgLight: "bg-emerald-50", icon: <CheckCircle2 size={13} /> },
+    { label: "বাতিল", labelEn: "Cancelled", count: analytics.cancelledOrders || 0, color: "bg-rose-500", textColor: "text-rose-600", bgLight: "bg-rose-50", icon: <XCircle size={13} /> },
+  ];
+
+  const secondaryMetrics = [
+    { label: "সক্রিয় পণ্য", value: `${toBanglaNumber(analytics.totalProducts || 0)} টি`, icon: <Package size={16} />, bg: "bg-emerald-50", text: "text-emerald-600", border: "border-emerald-100", tab: "products" },
+    { label: "সক্রিয় কুপন", value: `${toBanglaNumber(analytics.totalCoupons || 0)} টি`, icon: <BadgePercent size={16} />, bg: "bg-rose-50", text: "text-rose-600", border: "border-rose-100", tab: "coupons" },
+    { label: "মোট রিভিউ", value: `${toBanglaNumber(analytics.totalReviews || 0)} টি`, icon: <Star size={16} />, bg: "bg-yellow-50", text: "text-yellow-600", border: "border-yellow-100", tab: "reviews" },
+    { label: "গড় অর্ডার মূল্য", value: formatBanglaPriceWithCommas(avgOrderValue), icon: <Activity size={16} />, bg: "bg-sky-50", text: "text-sky-600", border: "border-sky-100", tab: "orders" },
+  ];
 
   return (
-    <div className="flex flex-col gap-8 font-sans">
-      {/* 1. Welcoming Banner */}
-      <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border border-primary/20 p-6 rounded-2xl flex items-center justify-between flex-wrap gap-4 shadow-2xs">
-        <div>
-          <h2 className="text-xl font-extrabold text-foreground flex items-center gap-2 font-display">
-            <Sparkles className="text-primary animate-pulse" size={20} />
-            শুভ দিন, {adminName}!
-          </h2>
-          <p className="text-xs text-muted-foreground mt-1 font-semibold">
-            আজকে আপনার তানহা ফ্যাশন স্টোরের বিবরণ এবং অর্ডারের সংক্ষিপ্ত পরিসংখ্যান নিচে দেওয়া হলো।
-          </p>
-        </div>
-        <button 
-          onClick={() => setActiveTab("orders")}
-          className="bg-primary hover:bg-primary/95 text-white font-bold text-xs py-2 px-4 rounded-xl flex items-center gap-1.5 border-none cursor-pointer transition-all shadow-xs"
-        >
-          <span>অর্ডার পর্যালোচনা করুন</span>
-          <ArrowRight size={13} />
-        </button>
-      </div>
+    <div className="flex flex-col gap-6 font-sans">
 
-      {/* 2. Primary Analytics Cards Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
-        {/* Earnings Card */}
-        <div className="bg-card border border-border/80 p-5 rounded-2xl shadow-2xs flex items-center justify-between transition-transform duration-300 hover:-translate-y-0.5">
-          <div className="min-w-0">
-            <span className="text-[10px] font-black text-muted-foreground uppercase tracking-wider block">সর্বমোট বিক্রি</span>
-            <span className="text-xl sm:text-2xl font-black text-foreground block mt-1.5 truncate">
-              {formatBanglaPriceWithCommas(analytics.totalEarnings || 0)}
-            </span>
-          </div>
-          <div className="w-10 h-10 bg-primary/10 border border-primary/20 rounded-full flex items-center justify-center text-primary flex-shrink-0">
-            <DollarSign size={20} />
-          </div>
-        </div>
+      {/* ── Welcome Hero Banner ── */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-primary via-primary/90 to-rose-700 text-white rounded-2xl p-6 md:p-7 shadow-lg">
+        {/* decorative blobs */}
+        <div className="absolute -top-10 -right-10 w-52 h-52 rounded-full bg-white/10 blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-8 w-36 h-36 rounded-full bg-rose-900/20 blur-2xl pointer-events-none" />
 
-        {/* Total Orders Card */}
-        <div className="bg-card border border-border/80 p-5 rounded-2xl shadow-2xs flex items-center justify-between transition-transform duration-300 hover:-translate-y-0.5">
-          <div className="min-w-0">
-            <span className="text-[10px] font-black text-muted-foreground uppercase tracking-wider block">সর্বমোট অর্ডার</span>
-            <span className="text-xl sm:text-2xl font-black text-foreground block mt-1.5">
-              {toBanglaNumber(analytics.totalOrders || 0)} টি
-            </span>
-          </div>
-          <div className="w-10 h-10 bg-blue-50 border border-blue-100 rounded-full flex items-center justify-center text-blue-600 flex-shrink-0">
-            <ShoppingBag size={20} />
-          </div>
-        </div>
-
-        {/* Pending Orders Card */}
-        <div className="bg-card border border-border/80 p-5 rounded-2xl shadow-2xs flex items-center justify-between transition-transform duration-300 hover:-translate-y-0.5">
-          <div className="min-w-0">
-            <span className="text-[10px] font-black text-muted-foreground uppercase tracking-wider block">পেনন্ডিং অর্ডার</span>
-            <span className="text-xl sm:text-2xl font-black text-foreground block mt-1.5">
-              {toBanglaNumber(analytics.pendingOrders || 0)} টি
-            </span>
-          </div>
-          <div className="w-10 h-10 bg-amber-50 border border-amber-100 rounded-full flex items-center justify-center text-amber-600 flex-shrink-0">
-            <Clock size={20} />
-          </div>
-        </div>
-
-        {/* Registered Customers Card */}
-        <div className="bg-card border border-border/80 p-5 rounded-2xl shadow-2xs flex items-center justify-between transition-transform duration-300 hover:-translate-y-0.5">
-          <div className="min-w-0">
-            <span className="text-[10px] font-black text-muted-foreground uppercase tracking-wider block">নিবন্ধিত ক্রেতা</span>
-            <span className="text-xl sm:text-2xl font-black text-foreground block mt-1.5">
-              {toBanglaNumber(analytics.totalCustomers || 0)} জন
-            </span>
-          </div>
-          <div className="w-10 h-10 bg-purple-50 border border-purple-100 rounded-full flex items-center justify-center text-purple-650 flex-shrink-0">
-            <Users size={20} />
-          </div>
-        </div>
-      </div>
-
-      {/* Sales Channel Analysis */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        {/* Online Sales Channel */}
-        <div className="bg-card border border-border/80 p-5 rounded-2xl shadow-2xs text-left">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center">
-                <Globe size={16} />
-              </div>
-              <h4 className="font-extrabold text-xs text-slate-800 uppercase tracking-wider">অনলাইন বিক্রয় চ্যানেল (Online Store)</h4>
+        <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-5">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <Sparkles size={14} className="text-rose-200 animate-pulse" />
+              <span className="text-[10px] font-black text-rose-100/80 uppercase tracking-[0.18em]">তানহা ফ্যাশন অ্যাডমিন</span>
             </div>
-            <span className="text-[10px] bg-blue-50 text-blue-700 font-bold px-2 py-0.5 rounded-full border border-blue-150 font-sans">
-              {toBanglaNumber(analytics.onlineOrdersCount || 0)} টি অর্ডার
-            </span>
+            <h2 className="text-2xl font-extrabold tracking-tight font-display">
+              শুভ দিন, {adminName}!
+            </h2>
+            <p className="text-sm text-rose-100/80 mt-1.5 font-semibold leading-relaxed max-w-lg">
+              আপনার স্টোরের আজকের সারসংক্ষেপ। সব চ্যানেলের বিক্রয়, অর্ডার পরিস্থিতি এবং স্টক সতর্কতা এক নজরে দেখুন।
+            </p>
           </div>
-          <div className="text-xl sm:text-2xl font-black text-foreground block">
-            {formatBanglaPriceWithCommas(analytics.onlineEarnings || 0)}
+          <div className="flex gap-2 flex-wrap">
+            <button
+              onClick={() => setActiveTab("orders")}
+              className="bg-white hover:bg-rose-50 text-primary font-bold text-xs py-2.5 px-5 rounded-xl flex items-center gap-1.5 border-none cursor-pointer transition-all shadow-xs whitespace-nowrap"
+            >
+              <span>অর্ডার দেখুন</span>
+              <ArrowRight size={13} />
+            </button>
+            <button
+              onClick={() => setActiveTab("products")}
+              className="bg-white/15 hover:bg-white/20 text-white font-bold text-xs py-2.5 px-5 rounded-xl flex items-center gap-1.5 border border-white/25 cursor-pointer transition-all whitespace-nowrap"
+            >
+              <span>স্টক আপডেট</span>
+            </button>
           </div>
-          <p className="text-[10px] text-muted-foreground mt-1.5 font-semibold">ওয়েবসাইট ও অনলাইন পেমেন্ট গেটওয়ে থেকে অর্জিত মোট রাজস্ব।</p>
         </div>
 
-        {/* Showroom Sales Channel */}
-        <div className="bg-card border border-border/80 p-5 rounded-2xl shadow-2xs text-left">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 border border-amber-100 flex items-center justify-center">
-                <Store size={16} />
+        {/* Inline KPI strip */}
+        <div className="relative mt-5 grid grid-cols-2 sm:grid-cols-4 gap-px bg-white/15 rounded-xl overflow-hidden">
+          {[
+            { label: "মোট বিক্রি", value: formatBanglaPriceWithCommas(analytics.totalEarnings || 0), icon: <Wallet size={13} />, highlight: true },
+            { label: "মোট অর্ডার", value: `${toBanglaNumber(totalOrders)} টি`, icon: <ShoppingBag size={13} /> },
+            { label: "নিবন্ধিত ক্রেতা", value: `${toBanglaNumber(analytics.totalCustomers || 0)} জন`, icon: <Users size={13} /> },
+            { label: "পেনন্ডিং অর্ডার", value: `${toBanglaNumber(analytics.pendingOrders || 0)} টি`, icon: <Clock size={13} /> },
+          ].map((kpi, i) => (
+            <div
+              key={i}
+              className={`flex flex-col gap-1 px-4 py-3.5 ${kpi.highlight ? "bg-white/15" : "bg-white/8"}`}
+            >
+              <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-rose-100/70">
+                {kpi.icon}
+                {kpi.label}
               </div>
-              <h4 className="font-extrabold text-xs text-slate-800 uppercase tracking-wider">শোরুম বিক্রয় কাউন্টার (Showroom POS)</h4>
+              <div className="text-lg font-black text-white leading-none font-sans">{kpi.value}</div>
             </div>
-            <span className="text-[10px] bg-amber-50 text-amber-700 font-bold px-2 py-0.5 rounded-full border border-amber-150 font-sans">
-              {toBanglaNumber(analytics.showroomOrdersCount || 0)} টি রশিদ
-            </span>
-          </div>
-          <div className="text-xl sm:text-2xl font-black text-foreground block">
-            {formatBanglaPriceWithCommas(analytics.showroomEarnings || 0)}
-          </div>
-          <p className="text-[10px] text-muted-foreground mt-1.5 font-semibold">ফিজিক্যাল শোরুমের পিওএস কাউন্টার থেকে সরাসরি ক্যাশ ও কার্ড বিক্রয়।</p>
+          ))}
         </div>
       </div>
 
-      {/* Financial Analytics Grid Row */}
+      {/* ── Revenue Split: Online vs Showroom ── */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        {/* Cost of Goods Sold Card */}
-        <div className="bg-card border border-border/80 p-5 rounded-2xl shadow-2xs flex items-center justify-between transition-transform duration-300 hover:-translate-y-0.5">
-          <div className="min-w-0">
-            <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">বিক্রিত পণ্যের পাইকারি ক্রয়মূল্য (COGS)</span>
-            <span className="text-xl sm:text-2xl font-black text-slate-600 block mt-1.5 font-sans">
+        {/* Online */}
+        <div className="group bg-card border border-border/80 rounded-2xl p-5 shadow-2xs text-left hover:shadow-md transition-shadow duration-300 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-blue-50/80 rounded-full -translate-y-6 translate-x-6 pointer-events-none" />
+          <div className="relative">
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center shadow-3xs">
+                  <Globe size={18} />
+                </div>
+                <div>
+                  <h4 className="font-extrabold text-[11px] text-slate-800 uppercase tracking-wider">অনলাইন স্টোর</h4>
+                  <span className="text-[10px] text-muted-foreground font-semibold">Website & Payment Gateway</span>
+                </div>
+              </div>
+              <span className="text-[10px] bg-blue-50 text-blue-700 font-black px-2.5 py-1 rounded-full border border-blue-100 flex items-center gap-1">
+                <ShoppingBag size={10} />
+                {toBanglaNumber(analytics.onlineOrdersCount || 0)} টি অর্ডার
+              </span>
+            </div>
+            <div className="text-3xl font-black text-slate-900 leading-none mb-1 font-sans">
+              {formatBanglaPriceWithCommas(analytics.onlineEarnings || 0)}
+            </div>
+            <p className="text-[10px] text-muted-foreground font-semibold mt-2">
+              মোট বিক্রির{" "}
+              <span className="text-blue-600 font-black">
+                {analytics.totalEarnings > 0
+                  ? `${Math.round(((analytics.onlineEarnings || 0) / analytics.totalEarnings) * 100)}%`
+                  : "০%"}
+              </span>{" "}
+              অনলাইন চ্যানেল থেকে অর্জিত।
+            </p>
+            <div className="mt-3 h-1.5 bg-blue-100 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-blue-500 rounded-full transition-all duration-700"
+                style={{
+                  width: analytics.totalEarnings > 0
+                    ? `${Math.round(((analytics.onlineEarnings || 0) / analytics.totalEarnings) * 100)}%`
+                    : "0%"
+                }}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Showroom */}
+        <div className="group bg-card border border-border/80 rounded-2xl p-5 shadow-2xs text-left hover:shadow-md transition-shadow duration-300 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-amber-50/80 rounded-full -translate-y-6 translate-x-6 pointer-events-none" />
+          <div className="relative">
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 border border-amber-100 flex items-center justify-center shadow-3xs">
+                  <Store size={18} />
+                </div>
+                <div>
+                  <h4 className="font-extrabold text-[11px] text-slate-800 uppercase tracking-wider">শোরুম কাউন্টার</h4>
+                  <span className="text-[10px] text-muted-foreground font-semibold">Physical POS Counter</span>
+                </div>
+              </div>
+              <span className="text-[10px] bg-amber-50 text-amber-700 font-black px-2.5 py-1 rounded-full border border-amber-100 flex items-center gap-1">
+                <Tag size={10} />
+                {toBanglaNumber(analytics.showroomOrdersCount || 0)} টি রশিদ
+              </span>
+            </div>
+            <div className="text-3xl font-black text-slate-900 leading-none mb-1 font-sans">
+              {formatBanglaPriceWithCommas(analytics.showroomEarnings || 0)}
+            </div>
+            <p className="text-[10px] text-muted-foreground font-semibold mt-2">
+              মোট বিক্রির{" "}
+              <span className="text-amber-600 font-black">
+                {analytics.totalEarnings > 0
+                  ? `${Math.round(((analytics.showroomEarnings || 0) / analytics.totalEarnings) * 100)}%`
+                  : "০%"}
+              </span>{" "}
+              শোরুম পিওএস থেকে অর্জিত।
+            </p>
+            <div className="mt-3 h-1.5 bg-amber-100 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-amber-500 rounded-full transition-all duration-700"
+                style={{
+                  width: analytics.totalEarnings > 0
+                    ? `${Math.round(((analytics.showroomEarnings || 0) / analytics.totalEarnings) * 100)}%`
+                    : "0%"
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Financial P&L Cards ── */}
+      <div className="grid grid-cols-2 gap-5">
+        <div className="bg-rose-50/60 border border-rose-100 p-5 rounded-2xl shadow-2xs flex items-center justify-between">
+          <div>
+            <span className="text-[10px] font-black text-rose-600/80 uppercase tracking-wider block">পণ্যের পাইকারি মূল্য (COGS)</span>
+            <span className="text-xl sm:text-2xl font-black text-rose-700 block mt-1.5 font-sans">
               {formatBanglaPriceWithCommas(analytics.totalCostOfGoods || 0)}
             </span>
           </div>
-          <div className="w-10 h-10 bg-rose-50 border border-rose-100 rounded-full flex items-center justify-center text-rose-600 flex-shrink-0">
-            <TrendingDown size={20} />
+          <div className="w-11 h-11 bg-white border border-rose-100 rounded-full flex items-center justify-center text-rose-500 shadow-3xs flex-shrink-0">
+            <TrendingDown size={22} />
           </div>
         </div>
-
-        {/* Net Profit Card */}
-        <div className="bg-card border border-border/80 p-5 rounded-2xl shadow-2xs flex items-center justify-between transition-transform duration-300 hover:-translate-y-0.5">
-          <div className="min-w-0">
-            <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">মোট আনুমানিক নিট লাভ (Net Profit)</span>
-            <span className="text-xl sm:text-2xl font-black text-emerald-600 block mt-1.5 font-sans">
+        <div className="bg-emerald-50/60 border border-emerald-100 p-5 rounded-2xl shadow-2xs flex items-center justify-between">
+          <div>
+            <span className="text-[10px] font-black text-emerald-600/80 uppercase tracking-wider block">আনুমানিক নিট লাভ (Net Profit)</span>
+            <span className="text-xl sm:text-2xl font-black text-emerald-700 block mt-1.5 font-sans">
               {formatBanglaPriceWithCommas(analytics.netProfit || 0)}
             </span>
           </div>
-          <div className="w-10 h-10 bg-emerald-50 border border-emerald-100 rounded-full flex items-center justify-center text-emerald-600 flex-shrink-0">
-            <TrendingUp size={20} />
+          <div className="w-11 h-11 bg-white border border-emerald-100 rounded-full flex items-center justify-center text-emerald-500 shadow-3xs flex-shrink-0">
+            <TrendingUp size={22} />
           </div>
         </div>
       </div>
 
-      {/* 3. Secondary Metrics Overview Row */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
-        {/* Total Products Card */}
-        <div className="bg-white border border-border/60 p-4 rounded-xl flex items-center gap-3.5 shadow-3xs">
-          <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center flex-shrink-0">
-            <Package size={16} />
-          </div>
-          <div className="min-w-0">
-            <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block">সক্রিয় পণ্য</span>
-            <span className="text-sm font-black text-foreground mt-0.5 block">{toBanglaNumber(analytics.totalProducts || 0)} টি</span>
-          </div>
-        </div>
-
-        {/* Active Coupons Card */}
-        <div className="bg-white border border-border/60 p-4 rounded-xl flex items-center gap-3.5 shadow-3xs">
-          <div className="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 border border-rose-100 flex items-center justify-center flex-shrink-0">
-            <BadgePercent size={16} />
-          </div>
-          <div className="min-w-0">
-            <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block">সক্রিয় কুপন</span>
-            <span className="text-sm font-black text-foreground mt-0.5 block">{toBanglaNumber(analytics.totalCoupons || 0)} টি</span>
-          </div>
-        </div>
-
-        {/* Customer Reviews Card */}
-        <div className="bg-white border border-border/60 p-4 rounded-xl flex items-center gap-3.5 shadow-3xs">
-          <div className="w-8 h-8 rounded-lg bg-yellow-50 text-yellow-600 border border-yellow-100 flex items-center justify-center flex-shrink-0">
-            <Star size={16} />
-          </div>
-          <div className="min-w-0">
-            <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block">কাস্টমার রিভিউ</span>
-            <span className="text-sm font-black text-foreground mt-0.5 block">{toBanglaNumber(analytics.totalReviews || 0)} টি</span>
-          </div>
-        </div>
-
-        {/* Avg Order Value Card */}
-        <div className="bg-white border border-border/60 p-4 rounded-xl flex items-center gap-3.5 shadow-3xs">
-          <div className="w-8 h-8 rounded-lg bg-sky-50 text-sky-600 border border-sky-100 flex items-center justify-center flex-shrink-0">
-            <Activity size={16} />
-          </div>
-          <div className="min-w-0">
-            <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block">গড় অর্ডার মূল্য</span>
-            <span className="text-sm font-black text-foreground mt-0.5 block">{formatBanglaPriceWithCommas(avgOrderValue)}</span>
-          </div>
-        </div>
+      {/* ── Secondary Metric Pills ── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {secondaryMetrics.map((m, i) => (
+          <button
+            key={i}
+            onClick={() => setActiveTab(m.tab)}
+            className={`bg-white border border-border/60 p-4 rounded-xl flex items-center gap-3.5 shadow-3xs hover:shadow-sm transition-all duration-200 hover:-translate-y-0.5 text-left cursor-pointer`}
+          >
+            <div className={`w-9 h-9 rounded-xl ${m.bg} ${m.text} border ${m.border} flex items-center justify-center flex-shrink-0`}>
+              {m.icon}
+            </div>
+            <div className="min-w-0">
+              <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block">{m.label}</span>
+              <span className="text-sm font-black text-foreground mt-0.5 block">{m.value}</span>
+            </div>
+          </button>
+        ))}
       </div>
 
-      {/* 4. Analytics Graphs & Alerts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Sales Chart Container */}
+      {/* ── Chart + Fulfillment Row ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        {/* Sales Area Chart */}
         <div className="lg:col-span-8 bg-card border border-border/80 p-6 rounded-2xl shadow-2xs">
-          <div className="mb-6 flex justify-between items-center">
-            <h3 className="text-sm font-bold text-foreground font-display">বিক্রির সাম্প্রতিক পরিসংখ্যান (টাকা ৳)</h3>
-            <span className="text-[10px] bg-secondary text-muted-foreground py-1 px-3 rounded-full font-bold">গত ৭ দিন</span>
+          <div className="mb-5 flex justify-between items-center">
+            <div>
+              <h3 className="text-sm font-extrabold text-foreground font-display flex items-center gap-2">
+                <BarChart2 size={16} className="text-primary" />
+                বিক্রির ট্রেন্ড (Sales Trend)
+              </h3>
+              <p className="text-[10px] text-muted-foreground mt-0.5 font-semibold">সাম্প্রতিক বিক্রয় পরিসংখ্যান — টাকা (৳) এ</p>
+            </div>
+            <span className="text-[10px] bg-primary/10 text-primary py-1 px-3 rounded-full font-black border border-primary/20">গত ৭ দিন</span>
           </div>
           {analytics.salesChartData && analytics.salesChartData.length > 0 ? (
-            <div className="w-full h-80">
+            <div className="w-full h-72">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={analytics.salesChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.06)" />
-                  <XAxis dataKey="date" tick={{ fontSize: 10, fill: "var(--muted)" }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 10, fill: "var(--muted)" }} axisLine={false} tickLine={false} />
-                  <Tooltip 
-                    formatter={(value) => [`৳${value}`, "বিক্রি"]} 
-                    contentStyle={{ background: "var(--card)", borderColor: "var(--border)", borderRadius: "10px", fontSize: "11px", color: "var(--foreground)" }} 
+                <AreaChart data={analytics.salesChartData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="salesGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.15} />
+                      <stop offset="95%" stopColor="var(--primary)" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.05)" />
+                  <XAxis dataKey="date" tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
+                  <Tooltip
+                    formatter={(value) => [`৳${Number(value).toLocaleString("bn-BD")}`, "বিক্রি"]}
+                    contentStyle={{ background: "var(--card)", borderColor: "var(--border)", borderRadius: "12px", fontSize: "11px", color: "var(--foreground)", boxShadow: "0 4px 20px rgba(0,0,0,0.08)" }}
+                    cursor={{ stroke: "var(--primary)", strokeWidth: 1, strokeDasharray: "4 4" }}
                   />
-                  <Bar dataKey="sales" fill="var(--primary)" radius={[6, 6, 0, 0]} maxBarSize={40} />
-                </BarChart>
+                  <Area
+                    type="monotone"
+                    dataKey="sales"
+                    stroke="var(--primary)"
+                    strokeWidth={2.5}
+                    fill="url(#salesGrad)"
+                    dot={{ fill: "var(--primary)", r: 3.5, strokeWidth: 0 }}
+                    activeDot={{ r: 5, fill: "var(--primary)", strokeWidth: 2, stroke: "white" }}
+                  />
+                </AreaChart>
               </ResponsiveContainer>
             </div>
           ) : (
-            <div className="py-20 text-center text-muted-foreground text-xs">গ্রাফ তৈরি করার জন্য কোনো ডাটা নেই।</div>
+            <div className="py-20 text-center text-muted-foreground text-xs font-semibold flex flex-col items-center gap-2">
+              <BarChart2 size={28} className="text-border" />
+              গ্রাফ তৈরি করার জন্য কোনো ডাটা নেই।
+            </div>
           )}
         </div>
 
-        {/* Side Panel: Distribution & Stock Alerts */}
-        <div className="lg:col-span-4 flex flex-col gap-6">
-          {/* Low Stock Alerts */}
-          <div className="bg-card border border-border/80 p-6 rounded-2xl shadow-2xs flex-grow flex flex-col justify-between">
-            <div>
-              <h3 className="text-sm font-bold text-foreground font-display flex items-center gap-1.5 mb-4">
-                <AlertCircle className="text-primary" size={16} />
-                কম স্টক সতর্কতা
-              </h3>
-              
-              {lowStockProducts.length === 0 ? (
-                <div className="py-8 text-center text-muted-foreground text-xs font-semibold">
-                  সব পণ্যের পর্যাপ্ত স্টক রয়েছে! 👍
-                </div>
-              ) : (
-                <div className="flex flex-col gap-3 max-h-[160px] overflow-y-auto pr-1">
-                  {lowStockProducts.slice(0, 4).map((p) => {
-                    let lowSizes: string[] = [];
-                    try {
-                      const sizesObj = JSON.parse(p.sizesJson || "{}");
-                      lowSizes = Object.entries(sizesObj)
-                        .filter(([sz, qty]) => Number(qty) < 5)
-                        .map(([sz, qty]) => `${sz}: ${qty}`);
-                    } catch (e) {}
+        {/* Right Column */}
+        <div className="lg:col-span-4 flex flex-col gap-5">
 
-                    return (
-                      <div key={p.id} className="flex items-center justify-between bg-secondary/50 p-2.5 rounded-lg border border-border/40 text-xs">
-                        <div className="min-w-0 pr-2">
-                          <div className="font-bold text-foreground truncate">{p.name}</div>
-                          <div className="text-[10px] text-muted-foreground font-mono mt-0.5">SKU: {p.sku}</div>
-                        </div>
-                        <span className="bg-amber-50 border border-amber-250 text-amber-700 text-[10px] font-bold px-2 py-0.5 rounded-md flex-shrink-0">
-                          {lowSizes.join(", ")}
-                        </span>
-                      </div>
-                    );
-                  })}
-                  {lowStockProducts.length > 3 && (
-                    <div className="text-[10px] text-primary font-bold text-right cursor-pointer hover:underline" onClick={() => setActiveTab("products")}>
-                      আরও {toBanglaNumber(lowStockProducts.length - 3)}টি পোশাক দেখুন...
+          {/* Fulfillment Pipeline */}
+          <div className="bg-card border border-border/80 p-5 rounded-2xl shadow-2xs flex-1">
+            <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-wider mb-4 flex items-center gap-1.5">
+              <Zap size={12} className="text-primary" />
+              অর্ডার পাইপলাইন
+            </h3>
+            <div className="flex flex-col gap-2.5">
+              {fulfillmentSteps.map((step, i) => {
+                const pct = totalOrders > 0 ? Math.round((step.count / totalOrders) * 100) : 0;
+                return (
+                  <div key={i}>
+                    <div className="flex items-center justify-between text-xs mb-1">
+                      <span className={`flex items-center gap-1.5 font-semibold text-muted-foreground`}>
+                        <span className={step.textColor}>{step.icon}</span>
+                        {step.label}
+                        <span className="text-[9px] text-muted-foreground/60">({step.labelEn})</span>
+                      </span>
+                      <span className={`font-black font-sans ${step.textColor}`}>
+                        {toBanglaNumber(step.count)}
+                      </span>
                     </div>
-                  )}
-                </div>
+                    <div className="h-1.5 bg-secondary rounded-full overflow-hidden">
+                      <div
+                        className={`h-full ${step.color} rounded-full transition-all duration-700`}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+              <div className="mt-2 pt-2 border-t border-border/40 flex justify-between items-center text-xs">
+                <span className="font-extrabold text-foreground flex items-center gap-1.5">
+                  <Activity size={12} />
+                  সর্বমোট (Total)
+                </span>
+                <span className="font-black text-foreground font-sans">{toBanglaNumber(totalOrders)} টি</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Low Stock Alerts */}
+          <div className="bg-card border border-border/80 p-5 rounded-2xl shadow-2xs flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                <AlertCircle size={12} className="text-amber-500" />
+                স্টক সতর্কতা
+              </h3>
+              {lowStockProducts.length > 0 && (
+                <span className="text-[9px] bg-amber-50 text-amber-700 border border-amber-200 font-black px-2 py-0.5 rounded-full">
+                  {toBanglaNumber(lowStockProducts.length)} টি পোশাক
+                </span>
               )}
             </div>
-            
-            <button 
+
+            {lowStockProducts.length === 0 ? (
+              <div className="py-6 text-center text-muted-foreground text-xs font-semibold flex flex-col items-center gap-1.5">
+                <CheckCircle2 size={20} className="text-emerald-400" />
+                সব পণ্যের পর্যাপ্ত স্টক!
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2 max-h-[150px] overflow-y-auto pr-0.5">
+                {lowStockProducts.slice(0, 5).map((p) => {
+                  let lowSizes: string[] = [];
+                  try {
+                    const sizesObj = JSON.parse(p.sizesJson || "{}");
+                    lowSizes = Object.entries(sizesObj)
+                      .filter(([, qty]: any) => Number(qty) < 5)
+                      .map(([sz, qty]) => `${sz}:${qty}`);
+                  } catch (e) {}
+
+                  return (
+                    <div key={p.id} className="flex items-center justify-between bg-amber-50/60 border border-amber-100 p-2.5 rounded-lg text-xs gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="font-bold text-slate-800 truncate text-[11px]">{p.name}</div>
+                        <div className="text-[9px] text-muted-foreground font-mono">{p.sku}</div>
+                      </div>
+                      <span className="bg-amber-100 border border-amber-200 text-amber-800 text-[9px] font-black px-1.5 py-0.5 rounded-md flex-shrink-0 whitespace-nowrap">
+                        {lowSizes.slice(0, 2).join(" ")}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <button
               onClick={() => setActiveTab("products")}
-              className="w-full mt-4 bg-secondary hover:bg-primary/5 text-foreground hover:text-primary border border-border hover:border-primary/20 py-2 rounded-xl text-xs font-bold cursor-pointer transition-all flex items-center justify-center gap-1.5"
+              className="w-full bg-secondary hover:bg-primary/5 text-foreground hover:text-primary border border-border hover:border-primary/20 py-2 rounded-xl text-xs font-bold cursor-pointer transition-all flex items-center justify-center gap-1.5"
             >
               <span>স্টক আপডেট করুন</span>
               <ArrowRight size={12} />
             </button>
-          </div>
-
-          {/* Detailed Fulfillment Lifecycle Info */}
-          <div className="bg-card border border-border/80 p-5 rounded-2xl shadow-2xs text-xs font-semibold text-slate-700 flex flex-col gap-2.5 bg-white/40">
-            <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-wider mb-2.5 border-b border-border/40 pb-1.5">অর্ডার বিতরণ অবস্থা</h3>
-            
-            <div className="flex justify-between items-center border-b border-border/30 pb-1.5">
-              <span className="text-muted-foreground flex items-center gap-1.5"><Clock size={12} className="text-amber-500" /> অপেক্ষমান (Pending)</span>
-              <span className="font-bold text-amber-600 font-sans">{toBanglaNumber(analytics.pendingOrders || 0)} টি</span>
-            </div>
-            
-            <div className="flex justify-between items-center border-b border-border/30 pb-1.5">
-              <span className="text-muted-foreground flex items-center gap-1.5"><CheckCircle2 size={12} className="text-indigo-500" /> নিশ্চিতকৃত (Confirmed)</span>
-              <span className="font-bold text-indigo-600 font-sans">{toBanglaNumber(analytics.confirmedOrders || 0)} টি</span>
-            </div>
-            
-            <div className="flex justify-between items-center border-b border-border/30 pb-1.5">
-              <span className="text-muted-foreground flex items-center gap-1.5"><Truck size={12} className="text-blue-500" /> শিপড (Shipped)</span>
-              <span className="font-bold text-blue-600 font-sans">{toBanglaNumber(analytics.shippedOrders || 0)} টি</span>
-            </div>
-            
-            <div className="flex justify-between items-center border-b border-border/30 pb-1.5">
-              <span className="text-muted-foreground flex items-center gap-1.5"><CheckCircle2 size={12} className="text-emerald-500" /> ডেলিভারড (Delivered)</span>
-              <span className="font-bold text-emerald-600 font-sans">{toBanglaNumber(analytics.deliveredOrders || 0)} টি</span>
-            </div>
-            
-            <div className="flex justify-between items-center border-b border-border/30 pb-1.5">
-              <span className="text-muted-foreground flex items-center gap-1.5"><XCircle size={12} className="text-rose-500" /> বাতিলকৃত (Cancelled)</span>
-              <span className="font-bold text-rose-600 font-sans">{toBanglaNumber(analytics.cancelledOrders || 0)} টি</span>
-            </div>
-            
-            <div className="flex justify-between items-center pt-1">
-              <span className="text-foreground font-extrabold flex items-center gap-1.5"><Activity size={12} className="text-foreground" /> সর্বমোট অর্ডার (Total)</span>
-              <span className="font-extrabold text-foreground font-sans">{toBanglaNumber(analytics.totalOrders || 0)} টি</span>
-            </div>
           </div>
         </div>
       </div>

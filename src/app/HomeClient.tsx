@@ -317,8 +317,23 @@ export default function HomeClient() {
           </div>
 
           {filteredProducts.length === 0 ? (
-            <div className="py-20 text-center text-muted-foreground">
-              দুঃখিত, আপনার অনুসন্ধান অনুযায়ী কোনো পোশাক পাওয়া যায়নি। অনুগ্রহ করে অন্য কি-ওয়ার্ড দিয়ে খুঁজুন।
+            <div className="py-20 flex flex-col items-center gap-4 text-center">
+              <div className="w-20 h-20 rounded-full bg-secondary flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-10 h-10 text-muted-foreground">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-lg font-extrabold text-foreground">কোনো পোশাক পাওয়া যায়নি</p>
+                <p className="text-sm text-muted-foreground mt-1">"<span className="font-semibold text-foreground">{searchQuery}</span>" এর জন্য কোনো ফলাফল নেই।</p>
+                <p className="text-xs text-muted-foreground mt-1">অন্য কি-ওয়ার্ড ব্যবহার করুন অথবা সব পোশাক ব্রাউজ করুন।</p>
+              </div>
+              <button
+                onClick={() => setSearchQuery('')}
+                className="mt-2 py-2.5 px-6 bg-primary text-white text-sm font-bold rounded-full cursor-pointer border-none hover:bg-primary/90 transition-colors"
+              >
+                সব পোশাক দেখুন
+              </button>
             </div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
@@ -396,7 +411,7 @@ export default function HomeClient() {
                                   }
                                 } catch (e) {}
                               }
-                              return `৳ ${formatBanglaPriceWithCommas(activePrice)}`;
+                              return formatBanglaPriceWithCommas(activePrice);
                             })()}
                           </span>
                           <Link
@@ -466,24 +481,40 @@ export default function HomeClient() {
           </div>
 
           {/* Dynamic Category-wise Showcase Stack */}
-          {categoriesList.map((cat, idx) => {
-            const catProducts = productsList.filter((p) => p.loc === cat.name);
-            return (
-              <CategoryShowcase
-                key={cat.id || idx}
-                sectionId={`category-${idx + 2}`}
-                title={cat.name}
-                englishTitle={cat.englishName || cat.name.toUpperCase()}
-                bannerImg={{ src: cat.bannerUrl || getCategoryDefaultBanner(cat.name) }}
-                products={catProducts}
-                openSpotlight={openSpotlight}
-                addToCart={(product, size) => addToCart(product, 1, size)}
-                showToast={showToast}
-                bannerSubtitle={cat.bannerSubtitle}
-                bannerDescription={cat.bannerDescription}
-              />
-            );
-          })}
+          {isLoading ? (
+            <div className="max-w-[1440px] mx-auto px-4 md:px-8 py-8">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+                {[...Array(8)].map((_, i) => (
+                  <div key={i} className="flex flex-col gap-3 animate-pulse">
+                    <div className="aspect-[3/4] bg-slate-200 rounded" />
+                    <div className="h-3 bg-slate-200 rounded w-3/4" />
+                    <div className="h-3 bg-slate-100 rounded w-1/2" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <>
+              {categoriesList.map((cat, idx) => {
+                const catProducts = productsList.filter((p) => p.loc === cat.name);
+                return (
+                  <CategoryShowcase
+                    key={cat.id || idx}
+                    sectionId={`category-${idx + 2}`}
+                    title={cat.name}
+                    englishTitle={cat.englishName || cat.name.toUpperCase()}
+                    bannerImg={{ src: cat.bannerUrl || getCategoryDefaultBanner(cat.name) }}
+                    products={catProducts}
+                    openSpotlight={openSpotlight}
+                    addToCart={(product, size) => addToCart(product, 1, size)}
+                    showToast={showToast}
+                    bannerSubtitle={cat.bannerSubtitle}
+                    bannerDescription={cat.bannerDescription}
+                  />
+                );
+              })}
+            </>
+          )}
         </main>
       )}
 

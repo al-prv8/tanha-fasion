@@ -132,13 +132,30 @@ export default function ShowroomsTab({ branches, onCreateBranch, onUpdateBranch,
             সুপার অ্যাডমিন এখান থেকে নতুন শোরুমের অবস্থান যুক্ত করতে পারেন এবং তাদের বিবরণ পরিবর্তন বা বাতিল করতে পারেন।
           </p>
         </div>
-        <button
-          onClick={openAddModal}
-          className="bg-primary hover:bg-primary/95 text-white font-bold text-xs py-3 px-5 rounded-xl border-none cursor-pointer flex items-center justify-center gap-2 transition-all shadow-xs self-start"
-        >
-          <Plus size={15} />
-          <span>শোরুম যুক্ত করুন</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <div className="text-xs text-muted-foreground font-bold font-sans bg-white border border-border/80 px-3.5 py-2 rounded-xl shadow-3xs">
+            মোট: <span className="text-primary font-black">{toBanglaNumber(branches.length)}</span> টি
+          </div>
+          {onRefresh && (
+            <button
+              type="button"
+              onClick={onRefresh}
+              disabled={isLoading}
+              className="py-2 px-4 bg-white hover:bg-slate-50 text-slate-700 border border-border rounded-xl transition-all cursor-pointer shadow-3xs flex items-center justify-center gap-1.5 text-xs font-bold disabled:opacity-50"
+              title="রিলোড করুন"
+            >
+              <RefreshCw size={13} className={isLoading ? "animate-spin" : ""} />
+              <span>রিফ্রেশ</span>
+            </button>
+          )}
+          <button
+            onClick={() => { setEditingBranch(null); setIsModalOpen(true); }}
+            className="bg-primary hover:bg-primary/95 text-white font-bold text-xs py-3 px-5 rounded-xl border-none cursor-pointer flex items-center justify-center gap-2 transition-all shadow-xs"
+          >
+            <Plus size={15} />
+            <span>শোরুম যুক্ত করুন</span>
+          </button>
+        </div>
       </div>
 
       {/* Control bar */}
@@ -156,17 +173,6 @@ export default function ShowroomsTab({ branches, onCreateBranch, onUpdateBranch,
               <Store size={15} />
             </div>
           </div>
-          {onRefresh && (
-            <button
-              type="button"
-              onClick={onRefresh}
-              className="p-2 bg-white hover:bg-slate-50 text-slate-655 hover:text-slate-800 border border-border rounded-xl transition-all cursor-pointer shadow-3xs flex items-center justify-center gap-1.5"
-              title="রিলোড করুন"
-            >
-              <RefreshCw size={13} className={isLoading ? "animate-spin" : ""} />
-              <span className="text-[10px] font-bold hidden sm:inline">রিফ্রেশ</span>
-            </button>
-          )}
         </div>
       </div>
 

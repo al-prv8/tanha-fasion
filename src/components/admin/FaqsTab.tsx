@@ -173,18 +173,27 @@ export default function FaqsTab({ showToast, onRefresh, isLoading = false }: Faq
           <p className="text-xs text-muted-foreground mt-0.5">হোমপেজে প্রদর্শিত সচরাচর জিজ্ঞাসিত প্রশ্ন ও উত্তরগুলোর তালিকা এবং সর্টিং ক্রম নিয়ন্ত্রণ করুন।</p>
         </div>
 
-        <button 
-          onClick={() => {
-            if (editingId) {
-              handleCancelEdit();
-            }
-            setShowAddForm(!showAddForm);
-          }}
-          className="inline-flex items-center gap-1.5 py-2.5 px-4 bg-primary hover:bg-primary/95 text-white text-xs font-bold rounded-xl cursor-pointer transition-all shadow-2xs border-none"
-        >
-          {showAddForm || editingId ? <X size={14} /> : <Plus size={14} />}
-          <span>{showAddForm || editingId ? "ফর্ম বন্ধ করুন" : "নতুন এফএকিউ যুক্ত করুন (Add FAQ)"}</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <div className="text-xs text-muted-foreground font-bold font-sans bg-white border border-border/80 px-3.5 py-2 rounded-xl shadow-3xs">মোট: <span className="text-primary font-black">{toBanglaNumber(faqs.length)}</span> টি</div>
+          {onRefresh && (
+            <button type="button" onClick={async () => { await fetchFaqs(); if (onRefresh) onRefresh(); }} disabled={loading || isLoading} className="py-2 px-4 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl transition-all cursor-pointer shadow-3xs flex items-center justify-center gap-1.5 text-xs font-bold disabled:opacity-50">
+              <RefreshCw size={13} className={(loading || isLoading) ? 'animate-spin' : ''} />
+              <span>রিফ্রেশ</span>
+            </button>
+          )}
+          <button 
+            onClick={() => {
+              if (editingId) {
+                handleCancelEdit();
+              }
+              setShowAddForm(!showAddForm);
+            }}
+            className="inline-flex items-center gap-1.5 py-2.5 px-4 bg-primary hover:bg-primary/95 text-white text-xs font-bold rounded-xl cursor-pointer transition-all shadow-2xs border-none"
+          >
+            {showAddForm || editingId ? <X size={14} /> : <Plus size={14} />}
+            <span>{showAddForm || editingId ? "ফর্ম বন্ধ করুন" : "নতুন এফএকিউ যুক্ত করুন (Add FAQ)"}</span>
+          </button>
+        </div>
       </div>
 
       {/* 1. CREATOR PANEL (Toggled at Top) */}
@@ -271,7 +280,6 @@ export default function FaqsTab({ showToast, onRefresh, isLoading = false }: Faq
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 border-b border-border/40 pb-4">
           <div>
             <h3 className="text-sm font-bold font-display font-black">সক্রিয় এফএকিউ তালিকা</h3>
-            <p className="text-[10px] text-muted-foreground mt-0.5">মোট {toBanglaNumber(faqs.length)}টি এফএকিউ ডাটাবেজে রয়েছে।</p>
           </div>
           
           {/* Quick Search */}
@@ -286,18 +294,6 @@ export default function FaqsTab({ showToast, onRefresh, isLoading = false }: Faq
               />
               <Search size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
             </div>
-            <button
-              type="button"
-              onClick={async () => {
-                await fetchFaqs();
-                if (onRefresh) onRefresh();
-              }}
-              className="p-2 bg-white hover:bg-slate-50 text-slate-655 hover:text-slate-800 border border-slate-200 rounded-xl transition-all cursor-pointer shadow-3xs flex items-center justify-center gap-1.5"
-              title="রিলোড করুন"
-            >
-              <RefreshCw size={13} className={(loading || isLoading) ? "animate-spin" : ""} />
-              <span className="text-[10px] font-bold hidden sm:inline">রিফ্রেশ</span>
-            </button>
           </div>
         </div>
 

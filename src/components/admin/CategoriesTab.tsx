@@ -226,25 +226,42 @@ export default function CategoriesTab({
           <p className="text-xs text-muted-foreground mt-0.5">হোমপেজে প্রদর্শিত টপ ক্যাটাগরি, ব্যানার ইমেজ, ও সর্টিং ক্রম নিয়ন্ত্রণ করুন।</p>
         </div>
 
-        <button 
-          onClick={() => {
-            if (editingId) {
-              setEditingId(null);
-              setEditingName("");
-              setEditingEnglishName("");
-              setEditingImgUrl("");
-              setEditingBannerUrl("");
-              setEditingOrder(0);
-              setEditingBannerSubtitle("");
-              setEditingBannerDescription("");
-            }
-            setShowAddForm(!showAddForm);
-          }}
-          className="inline-flex items-center gap-1.5 py-2.5 px-4 bg-primary hover:bg-primary/95 text-white text-xs font-bold rounded-xl cursor-pointer transition-all shadow-2xs border-none"
-        >
-          {showAddForm || editingId ? <X size={14} /> : <Plus size={14} />}
-          <span>{showAddForm || editingId ? "ফর্ম বন্ধ করুন" : "নতুন ক্যাটাগরি যুক্ত করুন (Add Category)"}</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <div className="text-xs text-muted-foreground font-bold font-sans bg-white border border-border/80 px-3.5 py-2 rounded-xl shadow-3xs">
+            মোট: <span className="text-primary font-black">{toBanglaNumber(categories.length)}</span> টি
+          </div>
+          {onRefresh && (
+            <button
+              type="button"
+              onClick={onRefresh}
+              disabled={isLoading}
+              className="py-2 px-4 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl transition-all cursor-pointer shadow-3xs flex items-center justify-center gap-1.5 text-xs font-bold disabled:opacity-50"
+              title="রিলোড করুন"
+            >
+              <RefreshCw size={13} className={isLoading ? "animate-spin" : ""} />
+              <span>রিফ্রেশ</span>
+            </button>
+          )}
+          <button 
+            onClick={() => {
+              if (editingId) {
+                setEditingId(null);
+                setEditingName("");
+                setEditingEnglishName("");
+                setEditingImgUrl("");
+                setEditingBannerUrl("");
+                setEditingOrder(0);
+                setEditingBannerSubtitle("");
+                setEditingBannerDescription("");
+              }
+              setShowAddForm(!showAddForm);
+            }}
+            className="inline-flex items-center gap-1.5 py-2.5 px-4 bg-primary hover:bg-primary/95 text-white text-xs font-bold rounded-xl cursor-pointer transition-all shadow-2xs border-none"
+          >
+            {showAddForm || editingId ? <X size={14} /> : <Plus size={14} />}
+            <span>{showAddForm || editingId ? "ফর্ম বন্ধ করুন" : "নতুন ক্যাটাগরি যুক্ত করুন (Add Category)"}</span>
+          </button>
+        </div>
       </div>
 
       {/* 1. CREATOR PANEL (Toggled at Top) */}
@@ -552,19 +569,7 @@ export default function CategoriesTab({
         <div className="flex justify-between items-center mb-6">
           <div>
             <h3 className="text-sm font-bold font-display font-black">সক্রিয় ক্যাটাগরি তালিকা</h3>
-            <p className="text-[10px] text-muted-foreground mt-0.5">মোট {toBanglaNumber(categories.length)}টি ক্যাটাগরি ডাটাবেজে রয়েছে।</p>
           </div>
-          {onRefresh && (
-            <button
-              type="button"
-              onClick={onRefresh}
-              className="p-2 bg-white hover:bg-slate-50 text-slate-655 hover:text-slate-800 border border-slate-200 rounded-xl transition-all cursor-pointer shadow-3xs flex items-center justify-center gap-1.5"
-              title="রিলোড করুন"
-            >
-              <RefreshCw size={13} className={isLoading ? "animate-spin" : ""} />
-              <span className="text-[10px] font-bold hidden sm:inline">রিফ্রেশ</span>
-            </button>
-          )}
         </div>
 
         {categories.length === 0 ? (
