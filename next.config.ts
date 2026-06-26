@@ -15,12 +15,12 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: "https",
-        hostname: "tanhafasion.com",
+        hostname: "tanhafashion.com",
         pathname: "/uploads/**",
       },
       {
         protocol: "https",
-        hostname: "tanhafasion.com",
+        hostname: "tanhafashion.com",
         pathname: "/assets/**",
       },
     ],

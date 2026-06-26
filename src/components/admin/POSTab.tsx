@@ -33,6 +33,7 @@ interface Product {
   imgUrl: string;
   sizesJson: string; // JSON string e.g. '{"S":10,"M":15,"L":15,"XL":5}'
   showroomSizesJson?: string;
+  sizePricesJson?: string;
 }
 
 interface CartItem {
@@ -47,6 +48,7 @@ interface CartItem {
 
 interface POSTabProps {
   embedded?: boolean;
+  activeBranchId?: string;
 }
 
 const parseSplitPayment = (methodStr: string) => {
@@ -65,13 +67,17 @@ const parseSplitPayment = (methodStr: string) => {
   return result.length > 0 ? result : null;
 };
 
-export default function POSTab({ embedded = false }: POSTabProps) {
+export default function POSTab({ embedded = false, activeBranchId }: POSTabProps) {
   const router = useRouter();
   
   // Auth state
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminUser, setAdminUser] = useState<any>(null);
   const [authChecking, setAuthChecking] = useState(true);
+
+  // Branch states for SUPER_ADMIN
+  const [branches, setBranches] = useState<any[]>([]);
+  const [posActiveBranchId, setPosActiveBranchId] = useState<string>("");
 
   // POS operations state
   const [products, setProducts] = useState<Product[]>([]);
@@ -123,12 +129,12 @@ export default function POSTab({ embedded = false }: POSTabProps) {
         throw new Error("Unauthorized");
       })
       .then(data => {
-        if (data.user && data.user.role === "ADMIN") {
+        const isAllowed = data.user && (data.user.role === "ADMIN" || data.user.role === "SUPER_ADMIN" || data.user.role === "BRANCH_MANAGER");
+        if (isAllowed) {
           setIsAdmin(true);
           setAdminUser(data.user);
-          loadPOSData();
         } else {
-          toast.error("প্রবেশাধিকার সংরক্ষিত। শুধুমাত্র অ্যাডমিনদের জন্য।");
+          toast.error("প্রবেশাধিকার সংরক্ষিত। শুধুমাত্র অ্যাডমিন ও ম্যানেজারদের জন্য।");
           if (!embedded) {
             router.push("/admin/showroom");
           }
@@ -143,14 +149,43 @@ export default function POSTab({ embedded = false }: POSTabProps) {
       .finally(() => {
         setAuthChecking(false);
       });
-  }, [embedded]);
+  }, [embedded, router]);
+
+  // Load branches list if SUPER_ADMIN
+  useEffect(() => {
+    if (!isAdmin || !adminUser) return;
+    const userRole = adminUser.role === "ADMIN" ? "SUPER_ADMIN" : adminUser.role;
+    if (userRole === "SUPER_ADMIN") {
+      fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/branches`, { credentials: "include" })
+        .then(res => {
+          if (res.ok) return res.json();
+          throw new Error("Failed to load branches");
+        })
+        .then(data => {
+          setBranches(data);
+          if (data.length > 0) {
+            setPosActiveBranchId(data[0].id);
+          }
+        })
+        .catch(err => console.error("Error loading branches:", err));
+    }
+  }, [isAdmin, adminUser]);
+
+  // Reload POS data when branch filters or authentication states update
+  useEffect(() => {
+    if (isAdmin) {
+      const resolvedBranchId = activeBranchId || posActiveBranchId || adminUser?.branchId || "";
+      loadPOSData(resolvedBranchId);
+    }
+  }, [activeBranchId, posActiveBranchId, isAdmin, adminUser]);
 
   // Fetch initial product catalog, categories and customer logs
-  const loadPOSData = async () => {
+  const loadPOSData = async (userBranchId?: string) => {
     setIsLoading(true);
     try {
+      const branchQuery = userBranchId ? `?branchId=${userBranchId}` : "";
       const [prodRes, catRes] = await Promise.all([
-        fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/products`),
+        fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/products${branchQuery}`),
         fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/categories`)
       ]);
 
@@ -312,6 +347,18 @@ export default function POSTab({ embedded = false }: POSTabProps) {
       return;
     }
 
+    let resolvedPrice = product.price;
+    if (product.sizePricesJson) {
+      try {
+        const sizePrices = typeof product.sizePricesJson === "string" 
+          ? JSON.parse(product.sizePricesJson) 
+          : product.sizePricesJson;
+        if (sizePrices && sizePrices[size] !== undefined && sizePrices[size] !== null && Number(sizePrices[size]) > 0) {
+          resolvedPrice = Number(sizePrices[size]);
+        }
+      } catch (e) {}
+    }
+
     setCart(prev => {
       const existing = prev.find(item => item.id === product.id && item.size === size);
       if (existing) {
@@ -322,7 +369,7 @@ export default function POSTab({ embedded = false }: POSTabProps) {
         }
         return prev.map(item => 
           item.id === product.id && item.size === size 
-            ? { ...item, quantity: targetQty } 
+            ? { ...item, quantity: targetQty, price: resolvedPrice } 
             : item
         );
       }
@@ -336,7 +383,7 @@ export default function POSTab({ embedded = false }: POSTabProps) {
           id: product.id, 
           sku: product.sku, 
           name: product.name, 
-          price: product.price, 
+          price: resolvedPrice, 
           quantity: qty, 
           size, 
           availableStock: stock 
@@ -480,6 +527,7 @@ export default function POSTab({ embedded = false }: POSTabProps) {
         paymentMethod: finalPaymentMethod,
         trxId: finalTrxId,
         shippingMethod: "showroom",
+        branchId: activeBranchId || posActiveBranchId || adminUser?.branchId || null,
         items: cart.map(item => ({
           id: item.id,
           name: item.name,
@@ -582,9 +630,25 @@ export default function POSTab({ embedded = false }: POSTabProps) {
           </div>
 
           <div className="flex items-center gap-4">
+            {!embedded && adminUser?.role === "SUPER_ADMIN" && branches.length > 0 && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-muted-foreground">ব্র্যাঞ্চ:</span>
+                <select
+                  value={posActiveBranchId}
+                  onChange={(e) => setPosActiveBranchId(e.target.value)}
+                  className="px-3 py-1.5 border border-border rounded-xl text-xs bg-white text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary font-semibold min-w-[150px]"
+                >
+                  {branches.map(b => (
+                    <option key={b.id} value={b.id}>{b.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div className="text-right hidden md:block">
               <div className="text-xs font-bold text-slate-800">{adminUser?.name || "অ্যাডমিন"}</div>
-              <div className="text-[9px] text-muted-foreground mt-0.5">বসুন্ধরা সিটি শোরুম</div>
+              <div className="text-[9px] text-muted-foreground mt-0.5">
+                {posActiveBranchId ? branches.find(b => b.id === posActiveBranchId)?.name : "বসুন্ধরা সিটি শোরুম"}
+              </div>
             </div>
             <span className="text-[9px] bg-amber-100 text-amber-700 font-bold px-2.5 py-1 rounded-full border border-amber-250 uppercase tracking-wider">
               Showroom Counter
@@ -1285,8 +1349,18 @@ export default function POSTab({ embedded = false }: POSTabProps) {
         <div id="pos-receipt-print-area" className="hidden print:block">
           <div className="receipt-center">
             <h2 className="receipt-bold" style={{ fontSize: "14px", margin: "0 0 2px 0" }}>তানহা ফ্যাশন</h2>
-            <div style={{ fontSize: "9px" }}>বসুন্ধরা সিটি শোরুম, লেভেল-৩, ঢাকা</div>
-            <div style={{ fontSize: "9px" }}>হটলাইন: ০১৬০০০৮৬৭৭৩</div>
+            {receiptOrder.branch ? (
+              <>
+                <div style={{ fontSize: "10px", fontWeight: "bold" }}>{receiptOrder.branch.name}</div>
+                <div style={{ fontSize: "9px" }}>{receiptOrder.branch.address || receiptOrder.branch.city}</div>
+                <div style={{ fontSize: "9px" }}>হটলাইন: {receiptOrder.branch.phone || "০১৬০০০৮৬৭৭৩"}</div>
+              </>
+            ) : (
+              <>
+                <div style={{ fontSize: "9px" }}>বসুন্ধরা সিটি শোরুম, লেভেল-৩, ঢাকা</div>
+                <div style={{ fontSize: "9px" }}>হটলাইন: ০১৬০০০৮৬৭৭৩</div>
+              </>
+            )}
             <div className="receipt-divider"></div>
             <div className="receipt-bold" style={{ fontSize: "10px" }}>বিক্রয় রশিদ (POS SALES RECEIPT)</div>
           </div>
@@ -1318,7 +1392,7 @@ export default function POSTab({ embedded = false }: POSTabProps) {
             </thead>
             <tbody>
               {receiptOrder.items && receiptOrder.items.map((item: any, idx: number) => {
-                const pName = item.name || "ডিজাইনার ড্রেস";
+                const pName = item.product?.name || item.name || "ডিজাইনার ড্রেস";
                 return (
                   <tr key={idx}>
                     <td>{pName}</td>

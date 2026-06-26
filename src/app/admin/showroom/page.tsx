@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Lock, Store, Barcode, ArrowLeft, User, ShieldCheck, LogOut, Loader2, Package, LayoutDashboard, Truck, Menu, X, ShoppingBag, Wallet, Trash2, Plus } from "lucide-react";
 
 const parseSplitPayment = (methodStr: string) => {
@@ -46,6 +47,7 @@ const DEFAULT_CATEGORIES = [
 ];
 
 export default function ShowroomAdminPage() {
+  const router = useRouter();
   // Authentication State
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -53,6 +55,10 @@ export default function ShowroomAdminPage() {
   const [adminUser, setAdminUser] = useState<any>(null);
   const [authError, setAuthError] = useState("");
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+
+  // Branch Selector states
+  const [branches, setBranches] = useState<any[]>([]);
+  const [activeBranchId, setActiveBranchId] = useState<string>("");
 
   // Active Tab State: "showroom" | "pos" | "purchases" | "orders" | "expenses"
   const [activeTab, setActiveTab] = useState<"showroom" | "pos" | "purchases" | "orders" | "expenses">("showroom");
@@ -104,9 +110,38 @@ export default function ShowroomAdminPage() {
         throw new Error("No session");
       })
       .then(data => {
-        if (data.user && data.user.role === "ADMIN") {
-          setIsAuthenticated(true);
-          setAdminUser(data.user);
+        const isAllowed = data.user && (data.user.role === "ADMIN" || data.user.role === "SUPER_ADMIN" || data.user.role === "BRANCH_MANAGER");
+        if (isAllowed) {
+          const userRole = data.user.role === "ADMIN" ? "SUPER_ADMIN" : data.user.role;
+          if (userRole === "SUPER_ADMIN") {
+            setIsAuthenticated(true);
+            setAdminUser(data.user);
+          } else if (userRole === "BRANCH_MANAGER") {
+            const hasShowroom = !data.user.allowedModules || data.user.allowedModules.split(",").some((m: string) => m.trim().startsWith("showroom_"));
+            if (hasShowroom) {
+              setIsAuthenticated(true);
+              setAdminUser(data.user);
+              
+              // land on first permitted showroom tab
+              const allowed = data.user.allowedModules ? data.user.allowedModules.split(",").map((m: string) => m.trim()) : [];
+              const firstShowroom = ["showroom", "pos", "purchases", "orders", "expenses"].find(tabId => {
+                const map: { [key: string]: string } = {
+                  showroom: "showroom_stock",
+                  pos: "showroom_pos",
+                  purchases: "showroom_purchases",
+                  orders: "showroom_orders",
+                  expenses: "showroom_expenses"
+                };
+                const moduleKey = map[tabId];
+                return !data.user.allowedModules || allowed.includes(moduleKey);
+              });
+              if (firstShowroom) {
+                setActiveTab(firstShowroom as any);
+              }
+            } else {
+              router.push("/admin");
+            }
+          }
         }
       })
       .catch(() => {
@@ -115,24 +150,50 @@ export default function ShowroomAdminPage() {
       .finally(() => {
         setIsCheckingAuth(false);
       });
-  }, []);
+  }, [router]);
 
-  // Fetch data once authenticated
+  // Fetch branches list if SUPER_ADMIN
+  useEffect(() => {
+    if (!isAuthenticated || !adminUser) return;
+    const userRole = adminUser.role === "ADMIN" ? "SUPER_ADMIN" : adminUser.role;
+    if (userRole === "SUPER_ADMIN") {
+      fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/branches`, { credentials: "include" })
+        .then(res => {
+          if (res.ok) return res.json();
+          throw new Error("Failed to load branches");
+        })
+        .then(data => {
+          setBranches(data);
+          if (data.length > 0) {
+            setActiveBranchId(data[0].id);
+          }
+        })
+        .catch(err => console.error("Error loading branches:", err));
+    } else if (adminUser.branchId) {
+      setActiveBranchId(adminUser.branchId);
+    }
+  }, [isAuthenticated, adminUser]);
+
+  // Fetch data once authenticated and activeBranchId is selected
   useEffect(() => {
     if (!isAuthenticated) return;
+    const userRole = adminUser?.role === "ADMIN" ? "SUPER_ADMIN" : adminUser?.role;
+    if (userRole === "SUPER_ADMIN" && !activeBranchId) return;
+
     fetchData();
-  }, [isAuthenticated]);
+  }, [isAuthenticated, activeBranchId, adminUser]);
 
   const fetchData = async () => {
     setIsLoading(true);
     try {
+      const branchQuery = activeBranchId ? `?branchId=${activeBranchId}` : "";
       const [productsRes, categoriesRes, suppliersRes, purchasesRes, ordersRes, expensesRes] = await Promise.all([
-        authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/products`),
+        authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/products${branchQuery}`),
         authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/categories`),
         authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/suppliers`),
-        authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/purchases`),
-        authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/orders`),
-        authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/expenses`)
+        authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/purchases${branchQuery}`),
+        authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/orders${branchQuery}`),
+        authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/expenses${branchQuery}`)
       ]);
 
       if (productsRes.ok) {
@@ -172,13 +233,47 @@ export default function ShowroomAdminPage() {
 
       if (res.ok) {
         const data = await res.json();
-        if (data.user && data.user.role === "ADMIN") {
-          setIsAuthenticated(true);
-          setAdminUser(data.user);
-          setEmail("");
-          setPassword("");
+        const isAllowed = data.user && (data.user.role === "ADMIN" || data.user.role === "SUPER_ADMIN" || data.user.role === "BRANCH_MANAGER");
+        if (isAllowed) {
+          const userRole = data.user.role === "ADMIN" ? "SUPER_ADMIN" : data.user.role;
+          if (userRole === "SUPER_ADMIN") {
+            setIsAuthenticated(true);
+            setAdminUser(data.user);
+            setEmail("");
+            setPassword("");
+          } else if (userRole === "BRANCH_MANAGER") {
+            const hasShowroom = !data.user.allowedModules || data.user.allowedModules.split(",").some((m: string) => m.trim().startsWith("showroom_"));
+            if (hasShowroom) {
+              setIsAuthenticated(true);
+              setAdminUser(data.user);
+              setEmail("");
+              setPassword("");
+              
+              // land on first permitted showroom tab
+              const allowed = data.user.allowedModules ? data.user.allowedModules.split(",").map((m: string) => m.trim()) : [];
+              const firstShowroom = ["showroom", "pos", "purchases", "orders", "expenses"].find(tabId => {
+                const map: { [key: string]: string } = {
+                  showroom: "showroom_stock",
+                  pos: "showroom_pos",
+                  purchases: "showroom_purchases",
+                  orders: "showroom_orders",
+                  expenses: "showroom_expenses"
+                };
+                const moduleKey = map[tabId];
+                return !data.user.allowedModules || allowed.includes(moduleKey);
+              });
+              if (firstShowroom) {
+                setActiveTab(firstShowroom as any);
+              }
+            } else {
+              // Redirect to online admin
+              setIsAuthenticated(true);
+              setAdminUser(data.user);
+              router.push("/admin");
+            }
+          }
         } else {
-          setAuthError("আপনার অ্যাডমিন পারমিশন নেই।");
+          setAuthError("আপনার অ্যাডমিন বা শোরুম ম্যানেজার পারমিশন নেই।");
           await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/auth/logout`, { method: "POST", credentials: "include" });
         }
       } else {
@@ -208,7 +303,7 @@ export default function ShowroomAdminPage() {
       const res = await authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/products/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ showroomSizesJson })
+        body: JSON.stringify({ showroomSizesJson, branchId: activeBranchId })
       });
       if (res.ok) {
         showToast("স্টক সফলভাবে সংরক্ষণ করা হয়েছে!");
@@ -228,7 +323,7 @@ export default function ShowroomAdminPage() {
       const res = await authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/products/${id}/transfer-stock`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ size, quantity, direction })
+        body: JSON.stringify({ size, quantity, direction, branchId: activeBranchId })
       });
       if (res.ok) {
         showToast("স্টক সফলভাবে স্থানান্তর করা হয়েছে!");
@@ -288,7 +383,7 @@ export default function ShowroomAdminPage() {
       const res = await authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/purchases`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...purchasePayload, target: "showroom" }) // Force showroom target!
+        body: JSON.stringify({ ...purchasePayload, target: "showroom", branchId: activeBranchId }) // Force showroom target!
       });
       if (res.ok) {
         showToast("পাইকারি ক্রয় সফলভাবে নথিভুক্ত এবং শোরুম স্টক হালনাগাদ করা হয়েছে!");
@@ -318,7 +413,8 @@ export default function ShowroomAdminPage() {
           category: expenseCategory,
           amount: Number(expenseAmount),
           description: expenseDescription,
-          date: expenseDate
+          date: expenseDate,
+          branchId: activeBranchId
         })
       });
       if (res.ok) {
@@ -439,6 +535,21 @@ export default function ShowroomAdminPage() {
     : DEFAULT_CATEGORIES;
 
   const renderSidebar = (onCloseMobile?: () => void) => {
+    const hasModuleAccess = (moduleKey: string) => {
+      if (!adminUser) return false;
+      const role = adminUser.role === "ADMIN" ? "SUPER_ADMIN" : adminUser.role;
+      if (role === "SUPER_ADMIN") return true;
+      if (role === "BRANCH_MANAGER") {
+        if (!adminUser.allowedModules) return true; // Default fallback to allow all showroom modules
+        const allowed = adminUser.allowedModules.split(",").map((m: string) => m.trim());
+        return allowed.includes(moduleKey);
+      }
+      return false;
+    };
+
+    const hasOnlineAccess = adminUser?.role === "SUPER_ADMIN" || adminUser?.role === "ADMIN" || 
+      (adminUser?.allowedModules && adminUser.allowedModules.split(",").some((m: string) => m.trim().startsWith("online_")));
+
     return (
       <div className="w-64 bg-card border-r border-border/80 flex-shrink-0 flex flex-col h-full grain-bg">
         {/* Brand Header */}
@@ -467,96 +578,112 @@ export default function ShowroomAdminPage() {
               <span className="truncate">{adminUser?.name || "অ্যাডমিন"}</span>
               <ShieldCheck size={12} className="text-primary flex-shrink-0" />
             </div>
-            <div className="text-[10px] text-muted-foreground font-semibold mt-0.5">শোরুম ম্যানেজার</div>
+            <div className="text-[10px] text-muted-foreground font-semibold mt-0.5">
+              {adminUser?.role === "SUPER_ADMIN" || adminUser?.role === "ADMIN" ? "সুপার অ্যাডমিন" : "শোরুম ম্যানেজার"}
+            </div>
           </div>
         </div>
 
         {/* Navigation List */}
         <nav className="flex-grow p-4 flex flex-col gap-2 overflow-y-auto">
-          <button
-            onClick={() => {
-              setActiveTab("pos");
-              if (onCloseMobile) onCloseMobile();
-            }}
-            className={`w-full text-left py-3 px-4 rounded-xl font-bold text-xs flex items-center gap-3 border transition-all cursor-pointer ${
-              activeTab === "pos"
-                ? "bg-primary border-primary text-white shadow-sm"
-                : "bg-transparent border-transparent text-muted-foreground hover:text-foreground hover:bg-secondary/60 hover:border-border/40"
-            }`}
-          >
-            <span><Store size={16} /></span>
-            <span>পিওএস শোরুম বিক্রয় (POS)</span>
-          </button>
+          {hasModuleAccess("showroom_pos") && (
+            <button
+              onClick={() => {
+                setActiveTab("pos");
+                if (onCloseMobile) onCloseMobile();
+              }}
+              className={`w-full text-left py-3 px-4 rounded-xl font-bold text-xs flex items-center gap-3 border transition-all cursor-pointer ${
+                activeTab === "pos"
+                  ? "bg-primary border-primary text-white shadow-sm"
+                  : "bg-transparent border-transparent text-muted-foreground hover:text-foreground hover:bg-secondary/60 hover:border-border/40"
+              }`}
+            >
+              <span><Store size={16} /></span>
+              <span>পিওএস শোরুম বিক্রয় (POS)</span>
+            </button>
+          )}
 
-          <button
-            onClick={() => {
-              setActiveTab("showroom");
-              if (onCloseMobile) onCloseMobile();
-            }}
-            className={`w-full text-left py-3 px-4 rounded-xl font-bold text-xs flex items-center gap-3 border transition-all cursor-pointer ${
-              activeTab === "showroom"
-                ? "bg-primary border-primary text-white shadow-sm"
-                : "bg-transparent border-transparent text-muted-foreground hover:text-foreground hover:bg-secondary/60 hover:border-border/40"
-            }`}
-          >
-            <span><Barcode size={16} /></span>
-            <span>শোরুম স্টক ও বারকোড</span>
-          </button>
+          {hasModuleAccess("showroom_stock") && (
+            <button
+              onClick={() => {
+                setActiveTab("showroom");
+                if (onCloseMobile) onCloseMobile();
+              }}
+              className={`w-full text-left py-3 px-4 rounded-xl font-bold text-xs flex items-center gap-3 border transition-all cursor-pointer ${
+                activeTab === "showroom"
+                  ? "bg-primary border-primary text-white shadow-sm"
+                  : "bg-transparent border-transparent text-muted-foreground hover:text-foreground hover:bg-secondary/60 hover:border-border/40"
+              }`}
+            >
+              <span><Barcode size={16} /></span>
+              <span>শোরুম স্টক ও বারকোড</span>
+            </button>
+          )}
 
-          <button
-            onClick={() => {
-              setActiveTab("purchases");
-              if (onCloseMobile) onCloseMobile();
-            }}
-            className={`w-full text-left py-3 px-4 rounded-xl font-bold text-xs flex items-center gap-3 border transition-all cursor-pointer ${
-              activeTab === "purchases"
-                ? "bg-primary border-primary text-white shadow-sm"
-                : "bg-transparent border-transparent text-muted-foreground hover:text-foreground hover:bg-secondary/60 hover:border-border/40"
-            }`}
-          >
-            <span><Truck size={16} /></span>
-            <span>পাইকারি ক্রয় (Wholesale)</span>
-          </button>
+          {hasModuleAccess("showroom_purchases") && (
+            <button
+              onClick={() => {
+                setActiveTab("purchases");
+                if (onCloseMobile) onCloseMobile();
+              }}
+              className={`w-full text-left py-3 px-4 rounded-xl font-bold text-xs flex items-center gap-3 border transition-all cursor-pointer ${
+                activeTab === "purchases"
+                  ? "bg-primary border-primary text-white shadow-sm"
+                  : "bg-transparent border-transparent text-muted-foreground hover:text-foreground hover:bg-secondary/60 hover:border-border/40"
+              }`}
+            >
+              <span><Truck size={16} /></span>
+              <span>পাইকারি ক্রয় (Wholesale)</span>
+            </button>
+          )}
 
-          <button
-            onClick={() => {
-              setActiveTab("orders");
-              if (onCloseMobile) onCloseMobile();
-            }}
-            className={`w-full text-left py-3 px-4 rounded-xl font-bold text-xs flex items-center gap-3 border transition-all cursor-pointer ${
-              activeTab === "orders"
-                ? "bg-primary border-primary text-white shadow-sm"
-                : "bg-transparent border-transparent text-muted-foreground hover:text-foreground hover:bg-secondary/60 hover:border-border/40"
-            }`}
-          >
-            <span><ShoppingBag size={16} /></span>
-            <span>বিক্রয় ইতিহাস (Sales History)</span>
-          </button>
+          {hasModuleAccess("showroom_orders") && (
+            <button
+              onClick={() => {
+                setActiveTab("orders");
+                if (onCloseMobile) onCloseMobile();
+              }}
+              className={`w-full text-left py-3 px-4 rounded-xl font-bold text-xs flex items-center gap-3 border transition-all cursor-pointer ${
+                activeTab === "orders"
+                  ? "bg-primary border-primary text-white shadow-sm"
+                  : "bg-transparent border-transparent text-muted-foreground hover:text-foreground hover:bg-secondary/60 hover:border-border/40"
+              }`}
+            >
+              <span><ShoppingBag size={16} /></span>
+              <span>বিক্রয় ইতিহাস (Sales History)</span>
+            </button>
+          )}
 
-          <button
-            onClick={() => {
-              setActiveTab("expenses");
-              if (onCloseMobile) onCloseMobile();
-            }}
-            className={`w-full text-left py-3 px-4 rounded-xl font-bold text-xs flex items-center gap-3 border transition-all cursor-pointer ${
-              activeTab === "expenses"
-                ? "bg-primary border-primary text-white shadow-sm"
-                : "bg-transparent border-transparent text-muted-foreground hover:text-foreground hover:bg-secondary/60 hover:border-border/40"
-            }`}
-          >
-            <span><Wallet size={16} /></span>
-            <span>অন্যান্য ব্যয় (Expenses Log)</span>
-          </button>
+          {hasModuleAccess("showroom_expenses") && (
+            <button
+              onClick={() => {
+                setActiveTab("expenses");
+                if (onCloseMobile) onCloseMobile();
+              }}
+              className={`w-full text-left py-3 px-4 rounded-xl font-bold text-xs flex items-center gap-3 border transition-all cursor-pointer ${
+                activeTab === "expenses"
+                  ? "bg-primary border-primary text-white shadow-sm"
+                  : "bg-transparent border-transparent text-muted-foreground hover:text-foreground hover:bg-secondary/60 hover:border-border/40"
+              }`}
+            >
+              <span><Wallet size={16} /></span>
+              <span>অন্যান্য ব্যয় (Expenses Log)</span>
+            </button>
+          )}
 
-          <div className="h-px bg-border/60 my-2"></div>
+          {hasOnlineAccess && (
+            <>
+              <div className="h-px bg-border/60 my-2"></div>
 
-          <Link
-            href="/admin"
-            className="w-full text-left py-3 px-4 rounded-xl font-bold text-xs flex items-center gap-3 border border-transparent text-muted-foreground hover:text-foreground hover:bg-secondary/60 hover:border-border/40 transition-all no-underline"
-          >
-            <span><LayoutDashboard size={16} className="text-primary" /></span>
-            <span>অনলাইন অ্যাডমিন প্যানেল</span>
-          </Link>
+              <Link
+                href="/admin"
+                className="w-full text-left py-3 px-4 rounded-xl font-bold text-xs flex items-center gap-3 border border-transparent text-muted-foreground hover:text-foreground hover:bg-secondary/60 hover:border-border/40 transition-all no-underline"
+              >
+                <span><LayoutDashboard size={16} className="text-primary" /></span>
+                <span>অনলাইন অ্যাডমিন প্যানেল</span>
+              </Link>
+            </>
+          )}
         </nav>
 
         {/* Footer / Logout */}
@@ -604,6 +731,23 @@ export default function ShowroomAdminPage() {
         </button>
 
         <main className="p-6 md:p-8 flex-grow max-w-[1440px] w-full mx-auto">
+          {adminUser?.role === "SUPER_ADMIN" && branches.length > 0 && (
+            <div className="mb-6 bg-card border border-border/80 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-left">
+              <div>
+                <h4 className="text-xs font-black text-muted-foreground uppercase tracking-wider">আউটলেট ব্র্যাঞ্চ নির্বাচন</h4>
+                <p className="text-[10px] text-muted-foreground mt-0.5 font-semibold">আপনি এখন যেকোনো আউটলেটের স্টক ও ব্যয় পরিচালনা করতে পারেন।</p>
+              </div>
+              <select
+                value={activeBranchId}
+                onChange={(e) => setActiveBranchId(e.target.value)}
+                className="px-4 py-2 border border-border rounded-xl text-xs bg-white text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary font-semibold min-w-[200px]"
+              >
+                {branches.map(b => (
+                  <option key={b.id} value={b.id}>{b.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
           
           {activeTab === "showroom" && (
             <div className="space-y-6">
@@ -664,7 +808,7 @@ export default function ShowroomAdminPage() {
                 <h2 className="text-xl font-extrabold text-slate-900 tracking-tight font-display text-left">শোরুম লাইভ বিক্রয় কাউন্টার (POS Client)</h2>
                 <p className="text-xs text-muted-foreground mt-0.5 text-left">বারকোড স্ক্যানার দিয়ে পোশাক যুক্ত করুন এবং সরাসরি বিক্রয় রশিদ প্রিন্ট করুন।</p>
               </div>
-              <POSTab embedded={true} />
+              <POSTab embedded={true} activeBranchId={activeBranchId} />
             </div>
           )}
 

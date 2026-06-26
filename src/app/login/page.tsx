@@ -46,7 +46,17 @@ function LoginContent() {
   // Redirect if already logged in
   useEffect(() => {
     if (!loading && user) {
-      router.push(redirectPath);
+      if (redirectPath === "/dashboard") {
+        if (user.role === "SUPER_ADMIN" || user.role === "ADMIN") {
+          router.push("/admin");
+        } else if (user.role === "BRANCH_MANAGER") {
+          router.push("/admin/showroom");
+        } else {
+          router.push("/dashboard");
+        }
+      } else {
+        router.push(redirectPath);
+      }
     }
   }, [user, loading, router, redirectPath]);
 
@@ -62,9 +72,6 @@ function LoginContent() {
     if (result.success) {
       setSuccessMsg("লগইন সফল হয়েছে! ড্যাশবোর্ডে নিয়ে যাওয়া হচ্ছে...");
       showToast("লগইন সফল হয়েছে!");
-      setTimeout(() => {
-        router.push(redirectPath);
-      }, 1000);
     } else {
       setErrorMsg(result.message || "ইমেইল অথবা পাসওয়ার্ড ভুল।");
     }

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import Image from "next/image";
-import { Product } from "@/lib/products";
+import { Product, formatBanglaPriceWithCommas } from "@/lib/products";
 import { ShoppingBag, Eye } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -159,7 +159,22 @@ export default function CategoryShowcase({
                 <div className="flex flex-col gap-2 border-t border-border/40 pt-2.5 mt-1">
                   <div className="flex items-center justify-between">
                     <span className="text-xs sm:text-sm font-extrabold text-foreground">
-                      {prod.priceDisplay}
+                      {(() => {
+                        const size = selectedSizes[prod.id] || prod.sizes[0] || "M";
+                        let activePrice = prod.price;
+                        const p = prod as any;
+                        if (p.sizePricesJson) {
+                          try {
+                            const sizePrices = typeof p.sizePricesJson === 'string' 
+                              ? JSON.parse(p.sizePricesJson) 
+                              : p.sizePricesJson;
+                            if (sizePrices && sizePrices[size] !== undefined && sizePrices[size] !== null && Number(sizePrices[size]) > 0) {
+                              activePrice = Number(sizePrices[size]);
+                            }
+                          } catch (e) {}
+                        }
+                        return `৳ ${formatBanglaPriceWithCommas(activePrice)}`;
+                      })()}
                     </span>
                     <Link
                       href={`/products/${prod.id}`}

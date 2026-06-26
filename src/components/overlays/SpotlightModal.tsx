@@ -2,7 +2,7 @@
 
 import React from "react";
 import Image from "next/image";
-import { Product } from "@/lib/products";
+import { Product, formatBanglaPriceWithCommas } from "@/lib/products";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -67,7 +67,26 @@ export default function SpotlightModal({
           
           {modalData.product && (
             <>
-              <div className="text-sm font-semibold text-foreground mt-5 mb-2">সাইজ নির্বাচন করুন:</div>
+              <div className="flex justify-between items-center mt-5 mb-2">
+                <span className="text-sm font-semibold text-foreground">সাইজ নির্বাচন করুন:</span>
+                <span className="text-base font-extrabold text-primary">
+                  {(() => {
+                    const prod = modalData.product as any;
+                    let activePrice = prod.price;
+                    if (prod.sizePricesJson) {
+                      try {
+                        const sizePrices = typeof prod.sizePricesJson === 'string' 
+                          ? JSON.parse(prod.sizePricesJson) 
+                          : prod.sizePricesJson;
+                        if (sizePrices && sizePrices[selectedSize] !== undefined && sizePrices[selectedSize] !== null && Number(sizePrices[selectedSize]) > 0) {
+                          activePrice = Number(sizePrices[selectedSize]);
+                        }
+                      } catch (e) {}
+                    }
+                    return `৳ ${formatBanglaPriceWithCommas(activePrice)}`;
+                  })()}
+                </span>
+              </div>
               <div className="flex gap-2 mb-5">
                 {modalData.product.sizes.map((size) => (
                   <button

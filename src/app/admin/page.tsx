@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Lock, Menu } from "lucide-react";
 
 // Modular Admin Components
@@ -16,6 +17,8 @@ import FaqsTab from "@/components/admin/FaqsTab";
 import AnnouncementsTab from "@/components/admin/AnnouncementsTab";
 import NewslettersTab from "@/components/admin/NewslettersTab";
 import ActivityLogsTab from "@/components/admin/ActivityLogsTab";
+import StaffTab from "@/components/admin/StaffTab";
+import ShowroomsTab from "@/components/admin/ShowroomsTab";
 import ToastNotification from "@/components/overlays/ToastNotification";
 
 const DEFAULT_CATEGORIES = [
@@ -28,6 +31,7 @@ const DEFAULT_CATEGORIES = [
 ];
 
 export default function AdminPage() {
+  const router = useRouter();
   // Authentication State
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -37,8 +41,12 @@ export default function AdminPage() {
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
   // Navigation State
-  const [activeTab, setActiveTab] = useState<"dashboard" | "orders" | "products" | "reviews" | "categories" | "coupons" | "faqs" | "announcements" | "newsletters" | "activity-logs">("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "orders" | "products" | "reviews" | "categories" | "coupons" | "faqs" | "announcements" | "newsletters" | "activity-logs" | "staff" | "showrooms">("dashboard");
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+
+  // Staff and Branch States
+  const [staff, setStaff] = useState<any[]>([]);
+  const [branches, setBranches] = useState<any[]>([]);
 
   // Toast Notification States
   const [toastActive, setToastActive] = useState(false);
@@ -82,7 +90,8 @@ export default function AdminPage() {
     price: "",
     category: "",
     imgUrl: "/assets/cotton_1.png",
-    sizesJson: '{"S":10,"M":15,"L":15,"XL":5}'
+    sizesJson: '{"S":10,"M":15,"L":15,"XL":5}',
+    sizePricesJson: '{}'
   });
 
   const [coupons, setCoupons] = useState<any[]>([]);
@@ -105,9 +114,34 @@ export default function AdminPage() {
         throw new Error("No session");
       })
       .then(data => {
-        if (data.user && data.user.role === "ADMIN") {
-          setIsAuthenticated(true);
-          setAdminUser(data.user);
+        if (data.user) {
+          const userRole = data.user.role === "ADMIN" ? "SUPER_ADMIN" : data.user.role;
+          if (userRole === "SUPER_ADMIN") {
+            setIsAuthenticated(true);
+            setAdminUser(data.user);
+          } else if (userRole === "BRANCH_MANAGER") {
+            const hasOnlineAccess = data.user.allowedModules && data.user.allowedModules.split(",").some((m: string) => m.trim().startsWith("online_"));
+            if (hasOnlineAccess) {
+              setIsAuthenticated(true);
+              setAdminUser(data.user);
+              
+              // land on first permitted online tab
+              const allowed = data.user.allowedModules.split(",").map((m: string) => m.trim());
+              const firstOnline = ["dashboard", "orders", "products", "categories", "coupons", "faqs", "announcements", "newsletters", "reviews", "activity-logs"].find(tabId => {
+                const moduleKey = `online_${tabId === "activity-logs" ? "logs" : tabId}`;
+                return allowed.includes(moduleKey);
+              });
+              if (firstOnline) {
+                setActiveTab(firstOnline as any);
+              }
+            } else {
+              router.push("/admin/showroom");
+            }
+          } else {
+            throw new Error("Unauthorized");
+          }
+        } else {
+          throw new Error("Unauthorized");
         }
       })
       .catch(() => {
@@ -116,7 +150,7 @@ export default function AdminPage() {
       .finally(() => {
         setIsCheckingAuth(false);
       });
-  }, []);
+  }, [router]);
 
   // Fetch all backend data once authenticated
   useEffect(() => {
@@ -139,7 +173,9 @@ export default function AdminPage() {
     setIsLoading(true);
     setIsLogsLoading(true);
     try {
-      const [analyticsRes, ordersRes, productsRes, categoriesRes, couponsRes, subscribersRes, faqsRes, announcementsRes, logsRes] = await Promise.all([
+      const isSuperAdmin = adminUser && (adminUser.role === "SUPER_ADMIN" || adminUser.role === "ADMIN");
+      
+      const promises = [
         authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/analytics`),
         authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/orders`),
         authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/products`),
@@ -149,7 +185,15 @@ export default function AdminPage() {
         authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/faqs`),
         authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/announcements`),
         authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/logs`)
-      ]);
+      ];
+
+      if (isSuperAdmin) {
+        promises.push(authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/staff`));
+        promises.push(authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/branches`));
+      }
+
+      const results = await Promise.all(promises);
+      const [analyticsRes, ordersRes, productsRes, categoriesRes, couponsRes, subscribersRes, faqsRes, announcementsRes, logsRes] = results;
 
       if (analyticsRes.ok) setAnalytics(await analyticsRes.json());
       if (ordersRes.ok) setOrders(await ordersRes.json());
@@ -159,6 +203,13 @@ export default function AdminPage() {
       if (faqsRes.ok) setFaqs(await faqsRes.json());
       if (announcementsRes.ok) setAnnouncements(await announcementsRes.json());
       if (logsRes.ok) setLogs(await logsRes.json());
+
+      if (isSuperAdmin) {
+        const staffRes = results[9];
+        const branchesRes = results[10];
+        if (staffRes && staffRes.ok) setStaff(await staffRes.json());
+        if (branchesRes && branchesRes.ok) setBranches(await branchesRes.json());
+      }
       
       if (productsRes.ok) {
         const prodData = await productsRes.json();
@@ -204,11 +255,34 @@ export default function AdminPage() {
 
       if (res.ok) {
         const data = await res.json();
-        if (data.user && data.user.role === "ADMIN") {
+        const userRole = data.user?.role === "ADMIN" ? "SUPER_ADMIN" : data.user?.role;
+        if (userRole === "SUPER_ADMIN") {
           setIsAuthenticated(true);
           setAdminUser(data.user);
           setEmail("");
           setPassword("");
+        } else if (userRole === "BRANCH_MANAGER") {
+          const hasOnlineAccess = data.user.allowedModules && data.user.allowedModules.split(",").some((m: string) => m.trim().startsWith("online_"));
+          if (hasOnlineAccess) {
+            setIsAuthenticated(true);
+            setAdminUser(data.user);
+            setEmail("");
+            setPassword("");
+            
+            // land on first permitted online tab
+            const allowed = data.user.allowedModules.split(",").map((m: string) => m.trim());
+            const firstOnline = ["dashboard", "orders", "products", "categories", "coupons", "faqs", "announcements", "newsletters", "reviews", "activity-logs"].find(tabId => {
+              const moduleKey = `online_${tabId === "activity-logs" ? "logs" : tabId}`;
+              return allowed.includes(moduleKey);
+            });
+            if (firstOnline) {
+              setActiveTab(firstOnline as any);
+            }
+          } else {
+            setIsAuthenticated(true);
+            setAdminUser(data.user);
+            router.push("/admin/showroom");
+          }
         } else {
           setAuthError("আপনার অ্যাডমিন পারমিশন নেই।");
           await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/auth/logout`, { method: "POST", credentials: "include" });
@@ -397,7 +471,8 @@ export default function AdminPage() {
           price: "",
           category: activeCategoriesList[0] || "",
           imgUrl: "/assets/cotton_1.png",
-          sizesJson: '{"S":10,"M":15,"L":15,"XL":5}'
+          sizesJson: '{"S":10,"M":15,"L":15,"XL":5}',
+          sizePricesJson: '{}'
         });
         setEditingProduct(null);
         fetchData();
@@ -438,7 +513,8 @@ export default function AdminPage() {
       price: prod.price.toString(),
       category: prod.category,
       imgUrl: prod.imgUrl,
-      sizesJson: prod.sizesJson || '{"S":10,"M":15,"L":15,"XL":5}'
+      sizesJson: prod.sizesJson || '{"S":10,"M":15,"L":15,"XL":5}',
+      sizePricesJson: prod.sizePricesJson || '{}'
     });
   };
 
@@ -618,6 +694,124 @@ export default function AdminPage() {
     }
   };
 
+  const handleCreateStaff = async (payload: any) => {
+    try {
+      const res = await authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/staff`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) {
+        alert("কর্মী সফলভাবে নিবন্ধিত হয়েছে!");
+        fetchData();
+      } else {
+        const err = await res.json();
+        alert(err.error || "কর্মী নিবন্ধন করা যায়নি।");
+      }
+    } catch (error) {
+      console.error("Error creating staff:", error);
+      alert("সার্ভারের সাথে সংযোগ স্থাপন করা যাচ্ছে না।");
+    }
+  };
+
+  const handleUpdateStaff = async (id: string, payload: any) => {
+    try {
+      const res = await authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/staff/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) {
+        alert("কর্মীর তথ্য সফলভাবে হালনাগাদ করা হয়েছে!");
+        fetchData();
+      } else {
+        const err = await res.json();
+        alert(err.error || "কর্মীর তথ্য হালনাগাদ করা যায়নি।");
+      }
+    } catch (error) {
+      console.error("Error updating staff:", error);
+      alert("সার্ভারের সাথে সংযোগ স্থাপন করা যাচ্ছে না।");
+    }
+  };
+
+  const handleDeleteStaff = async (id: string) => {
+    if (!confirm("আপনি কি নিশ্চিতভাবে এই কর্মীর অ্যাকাউন্টটি মুছে ফেলতে চান?")) return;
+    try {
+      const res = await authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/staff/${id}`, {
+        method: "DELETE"
+      });
+      if (res.ok) {
+        alert("কর্মীর অ্যাকাউন্টটি সফলভাবে মুছে ফেলা হয়েছে!");
+        fetchData();
+      } else {
+        const err = await res.json();
+        alert(err.error || "কর্মী মুছতে ব্যর্থ হয়েছে।");
+      }
+    } catch (error) {
+      console.error("Error deleting staff:", error);
+      alert("সার্ভারের সাথে সংযোগ স্থাপন করা যাচ্ছে না।");
+    }
+  };
+
+  const handleCreateBranch = async (payload: any) => {
+    try {
+      const res = await authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/branches`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) {
+        alert("শোরুম আউটলেট সফলভাবে যুক্ত করা হয়েছে!");
+        fetchData();
+      } else {
+        const err = await res.json();
+        alert(err.error || "শোরুম আউটলেট যুক্ত করা যায়নি।");
+      }
+    } catch (error) {
+      console.error("Error creating branch:", error);
+      alert("সার্ভারের সাথে সংযোগ স্থাপন করা যাচ্ছে না।");
+    }
+  };
+
+  const handleUpdateBranch = async (id: string, payload: any) => {
+    try {
+      const res = await authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/branches/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) {
+        alert("শোরুম আউটলেটের তথ্য সফলভাবে হালনাগাদ করা হয়েছে!");
+        fetchData();
+      } else {
+        const err = await res.json();
+        alert(err.error || "শোরুম আউটলেট হালনাগাদ করা যায়নি।");
+      }
+    } catch (error) {
+      console.error("Error updating branch:", error);
+      alert("সার্ভারের সাথে সংযোগ স্থাপন করা যাচ্ছে না।");
+    }
+  };
+
+  const handleDeleteBranch = async (id: string) => {
+    if (!confirm("আপনি কি নিশ্চিতভাবে এই শোরুম আউটলেটটি মুছে ফেলতে চান? এর সাথে যুক্ত সকল স্টক ও তথ্য মুছে যাবে!")) return;
+    try {
+      const res = await authenticatedFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/branches/${id}`, {
+        method: "DELETE"
+      });
+      if (res.ok) {
+        alert("শোরুম আউটলেটটি সফলভাবে মুছে ফেলা হয়েছে!");
+        fetchData();
+      } else {
+        const err = await res.json();
+        alert(err.error || "শোরুম আউটলেটটি মুছে ফেলা যায়নি।");
+      }
+    } catch (error) {
+      console.error("Error deleting branch:", error);
+      alert("সার্ভারের সাথে সংযোগ স্থাপন করা যাচ্ছে না।");
+    }
+  };
+
   // --- RENDER LOADING STATE WHILE CHECKING AUTH ---
   if (isCheckingAuth) {
     return (
@@ -699,6 +893,8 @@ export default function AdminPage() {
           faqsCount={faqs.length}
           announcementsCount={announcements.length}
           adminName={adminUser?.name}
+          userRole={adminUser?.role}
+          allowedModules={adminUser?.allowedModules}
           onLogout={handleLogout}
         />
       </aside>
@@ -719,6 +915,8 @@ export default function AdminPage() {
               faqsCount={faqs.length}
               announcementsCount={announcements.length}
               adminName={adminUser?.name}
+              userRole={adminUser?.role}
+              allowedModules={adminUser?.allowedModules}
               onLogout={handleLogout}
               onCloseMobile={() => setIsMobileSidebarOpen(false)}
             />
@@ -832,6 +1030,25 @@ export default function AdminPage() {
             <ActivityLogsTab 
               logs={logs}
               isLoading={isLogsLoading}
+            />
+          )}
+
+          {activeTab === "staff" && (
+            <StaffTab 
+              staff={staff}
+              branches={branches}
+              onCreateStaff={handleCreateStaff}
+              onUpdateStaff={handleUpdateStaff}
+              onDeleteStaff={handleDeleteStaff}
+            />
+          )}
+
+          {activeTab === "showrooms" && (
+            <ShowroomsTab 
+              branches={branches}
+              onCreateBranch={handleCreateBranch}
+              onUpdateBranch={handleUpdateBranch}
+              onDeleteBranch={handleDeleteBranch}
             />
           )}
           </main>

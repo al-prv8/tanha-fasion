@@ -278,6 +278,11 @@ export default function OrdersTab({
       {expandedOrderId && (
         <style dangerouslySetInnerHTML={{
           __html: `
+            @media screen {
+              [id^="printable-invoice-sheet-"] {
+                display: none !important;
+              }
+            }
             @media print {
               html, body {
                 height: auto !important;
@@ -659,7 +664,13 @@ export default function OrdersTab({
                                     <div>
                                       <h1 className="text-xl font-extrabold text-slate-900 tracking-tight">তানহা ফ্যাশন</h1>
                                       <p className="text-[10px] text-slate-500 font-semibold mt-1">তানহা ফ্যাশন — অনন্য কালেকশন</p>
-                                      <p className="text-[9px] text-slate-400 mt-0.5">Mirpur, Dhaka, Bangladesh | Hotline: ০৯৬১২-৩৪৫৬৭৮</p>
+                                      {o.branch ? (
+                                        <p className="text-[9px] text-slate-400 mt-0.5">
+                                          আউটলেট: {o.branch.name} | {o.branch.address || o.branch.city} | হটলাইন: {o.branch.phone}
+                                        </p>
+                                      ) : (
+                                        <p className="text-[9px] text-slate-400 mt-0.5">Mirpur, Dhaka, Bangladesh | Hotline: ০৯৬১২-৩৪৫৬৭৮</p>
+                                      )}
                                     </div>
                                     <div className="text-right">
                                       <div className="text-[9px] font-black uppercase text-slate-400 tracking-wider">রসিদ / ইনভয়েস</div>
@@ -702,7 +713,7 @@ export default function OrdersTab({
                                     <table className="w-full text-left border-collapse">
                                       <thead>
                                         <tr className="bg-slate-100 border-b border-slate-200 text-[9px] font-black text-slate-500 uppercase tracking-wider">
-                                          <th className="py-2 px-3">আইটেম কোড</th>
+                                          <th className="py-2 px-3">আইটেম বিবরণ</th>
                                           <th className="py-2 px-3 text-center">সাইজ</th>
                                           <th className="py-2 px-3 text-center">পরিমাণ</th>
                                           <th className="py-2 px-3 text-right">ইউনিট মূল্য</th>
@@ -712,7 +723,10 @@ export default function OrdersTab({
                                       <tbody className="divide-y divide-slate-200 text-slate-800">
                                         {o.items && o.items.map((item: any, idx: number) => (
                                           <tr key={idx} className="hover:bg-slate-100/30">
-                                            <td className="py-2.5 px-3 font-mono font-semibold text-slate-500">{item.productId}</td>
+                                            <td className="py-2.5 px-3 font-semibold text-slate-900">
+                                              <div>{item.product?.name || "ডিজাইনার ড্রেস"}</div>
+                                              <div className="text-[9px] text-slate-400 font-mono mt-0.5">ID/SKU: {item.product?.sku || item.productId}</div>
+                                            </td>
                                             <td className="py-2.5 px-3 text-center font-bold">{item.size}</td>
                                             <td className="py-2.5 px-3 text-center font-bold">{toBanglaNumber(item.quantity)}</td>
                                             <td className="py-2.5 px-3 text-right font-mono">{formatBanglaPriceWithCommas(item.price)}</td>
@@ -1013,14 +1027,20 @@ export default function OrdersTab({
       {isClient && activeOrderToPrint && createPortal(
         <div 
           id={`printable-invoice-sheet-${activeOrderToPrint.id}`}
-          className="bg-white p-8 text-slate-800 hidden print:block"
+          className="bg-white p-8 text-slate-800"
         >
           {/* Brand Letterhead */}
           <div className="flex justify-between items-start border-b-2 border-slate-900 pb-5 mb-6">
             <div>
               <h1 className="text-xl font-extrabold text-slate-900 tracking-tight">তানহা ফ্যাশন</h1>
               <p className="text-[10px] text-slate-500 font-semibold mt-1">তানহা ফ্যাশন — অনন্য কালেকশন</p>
-              <p className="text-[9px] text-slate-400 mt-0.5">Mirpur, Dhaka, Bangladesh | Hotline: ০৯৬১২-৩৪৫৬৭৮</p>
+              {activeOrderToPrint.branch ? (
+                <p className="text-[9px] text-slate-400 mt-0.5">
+                  আউটলেট: {activeOrderToPrint.branch.name} | {activeOrderToPrint.branch.address || activeOrderToPrint.branch.city} | হটলাইন: {activeOrderToPrint.branch.phone}
+                </p>
+              ) : (
+                <p className="text-[9px] text-slate-400 mt-0.5">Mirpur, Dhaka, Bangladesh | Hotline: ০৯৬১২-৩৪৫৬৭৮</p>
+              )}
             </div>
             <div className="text-right">
               <div className="text-[9px] font-black uppercase text-slate-400 tracking-wider">রসিদ / ইনভয়েস</div>
@@ -1058,12 +1078,11 @@ export default function OrdersTab({
             </div>
           </div>
 
-          {/* Items List Table */}
           <div className="border border-slate-200 rounded-lg overflow-hidden mb-6 text-[11px] bg-slate-50/50">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-slate-100 border-b border-slate-200 text-[9px] font-black text-slate-500 uppercase tracking-wider">
-                  <th className="py-2 px-3">আইটেম কোড</th>
+                  <th className="py-2 px-3">আইটেম বিবরণ</th>
                   <th className="py-2 px-3 text-center">সাইজ</th>
                   <th className="py-2 px-3 text-center">পরিমাণ</th>
                   <th className="py-2 px-3 text-right">ইউনিট মূল্য</th>
@@ -1073,7 +1092,10 @@ export default function OrdersTab({
               <tbody className="divide-y divide-slate-200 text-slate-800">
                 {activeOrderToPrint.items && activeOrderToPrint.items.map((item: any, idx: number) => (
                   <tr key={idx} className="hover:bg-slate-100/30">
-                    <td className="py-2.5 px-3 font-mono font-semibold text-slate-500">{item.productId}</td>
+                    <td className="py-2.5 px-3 font-semibold text-slate-900">
+                      <div>{item.product?.name || "ডিজাইনার ড্রেস"}</div>
+                      <div className="text-[9px] text-slate-400 font-mono mt-0.5">ID/SKU: {item.product?.sku || item.productId}</div>
+                    </td>
                     <td className="py-2.5 px-3 text-center font-bold">{item.size}</td>
                     <td className="py-2.5 px-3 text-center font-bold">{toBanglaNumber(item.quantity)}</td>
                     <td className="py-2.5 px-3 text-right font-mono">{formatBanglaPriceWithCommas(item.price)}</td>

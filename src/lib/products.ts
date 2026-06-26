@@ -41,6 +41,7 @@ export interface Product {
   desc: string;
   sizes: string[];
   sizesJson?: string;
+  sizePricesJson?: string;
 }
 
 export const PRODUCTS: Product[] = [
@@ -411,4 +412,34 @@ export function getProductTotalStock(p: any): number {
     }
   }
   return (p.stockS || 0) + (p.stockM || 0) + (p.stockL || 0) + (p.stockXL || 0);
+}
+
+export function getProductPriceDisplayRange(p: any): string {
+  const basePrice = Number(p.price || 0);
+  const prices: number[] = [basePrice];
+  
+  if (p.sizePricesJson) {
+    try {
+      const sizePrices = typeof p.sizePricesJson === 'string' 
+        ? JSON.parse(p.sizePricesJson) 
+        : p.sizePricesJson;
+      if (sizePrices && typeof sizePrices === 'object') {
+        Object.values(sizePrices).forEach((val) => {
+          const num = Number(val);
+          if (!isNaN(num) && num > 0) {
+            prices.push(num);
+          }
+        });
+      }
+    } catch (e) {}
+  }
+  
+  const minPrice = Math.min(...prices);
+  const maxPrice = Math.max(...prices);
+  
+  if (minPrice === maxPrice || prices.length <= 1) {
+    return formatBanglaPriceWithCommas(minPrice);
+  } else {
+    return `${formatBanglaPriceWithCommas(minPrice)} - ${formatBanglaPriceWithCommas(maxPrice)}`;
+  }
 }

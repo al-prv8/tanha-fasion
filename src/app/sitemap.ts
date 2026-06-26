@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 import { PRODUCTS } from "@/lib/products";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = "https://tanhafasion.com";
+  const baseUrl = "https://tanhafashion.com";
 
   // 1. Static Pages
   const staticRoutes = [

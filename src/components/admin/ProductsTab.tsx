@@ -29,6 +29,7 @@ interface ProductsTabProps {
     category: string;
     imgUrl: string;
     sizesJson: string;
+    sizePricesJson: string;
   };
   setProductForm: React.Dispatch<React.SetStateAction<{
     sku: string;
@@ -37,6 +38,7 @@ interface ProductsTabProps {
     category: string;
     imgUrl: string;
     sizesJson: string;
+    sizePricesJson: string;
   }>>;
   onProductSubmit: (e: React.FormEvent) => Promise<void>;
   onDeleteProduct: (id: string) => Promise<void>;
@@ -105,6 +107,18 @@ export default function ProductsTab({
     const sku = `TF-${prod.numericId}-${size}`;
     // Uses the open-source, free bwip-js API to render Code 128 barcodes as high-quality PNGs
     const barcodeUrl = `https://api-bwipjs.metafloor.com/?bcid=code128&text=${sku}&scale=2&height=10`;
+
+    let resolvedPrice = prod.price;
+    if (prod.sizePricesJson) {
+      try {
+        const sizePrices = typeof prod.sizePricesJson === "string" 
+          ? JSON.parse(prod.sizePricesJson) 
+          : prod.sizePricesJson;
+        if (sizePrices && sizePrices[size] !== undefined && sizePrices[size] !== null && Number(sizePrices[size]) > 0) {
+          resolvedPrice = Number(sizePrices[size]);
+        }
+      } catch (e) {}
+    }
 
     const printWindow = window.open("", "_blank", "width=600,height=400");
     if (!printWindow) return;
@@ -201,7 +215,7 @@ export default function ProductsTab({
               </div>
               <div class="price-block">
                 <span class="price-label">মূল্য:</span>
-                <div class="price-val">${formatBanglaPriceWithCommas(prod.price)}</div>
+                <div class="price-val">${formatBanglaPriceWithCommas(resolvedPrice)}</div>
               </div>
             </div>
           </div>
@@ -235,6 +249,7 @@ export default function ProductsTab({
   // Dynamic Sizes Local Form State
   const [newSizeName, setNewSizeName] = useState("");
   const [newSizeStock, setNewSizeStock] = useState("10");
+  const [newSizePrice, setNewSizePrice] = useState("");
 
   const lowStockProducts = products.filter(p => {
     try {
@@ -254,25 +269,59 @@ export default function ProductsTab({
     setProductForm(prev => ({ ...prev, sizesJson: JSON.stringify(currentSizes) }));
   };
 
+  const updateSizePrice = (size: string, priceVal: string) => {
+    let currentPrices: { [sz: string]: number } = {};
+    try {
+      currentPrices = JSON.parse(productForm.sizePricesJson || "{}");
+    } catch (e) {}
+    if (priceVal === "" || isNaN(Number(priceVal))) {
+      delete currentPrices[size];
+    } else {
+      currentPrices[size] = Number(priceVal);
+    }
+    setProductForm(prev => ({ ...prev, sizePricesJson: JSON.stringify(currentPrices) }));
+  };
+
   const removeSizeKey = (size: string) => {
     let currentSizes: { [sz: string]: number } = {};
+    let currentPrices: { [sz: string]: number } = {};
     try {
       currentSizes = JSON.parse(productForm.sizesJson || "{}");
     } catch (e) {}
+    try {
+      currentPrices = JSON.parse(productForm.sizePricesJson || "{}");
+    } catch (e) {}
     delete currentSizes[size];
-    setProductForm(prev => ({ ...prev, sizesJson: JSON.stringify(currentSizes) }));
+    delete currentPrices[size];
+    setProductForm(prev => ({ 
+      ...prev, 
+      sizesJson: JSON.stringify(currentSizes),
+      sizePricesJson: JSON.stringify(currentPrices)
+    }));
   };
 
   const addNewSize = () => {
     if (!newSizeName.trim()) return;
     let currentSizes: { [sz: string]: number } = {};
+    let currentPrices: { [sz: string]: number } = {};
     try {
       currentSizes = JSON.parse(productForm.sizesJson || "{}");
     } catch (e) {}
+    try {
+      currentPrices = JSON.parse(productForm.sizePricesJson || "{}");
+    } catch (e) {}
     currentSizes[newSizeName.trim()] = Number(newSizeStock || 0);
-    setProductForm(prev => ({ ...prev, sizesJson: JSON.stringify(currentSizes) }));
+    if (newSizePrice.trim() && !isNaN(Number(newSizePrice))) {
+      currentPrices[newSizeName.trim()] = Number(newSizePrice);
+    }
+    setProductForm(prev => ({ 
+      ...prev, 
+      sizesJson: JSON.stringify(currentSizes),
+      sizePricesJson: JSON.stringify(currentPrices)
+    }));
     setNewSizeName("");
     setNewSizeStock("10");
+    setNewSizePrice("");
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -391,7 +440,8 @@ export default function ProductsTab({
               price: "",
               category: CATEGORIES[0] || "",
               imgUrl: "/assets/cotton_1.png",
-              sizesJson: '{"S":10,"M":15,"L":15,"XL":5}'
+              sizesJson: '{"S":10,"M":15,"L":15,"XL":5}',
+              sizePricesJson: '{}'
             });
             setShowAddForm(!showAddForm);
           }}
@@ -450,49 +500,59 @@ export default function ProductsTab({
               </div>
 
               <div>
-                <label className="block text-muted-foreground mb-1">ক্যাটাগরি *</label>
-                <select 
-                  value={productForm.category}
-                  onChange={(e) => setProductForm(prev => ({ ...prev, category: e.target.value }))}
-                  className="w-full px-2.5 py-2 border border-border bg-secondary/30 focus:bg-white rounded-lg text-foreground font-bold focus:outline-none focus:border-primary transition-all"
-                >
-                  {CATEGORIES.map((cat, idx) => (
-                    <option key={idx} value={cat}>{cat}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Sizes variant stock */}
-              <div className="sm:col-span-2 border border-border/60 bg-secondary/20 p-3.5 rounded-xl">
-                <span className="block text-[10px] text-primary font-black uppercase tracking-wider mb-2">সাইজ ভিত্তিক স্টক (Variant Inventory)</span>
-                
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
+                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-3">
                   {(() => {
                     let sizesObj: { [sz: string]: number } = {};
                     try {
                       sizesObj = JSON.parse(productForm.sizesJson || "{}");
                     } catch (e) {}
                     
-                    return Object.entries(sizesObj).map(([sz, qty]) => (
-                      <div key={sz} className="relative bg-white border border-border p-2 rounded-lg flex flex-col items-center">
-                        <button
-                          type="button"
-                          onClick={() => removeSizeKey(sz)}
-                          className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-rose-500 hover:bg-rose-600 text-white rounded-full flex items-center justify-center text-[9px] border-none cursor-pointer"
-                          title="মুছে ফেলুন"
-                        >
-                          &times;
-                        </button>
-                        <span className="text-[9px] font-black text-slate-400 mb-1">{sz}</span>
-                        <input 
-                          type="number" 
-                          min={0}
-                          value={qty}
-                          onChange={(e) => updateSizeStock(sz, e.target.value)}
-                          className="w-full px-1 py-0.5 border border-slate-200 text-center rounded text-xs font-bold focus:outline-none"
-                        />
-                      </div>
-                    ));
+                    return Object.entries(sizesObj).map(([sz, qty]) => {
+                      let szPrice = "";
+                      try {
+                        const priceObj = JSON.parse(productForm.sizePricesJson || "{}");
+                        szPrice = priceObj[sz] !== undefined ? String(priceObj[sz]) : "";
+                      } catch (e) {}
+
+                      return (
+                        <div key={sz} className="relative bg-white border border-border p-3 rounded-lg flex flex-col gap-1 text-left">
+                          <button
+                            type="button"
+                            onClick={() => removeSizeKey(sz)}
+                            className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-rose-500 hover:bg-rose-600 text-white rounded-full flex items-center justify-center text-[9px] border-none cursor-pointer"
+                            title="মুছে ফেলুন"
+                          >
+                            &times;
+                          </button>
+                          <div className="text-[10px] font-black text-slate-700 border-b border-border/45 pb-0.5 mb-1">
+                            <span>সাইজ: {sz}</span>
+                          </div>
+                          <div className="space-y-1.5 text-[9px]">
+                            <div>
+                              <span className="text-muted-foreground block mb-0.5">স্টক:</span>
+                              <input 
+                                type="number" 
+                                min={0}
+                                value={qty}
+                                onChange={(e) => updateSizeStock(sz, e.target.value)}
+                                className="w-full px-1.5 py-0.5 border border-slate-200 rounded text-xs font-bold focus:outline-none"
+                              />
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground block mb-0.5">মূল্য (ঐচ্ছিক):</span>
+                              <input 
+                                type="number" 
+                                min={0}
+                                placeholder="বেস মূল্য"
+                                value={szPrice}
+                                onChange={(e) => updateSizePrice(sz, e.target.value)}
+                                className="w-full px-1.5 py-0.5 border border-slate-200 rounded text-xs font-bold focus:outline-none font-mono"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    });
                   })()}
                 </div>
 
@@ -511,7 +571,15 @@ export default function ProductsTab({
                     placeholder="স্টক"
                     value={newSizeStock}
                     onChange={(e) => setNewSizeStock(e.target.value)}
-                    className="w-14 px-1 py-1 border border-slate-250 bg-white rounded text-center text-[10px] font-bold focus:outline-none"
+                    className="w-12 px-1 py-1 border border-slate-250 bg-white rounded text-center text-[10px] font-bold focus:outline-none"
+                  />
+                  <input 
+                    type="number" 
+                    min={0}
+                    placeholder="মূল্য (ঐচ্ছিক)"
+                    value={newSizePrice}
+                    onChange={(e) => setNewSizePrice(e.target.value)}
+                    className="w-20 px-1 py-1 border border-slate-250 bg-white rounded text-center text-[10px] font-bold focus:outline-none"
                   />
                   <button
                     type="button"
@@ -1035,33 +1103,59 @@ export default function ProductsTab({
                                     <div className="col-span-2 border border-border/60 bg-secondary/10 p-3.5 rounded-xl">
                                       <span className="block text-[10px] text-primary font-black uppercase tracking-wider mb-2">সাইজ ভিত্তিক স্টক (Variant Inventory)</span>
                                       
-                                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
+                                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-3">
                                         {(() => {
                                           let sizesObj: { [sz: string]: number } = {};
                                           try {
                                             sizesObj = JSON.parse(productForm.sizesJson || "{}");
                                           } catch (e) {}
                                           
-                                          return Object.entries(sizesObj).map(([sz, qty]) => (
-                                            <div key={sz} className="relative bg-white border border-border p-2 rounded-lg flex flex-col items-center">
-                                              <button
-                                                type="button"
-                                                onClick={() => removeSizeKey(sz)}
-                                                className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-rose-500 hover:bg-rose-600 text-white rounded-full flex items-center justify-center text-[9px] border-none cursor-pointer"
-                                                title="মুছে ফেলুন"
-                                              >
-                                                &times;
-                                              </button>
-                                              <span className="text-[9px] font-black text-slate-400 mb-1">{sz}</span>
-                                              <input 
-                                                type="number" 
-                                                min={0}
-                                                value={qty}
-                                                onChange={(e) => updateSizeStock(sz, e.target.value)}
-                                                className="w-full px-1 py-0.5 border border-slate-200 text-center rounded text-xs font-bold focus:outline-none"
-                                              />
-                                            </div>
-                                          ));
+                                          return Object.entries(sizesObj).map(([sz, qty]) => {
+                                            let szPrice = "";
+                                            try {
+                                              const priceObj = JSON.parse(productForm.sizePricesJson || "{}");
+                                              szPrice = priceObj[sz] !== undefined ? String(priceObj[sz]) : "";
+                                            } catch (e) {}
+
+                                            return (
+                                              <div key={sz} className="relative bg-white border border-border p-3 rounded-lg flex flex-col gap-1 text-left">
+                                                <button
+                                                  type="button"
+                                                  onClick={() => removeSizeKey(sz)}
+                                                  className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-rose-500 hover:bg-rose-600 text-white rounded-full flex items-center justify-center text-[9px] border-none cursor-pointer"
+                                                  title="মুছে ফেলুন"
+                                                >
+                                                  &times;
+                                                </button>
+                                                <div className="text-[10px] font-black text-slate-700 border-b border-border/45 pb-0.5 mb-1 font-display">
+                                                  <span>সাইজ: {sz}</span>
+                                                </div>
+                                                <div className="space-y-1.5 text-[9px]">
+                                                  <div>
+                                                    <span className="text-muted-foreground block mb-0.5">স্টক:</span>
+                                                    <input 
+                                                      type="number" 
+                                                      min={0}
+                                                      value={qty}
+                                                      onChange={(e) => updateSizeStock(sz, e.target.value)}
+                                                      className="w-full px-1.5 py-0.5 border border-slate-200 rounded text-xs font-bold focus:outline-none"
+                                                    />
+                                                  </div>
+                                                  <div>
+                                                    <span className="text-muted-foreground block mb-0.5">মূল্য (ঐচ্ছিক):</span>
+                                                    <input 
+                                                      type="number" 
+                                                      min={0}
+                                                      placeholder="বেস মূল্য"
+                                                      value={szPrice}
+                                                      onChange={(e) => updateSizePrice(sz, e.target.value)}
+                                                      className="w-full px-1.5 py-0.5 border border-slate-200 rounded text-xs font-bold focus:outline-none font-mono"
+                                                    />
+                                                  </div>
+                                                </div>
+                                              </div>
+                                            );
+                                          });
                                         })()}
                                       </div>
 
@@ -1080,7 +1174,15 @@ export default function ProductsTab({
                                           placeholder="স্টক"
                                           value={newSizeStock}
                                           onChange={(e) => setNewSizeStock(e.target.value)}
-                                          className="w-14 px-1 py-1 border border-slate-250 bg-white rounded text-center text-[10px] font-bold focus:outline-none"
+                                          className="w-12 px-1 py-1 border border-slate-250 bg-white rounded text-center text-[10px] font-bold focus:outline-none"
+                                        />
+                                        <input 
+                                          type="number" 
+                                          min={0}
+                                          placeholder="মূল্য (ঐচ্ছিক)"
+                                          value={newSizePrice}
+                                          onChange={(e) => setNewSizePrice(e.target.value)}
+                                          className="w-20 px-1 py-1 border border-slate-250 bg-white rounded text-center text-[10px] font-bold focus:outline-none"
                                         />
                                         <button
                                           type="button"

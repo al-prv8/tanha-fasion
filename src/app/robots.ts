@@ -13,6 +13,6 @@ export default function robots(): MetadataRoute.Robots {
         "/api/"
       ],
     },
-    sitemap: "https://tanhafasion.com/sitemap.xml",
+    sitemap: "https://tanhafashion.com/sitemap.xml",
   };
 }

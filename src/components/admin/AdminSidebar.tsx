@@ -15,13 +15,14 @@ import {
   Megaphone,
   Mail,
   Activity,
-  Barcode
+  Barcode,
+  Store
 } from "lucide-react";
 import { toBanglaNumber } from "@/lib/products";
 
 interface SidebarProps {
-  activeTab: "dashboard" | "orders" | "products" | "reviews" | "categories" | "coupons" | "faqs" | "announcements" | "newsletters" | "activity-logs";
-  setActiveTab: (tab: "dashboard" | "orders" | "products" | "reviews" | "categories" | "coupons" | "faqs" | "announcements" | "newsletters" | "activity-logs") => void;
+  activeTab: "dashboard" | "orders" | "products" | "reviews" | "categories" | "coupons" | "faqs" | "announcements" | "newsletters" | "activity-logs" | "staff" | "showrooms";
+  setActiveTab: (tab: "dashboard" | "orders" | "products" | "reviews" | "categories" | "coupons" | "faqs" | "announcements" | "newsletters" | "activity-logs" | "staff" | "showrooms") => void;
   ordersCount: number;
   productsCount: number;
   reviewsCount: number;
@@ -31,8 +32,25 @@ interface SidebarProps {
   faqsCount: number;
   announcementsCount: number;
   adminName?: string;
+  userRole?: string;
+  allowedModules?: string | null;
   onLogout: () => void;
   onCloseMobile?: () => void;
+}
+
+function hasModuleAccess(userRole: string | undefined, allowedModules: string | null | undefined, moduleKey: string): boolean {
+  if (!userRole) return false;
+  const role = userRole === "ADMIN" ? "SUPER_ADMIN" : userRole;
+  if (role === "SUPER_ADMIN") return true;
+  
+  if (role === "BRANCH_MANAGER") {
+    if (!allowedModules) {
+      return moduleKey.startsWith("showroom_");
+    }
+    const allowed = allowedModules.split(",").map(m => m.trim());
+    return allowed.includes(moduleKey);
+  }
+  return false;
 }
 
 export default function AdminSidebar({
@@ -47,6 +65,8 @@ export default function AdminSidebar({
   faqsCount,
   announcementsCount,
   adminName = "অ্যাডমিন",
+  userRole,
+  allowedModules,
   onLogout,
   onCloseMobile
 }: SidebarProps) {
@@ -61,7 +81,13 @@ export default function AdminSidebar({
     { id: "newsletters", label: "নিউজলেটার গ্রাহক", icon: <Mail size={16} />, count: newslettersCount },
     { id: "reviews", label: "রিভিউ মডারেশন", icon: <Star size={16} />, count: reviewsCount },
     { id: "activity-logs", label: "অ্যাক্টিভিটি লগ", icon: <Activity size={16} /> },
+    { id: "staff", label: "কর্মী ব্যবস্থাপনা", icon: <User size={16} /> },
+    { id: "showrooms", label: "শোরুম আউটলেট সমূহ", icon: <Store size={16} /> },
   ];
+
+  const hasShowroomAccess = userRole === "SUPER_ADMIN" || userRole === "ADMIN" || 
+    (!allowedModules && userRole === "BRANCH_MANAGER") || 
+    (allowedModules && allowedModules.split(",").some((m: string) => m.trim().startsWith("showroom_")));
 
   return (
     <div className="flex flex-col h-full bg-card border-r border-border/80 w-64 flex-shrink-0 grain-bg">
@@ -91,51 +117,65 @@ export default function AdminSidebar({
             <span className="truncate">{adminName}</span>
             <ShieldCheck size={12} className="text-primary flex-shrink-0" />
           </div>
-          <div className="text-[10px] text-muted-foreground font-semibold mt-0.5">স্টোর অ্যাডমিনিস্ট্রেটর</div>
+          <div className="text-[10px] text-muted-foreground font-semibold mt-0.5">
+            {userRole === "BRANCH_MANAGER" ? "শোরুম ম্যানেজার" : "স্টোর অ্যাডমিনিস্ট্রেটর"}
+          </div>
         </div>
       </div>
 
       {/* Navigation List */}
-      <nav className="flex-1 p-4 flex flex-col gap-1.5 overflow-y-auto">
-        <Link
-          href="/admin/showroom"
-          className="w-full text-left py-3 px-4 rounded-xl font-bold text-xs flex items-center gap-3 border border-border/80 transition-all cursor-pointer bg-white text-slate-700 hover:bg-slate-50 no-underline"
-        >
-          <span><Barcode size={16} className="text-primary" /></span>
-          <span>শোরুম প্যানেল (Showroom Panel)</span>
-        </Link>
-
-        <div className="h-px bg-border/60 my-1"></div>
-
-        {navigationItems.map((item) => {
-          const isActive = activeTab === item.id;
-          return (
-            <button
-              key={item.id}
-              onClick={() => {
-                setActiveTab(item.id as any);
-                if (onCloseMobile) onCloseMobile();
-              }}
-              className={`w-full text-left py-3 px-4 rounded-xl font-bold text-xs flex items-center gap-3 border transition-all cursor-pointer ${
-                isActive
-                  ? "bg-primary border-primary text-white shadow-sm hover:bg-primary/95"
-                  : "bg-transparent border-transparent text-muted-foreground hover:text-foreground hover:bg-secondary/60 hover:border-border/40"
-              }`}
+      <nav className="flex-grow p-4 flex flex-col gap-1.5 overflow-y-auto">
+        {hasShowroomAccess && (
+          <>
+            <Link
+              href="/admin/showroom"
+              className="w-full text-left py-3 px-4 rounded-xl font-bold text-xs flex items-center gap-3 border border-border/80 transition-all cursor-pointer bg-white text-slate-700 hover:bg-slate-50 no-underline"
             >
-              <span className={isActive ? "text-white" : "text-primary"}>{item.icon}</span>
-              <span>{item.label}</span>
-              {item.count !== undefined && item.count > 0 && (
-                <span className={`ml-auto font-sans text-[10px] px-2 py-0.5 rounded-full font-extrabold ${
+              <span><Barcode size={16} className="text-primary" /></span>
+              <span>শোরুম প্যানেল (Showroom Panel)</span>
+            </Link>
+
+            <div className="h-px bg-border/60 my-1"></div>
+          </>
+        )}
+
+        {navigationItems
+          .filter((item) => {
+            if (item.id === "staff" || item.id === "showrooms") {
+              return userRole === "SUPER_ADMIN" || userRole === "ADMIN";
+            }
+            const moduleKey = `online_${item.id === "activity-logs" ? "logs" : item.id}`;
+            return hasModuleAccess(userRole, allowedModules, moduleKey);
+          })
+          .map((item) => {
+            const isActive = activeTab === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => {
+                  setActiveTab(item.id as any);
+                  if (onCloseMobile) onCloseMobile();
+                }}
+                className={`w-full text-left py-3 px-4 rounded-xl font-bold text-xs flex items-center gap-3 border transition-all cursor-pointer ${
                   isActive
-                    ? "bg-white/20 text-white"
-                    : "bg-secondary text-foreground border border-border"
-                }`}>
-                  {toBanglaNumber(item.count)}
-                </span>
-              )}
-            </button>
-          );
-        })}
+                    ? "bg-primary border-primary text-white shadow-sm hover:bg-primary/95"
+                    : "bg-transparent border-transparent text-muted-foreground hover:text-foreground hover:bg-secondary/60 hover:border-border/40"
+                }`}
+              >
+                <span className={isActive ? "text-white" : "text-primary"}>{item.icon}</span>
+                <span>{item.label}</span>
+                {item.count !== undefined && item.count > 0 && (
+                  <span className={`ml-auto font-sans text-[10px] px-2 py-0.5 rounded-full font-extrabold ${
+                    isActive
+                      ? "bg-white/20 text-white"
+                      : "bg-secondary text-foreground border border-border"
+                  }`}>
+                    {toBanglaNumber(item.count)}
+                  </span>
+                )}
+              </button>
+            );
+          })}
       </nav>
 
       {/* Sidebar Footer / Logout */}

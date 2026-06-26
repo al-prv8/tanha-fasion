@@ -172,7 +172,7 @@ export default function ProductDetailClient({ product }: { product: Product }) {
 
   // WhatsApp order text generation
   const handleWhatsAppOrder = () => {
-    const text = `আসসালামু আলাইকুম তানহা ফ্যাশন। আমি "${product.name}" (সাইজ: ${selectedSize}, পরিমাণ: ${quantity}) অর্ডার করতে চাই। পণ্যের মূল্য: ${product.priceDisplay}। লিঙ্ক: ${window.location.href}`;
+    const text = `আসসালামু আলাইকুম তানহা ফ্যাশন। আমি "${product.name}" (সাইজ: ${selectedSize}, পরিমাণ: ${quantity}) অর্ডার করতে চাই। পণ্যের মূল্য: ${activePriceDisplay}। লিঙ্ক: ${window.location.href}`;
     const encodedText = encodeURIComponent(text);
     window.open(`https://wa.me/8801700000000?text=${encodedText}`, "_blank");
   };
@@ -250,8 +250,25 @@ export default function ProductDetailClient({ product }: { product: Product }) {
       });
   };
 
-  // Mock pricing calculation for striking discount look
-  const originalPrice = Math.round(product.price * 1.25);
+  // Dynamic pricing calculation based on sizePricesJson
+  const getPriceForSize = (size: string) => {
+    const p = product as any;
+    if (p.sizePricesJson) {
+      try {
+        const sizePrices = typeof p.sizePricesJson === 'string' 
+          ? JSON.parse(p.sizePricesJson) 
+          : p.sizePricesJson;
+        if (sizePrices && sizePrices[size] !== undefined && sizePrices[size] !== null && Number(sizePrices[size]) > 0) {
+          return Number(sizePrices[size]);
+        }
+      } catch (e) {}
+    }
+    return product.price;
+  };
+
+  const activePrice = getPriceForSize(selectedSize);
+  const activePriceDisplay = `৳ ${formatBanglaPriceWithCommas(activePrice)}`;
+  const originalPrice = Math.round(activePrice * 1.25);
   const discountPercentStr = toBanglaNumber(20);
 
   // Get related products (same category/location, max 4, excluding current product)
@@ -295,7 +312,7 @@ export default function ProductDetailClient({ product }: { product: Product }) {
       "@type": "Offer",
       "url": typeof window !== "undefined" ? window.location.href : `https://tanhafasion.com/products/${product.id}`,
       "priceCurrency": "BDT",
-      "price": product.price,
+      "price": activePrice,
       "priceValidUntil": "2030-12-31",
       "availability": availability,
       "itemCondition": "https://schema.org/NewCondition"
@@ -414,7 +431,7 @@ export default function ProductDetailClient({ product }: { product: Product }) {
               <div>
                 <div className="flex items-baseline gap-2.5">
                   <span className="text-3xl sm:text-4xl font-extrabold text-primary font-display">
-                    {product.priceDisplay}
+                    {activePriceDisplay}
                   </span>
                   <span className="text-base sm:text-lg text-muted-foreground line-through decoration-red-500 font-medium">
                     {formatBanglaPriceWithCommas(originalPrice)}
@@ -898,7 +915,7 @@ export default function ProductDetailClient({ product }: { product: Product }) {
           <div className="min-w-0">
             <h4 className="text-xs font-bold text-foreground truncate">{product.name}</h4>
             <div className="flex gap-1.5 items-baseline">
-              <span className="text-xs font-extrabold text-primary">{product.priceDisplay}</span>
+              <span className="text-xs font-extrabold text-primary">{activePriceDisplay}</span>
               <span className="text-[10px] text-muted-foreground font-semibold">({selectedSize})</span>
             </div>
           </div>

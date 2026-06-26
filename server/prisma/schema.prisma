@@ -16,9 +16,11 @@ model Product {
   imgUrl            String
   sizesJson         String          @default("{\"S\":10,\"M\":15,\"L\":15,\"XL\":5}")
   showroomSizesJson String          @default("{\"S\":10,\"M\":15,\"L\":15,\"XL\":5}")
+  sizePricesJson    String          @default("{}")
   reviews           Review[]
   orderItems        OrderItem[]
   purchases         StockPurchase[]
+  branchStocks      BranchStock[]
   createdAt         DateTime        @default(now())
 }
 
@@ -41,6 +43,8 @@ model Order {
   trxId                String?     // Transaction ID for MFS verification
   stockAdjusted        Boolean     @default(false)
   isShowroom           Boolean     @default(false)
+  branchId             String?     // Link to physical branch (null for online orders)
+  branch               Branch?     @relation(fields: [branchId], references: [id])
   items                OrderItem[]
   courierConsignmentId String?
   courierTrackingCode  String?
@@ -92,16 +96,19 @@ model Coupon {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  password  String
-  role      String   @default("CUSTOMER") // "ADMIN" or "CUSTOMER"
-  name      String
-  phone     String?
-  address   String?
-  city      String?
-  postcode  String?
-  createdAt DateTime @default(now())
+  id             String   @id @default(uuid())
+  email          String   @unique
+  password       String
+  role           String   @default("CUSTOMER") // "SUPER_ADMIN", "BRANCH_MANAGER", "CUSTOMER" (also supports legacy "ADMIN")
+  name           String
+  phone          String?
+  address        String?
+  city           String?
+  postcode       String?
+  branchId       String?
+  branch         Branch?  @relation(fields: [branchId], references: [id])
+  allowedModules String?  @default("showroom_pos,showroom_stock,showroom_purchases,showroom_orders,showroom_expenses")
+  createdAt      DateTime @default(now())
 }
 
 model Faq {
@@ -155,6 +162,8 @@ model StockPurchase {
   quantity    Int
   buyingPrice Float
   totalCost   Float
+  branchId    String?   // Target physical branch (null for online warehouse)
+  branch      Branch?   @relation(fields: [branchId], references: [id])
   createdAt   DateTime  @default(now())
 }
 
@@ -163,8 +172,38 @@ model Expense {
   category    String   // Rent, Utilities, Salary, Packaging, Entertainment, Other
   amount      Float
   description String?
+  branchId    String?  // Scopes expense to branch (null for online store overhead)
+  branch      Branch?  @relation(fields: [branchId], references: [id])
   date        DateTime @default(now())
   createdAt   DateTime @default(now())
+}
+
+model Branch {
+  id        String          @id @default(uuid())
+  name      String          @unique // e.g., "Dhanmondi Outlet", "Mirpur Outlet"
+  address   String?
+  phone     String?
+  city      String          @default("Dhaka")
+  timings   String          @default("সকাল ১০:০০ টা - রাত ৯:০০ টা")
+  holiday   String          @default("বুধবার (সাপ্তাহিক বন্ধ)")
+  location  String?
+  stocks    BranchStock[]
+  orders    Order[]         // Orders processed at this branch
+  users     User[]          // Staff scoped to this branch
+  purchases StockPurchase[] // Stock purchases scoped to this branch
+  expenses  Expense[]       // Expenses scoped to this branch
+  createdAt DateTime        @default(now())
+}
+
+model BranchStock {
+  id        String   @id @default(uuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  branchId  String
+  branch    Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  sizesJson String   @default("{\"S\":0,\"M\":0,\"L\":0,\"XL\":0}")
+  
+  @@unique([productId, branchId])
 }
 
 

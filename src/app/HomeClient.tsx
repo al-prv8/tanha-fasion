@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useCart } from "@/lib/cart-context";
-import { Product, PRODUCTS } from "@/lib/products";
+import { Product, PRODUCTS, formatBanglaPriceWithCommas } from "@/lib/products";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -105,6 +105,7 @@ export default function HomeClient() {
               img: { src: p.imgUrl },
               sizes: sizesKeys.length > 0 ? sizesKeys : ["S", "M", "L", "XL"],
               sizesJson: p.sizesJson,
+              sizePricesJson: p.sizePricesJson,
               desc: `${p.name} - Premium Quality Collection.`,
               tag: totalStock === 0 ? "স্টক শেষ" : "নতুন"
             };
@@ -381,7 +382,22 @@ export default function HomeClient() {
                       <div className="flex flex-col gap-2 border-t border-border/40 pt-2.5 mt-1">
                         <div className="flex items-center justify-between">
                           <span className="text-xs sm:text-sm font-extrabold text-foreground">
-                            {prod.priceDisplay}
+                            {(() => {
+                              const size = selectedSizes[prod.id] || prod.sizes[0] || "M";
+                              let activePrice = prod.price;
+                              const p = prod as any;
+                              if (p.sizePricesJson) {
+                                try {
+                                  const sizePrices = typeof p.sizePricesJson === 'string' 
+                                    ? JSON.parse(p.sizePricesJson) 
+                                    : p.sizePricesJson;
+                                  if (sizePrices && sizePrices[size] !== undefined && sizePrices[size] !== null && Number(sizePrices[size]) > 0) {
+                                    activePrice = Number(sizePrices[size]);
+                                  }
+                                } catch (e) {}
+                              }
+                              return `৳ ${formatBanglaPriceWithCommas(activePrice)}`;
+                            })()}
                           </span>
                           <Link
                             href={`/products/${prod.id}`}

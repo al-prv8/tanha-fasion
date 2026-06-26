@@ -1,6 +1,6 @@
 import React from "react";
 import Image from "next/image";
-import { PRODUCTS, Product, toBanglaNumber } from "@/lib/products";
+import { PRODUCTS, Product, toBanglaNumber, getProductPriceDisplayRange } from "@/lib/products";
 
 interface CollectionProps {
   openSpotlight: (product: Product) => void;
@@ -59,7 +59,7 @@ export default function Collection({
                 <div className="text-[10px] md:text-[11px] text-muted-foreground">{prod.id}</div>
                 <h3 className="mt-1 text-sm md:text-lg font-semibold text-foreground">{prod.name}</h3>
               </div>
-              <div className="text-sm md:text-lg font-semibold text-foreground">{prod.priceDisplay}</div>
+              <div className="text-sm md:text-lg font-semibold text-foreground">{getProductPriceDisplayRange(prod)}</div>
             </div>
           </article>
         ))}

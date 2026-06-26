@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useMemo } from "react";
-import { Product } from "./products";
+import { Product, formatBanglaPriceWithCommas } from "./products";
 
 export interface CartItem {
   id: string; // Display ID e.g., "০১"
@@ -86,10 +86,25 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         (item) => item.id === product.id && item.size === size
       );
 
+      let itemPrice = product.price;
+      const p = product as any;
+      if (p.sizePricesJson) {
+        try {
+          const sizePrices = typeof p.sizePricesJson === "string" 
+            ? JSON.parse(p.sizePricesJson) 
+            : p.sizePricesJson;
+          if (sizePrices && sizePrices[size] !== undefined && sizePrices[size] !== null && Number(sizePrices[size]) > 0) {
+            itemPrice = Number(sizePrices[size]);
+          }
+        } catch (e) {}
+      }
+
       if (existingItemIndex > -1) {
         // Item exists, update quantity
         const newItems = [...prevItems];
         newItems[existingItemIndex].quantity += quantity;
+        newItems[existingItemIndex].price = itemPrice;
+        newItems[existingItemIndex].priceDisplay = formatBanglaPriceWithCommas(itemPrice);
         return newItems;
       } else {
         // Item doesn't exist, add new
@@ -100,8 +115,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
             numericId: product.numericId,
             name: product.name,
             img: product.img,
-            price: product.price,
-            priceDisplay: product.priceDisplay,
+            price: itemPrice,
+            priceDisplay: formatBanglaPriceWithCommas(itemPrice),
             quantity,
             size,
           },

@@ -111,7 +111,12 @@ const requireRole = (roles: string[]) => {
     if (!req.user) {
       return res.status(401).json({ error: "অননুমোদিত প্রবেশ।" });
     }
-    if (!roles.includes(req.user.role)) {
+    
+    // Normalize role: treat legacy 'ADMIN' as 'SUPER_ADMIN'
+    const userRole = req.user.role === "ADMIN" ? "SUPER_ADMIN" : req.user.role;
+    const normalizedRoles = roles.map(r => r === "ADMIN" ? "SUPER_ADMIN" : r);
+
+    if (!normalizedRoles.includes(userRole)) {
       return res.status(403).json({ error: "আপনার এই সুবিধা ব্যবহারের অনুমতি নেই।" });
     }
     next();
@@ -193,9 +198,10 @@ app.post("/api/auth/login", async (req, res) => {
       return res.status(400).json({ error: "ভুল ইমেইল বা পাসওয়ার্ড।" });
     }
 
+
     // Sign token
     const token = jwt.sign(
-      { id: user.id, email: user.email, role: user.role, name: user.name },
+      { id: user.id, email: user.email, role: user.role, name: user.name, branchId: user.branchId, allowedModules: user.allowedModules },
       JWT_SECRET,
       { expiresIn: "7d" }
     );
@@ -215,6 +221,8 @@ app.post("/api/auth/login", async (req, res) => {
         email: user.email,
         name: user.name,
         role: user.role,
+        branchId: user.branchId,
+        allowedModules: user.allowedModules,
         phone: user.phone,
         address: user.address,
         city: user.city,
@@ -258,6 +266,8 @@ app.get("/api/auth/me", async (req, res) => {
         email: user.email,
         name: user.name,
         role: user.role,
+        branchId: user.branchId,
+        allowedModules: user.allowedModules,
         phone: user.phone,
         address: user.address,
         city: user.city,
@@ -493,15 +503,68 @@ app.post("/api/seed", async (req, res) => {
     await prisma.faq.deleteMany();
     await prisma.announcement.deleteMany();
 
-    // Seed default admin user
-    const adminPasswordHash = await bcrypt.hash("adminpassword123", 10);
+    // Clear branch-scoped tables
+    await prisma.branchStock.deleteMany();
+    await prisma.branch.deleteMany();
+
+    // Seed default admin user (SUPER_ADMIN)
+    const adminPasswordHash = await bcrypt.hash("superadmin123", 10);
     await prisma.user.create({
       data: {
-        email: "admin@tanha.com",
+        email: "super-admin@tanhafashion.com",
         password: adminPasswordHash,
-        role: "ADMIN",
-        name: "তানহা অ্যাডমিন",
+        role: "SUPER_ADMIN",
+        name: "তানহা সুপার অ্যাডমিন",
         phone: "01700000000"
+      }
+    });
+
+    // Seed physical showroom branches
+    const boktaboliBranch = await prisma.branch.create({
+      data: {
+        name: "Boktaboli Branch",
+        address: "Boktaboli, Fatullah, Narayanganj 1421",
+        phone: "01711111111",
+        city: "Narayanganj",
+        timings: "সকাল ১০:০০ টা - রাত ৯:০০ টা",
+        holiday: "বৃহস্পতিবার (সাপ্তাহিক বন্ধ)"
+      }
+    });
+
+    const balurcharBranch = await prisma.branch.create({
+      data: {
+        name: "Balurchar Branch",
+        address: "Balurchar, Sirajdikhan, Munshiganj 1422",
+        phone: "01722222222",
+        city: "Munshiganj",
+        timings: "সকাল ১০:০০ টা - রাত ৯:০০ টা",
+        holiday: "বুধবার (সাপ্তাহিক বন্ধ)"
+      }
+    });
+
+    // Seed Branch Managers
+    const managerPasswordHash = await bcrypt.hash("manager123", 10);
+    await prisma.user.create({
+      data: {
+        email: "boktaboli@tanhafashion.com",
+        password: managerPasswordHash,
+        role: "BRANCH_MANAGER",
+        branchId: boktaboliBranch.id,
+        name: "বক্তাবলী ম্যানেজার",
+        phone: "01711111112",
+        allowedModules: "showroom_pos,showroom_stock,showroom_purchases,showroom_orders,showroom_expenses"
+      }
+    });
+
+    await prisma.user.create({
+      data: {
+        email: "balurchor@tanhafashion.com",
+        password: managerPasswordHash,
+        role: "BRANCH_MANAGER",
+        branchId: balurcharBranch.id,
+        name: "বালুরচর ম্যানেজার",
+        phone: "01722222223",
+        allowedModules: "showroom_pos,showroom_stock,showroom_purchases,showroom_orders,showroom_expenses"
       }
     });
 
@@ -566,6 +629,25 @@ app.post("/api/seed", async (req, res) => {
           showroomSizesJson: '{"S":10,"M":15,"L":15,"XL":5}'
         }
       });
+
+      // Seed Branch Stocks for Boktaboli Outlet
+      await prisma.branchStock.create({
+        data: {
+          productId: created.id,
+          branchId: boktaboliBranch.id,
+          sizesJson: '{"S":10,"M":15,"L":15,"XL":5}'
+        }
+      });
+
+      // Seed Branch Stocks for Balurchar Outlet
+      await prisma.branchStock.create({
+        data: {
+          productId: created.id,
+          branchId: balurcharBranch.id,
+          sizesJson: '{"S":10,"M":15,"L":15,"XL":5}'
+        }
+      });
+
       seeded.push(created);
     }
 
@@ -850,19 +932,172 @@ app.delete("/api/announcements/:id", authenticateToken, requireRole(["ADMIN"]), 
   }
 });
 
+// 2.5. Branches List Route (Public - accessible by guests at /showroom)
+app.get("/api/branches", async (req, res) => {
+  try {
+    const branches = await prisma.branch.findMany({
+      orderBy: { name: "asc" }
+    });
+    res.json(branches);
+  } catch (error: any) {
+    res.status(500).json({ error: "Failed to load branches: " + error.message });
+  }
+});
+
+// Create Branch (Super Admin only)
+app.post("/api/branches", authenticateToken, requireRole(["SUPER_ADMIN"]), async (req, res) => {
+  try {
+    const { name, address, phone, city, timings, holiday, location } = req.body;
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: "শোরুমের নাম আবশ্যক।" });
+    }
+    const cleanName = name.trim();
+    const existing = await prisma.branch.findUnique({ where: { name: cleanName } });
+    if (existing) {
+      return res.status(400).json({ error: "এই নামের শোরুম ইতিমধ্যে রয়েছে।" });
+    }
+    const branch = await prisma.branch.create({
+      data: {
+        name: cleanName,
+        address: address ? address.trim() : null,
+        phone: phone ? phone.trim() : null,
+        city: city ? city.trim() : "Dhaka",
+        timings: timings ? timings.trim() : "সকাল ১০:০০ টা - রাত ৯:০০ টা",
+        holiday: holiday ? holiday.trim() : "বুধবার (সাপ্তাহিক বন্ধ)",
+        location: location ? location.trim() : null
+      }
+    });
+
+    // Automatically pre-populate BranchStock with all existing products
+    const products = await prisma.product.findMany();
+    if (products.length > 0) {
+      await prisma.branchStock.createMany({
+        data: products.map(p => ({
+          productId: p.id,
+          branchId: branch.id,
+          sizesJson: '{"S":0,"M":0,"L":0,"XL":0}'
+        }))
+      });
+    }
+
+    logAdminActivity(req, "BRANCH_CREATE", `Created showroom branch: ${cleanName}`);
+    res.status(201).json(branch);
+  } catch (error: any) {
+    res.status(500).json({ error: "Failed to create branch: " + error.message });
+  }
+});
+
+// Update Branch (Super Admin only)
+app.put("/api/branches/:id", authenticateToken, requireRole(["SUPER_ADMIN"]), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, address, phone, city, timings, holiday, location } = req.body;
+
+    const branch = await prisma.branch.findUnique({ where: { id } });
+    if (!branch) {
+      return res.status(404).json({ error: "শোরুম পাওয়া যায়নি।" });
+    }
+
+    let nextName = branch.name;
+    if (name !== undefined) {
+      if (!name || !name.trim()) {
+        return res.status(400).json({ error: "শোরুমের নাম খালি রাখা যাবে না।" });
+      }
+      const cleanName = name.trim();
+      if (cleanName !== branch.name) {
+        const existing = await prisma.branch.findUnique({ where: { name: cleanName } });
+        if (existing) {
+          return res.status(400).json({ error: "এই নামের শোরুম ইতিমধ্যে রয়েছে।" });
+        }
+        nextName = cleanName;
+      }
+    }
+
+    const updated = await prisma.branch.update({
+      where: { id },
+      data: {
+        name: nextName,
+        address: address !== undefined ? (address ? address.trim() : null) : branch.address,
+        phone: phone !== undefined ? (phone ? phone.trim() : null) : branch.phone,
+        city: city !== undefined ? (city ? city.trim() : "Dhaka") : branch.city,
+        timings: timings !== undefined ? (timings ? timings.trim() : "সকাল ১০:০০ টা - রাত ৯:০০ টা") : branch.timings,
+        holiday: holiday !== undefined ? (holiday ? holiday.trim() : "বুধবার (সাপ্তাহিক বন্ধ)") : branch.holiday,
+        location: location !== undefined ? (location ? location.trim() : null) : branch.location
+      }
+    });
+
+    logAdminActivity(req, "BRANCH_UPDATE", `Updated showroom branch: ${updated.name}`);
+    res.json(updated);
+  } catch (error: any) {
+    res.status(500).json({ error: "Failed to update branch: " + error.message });
+  }
+});
+
+// Delete Branch (Super Admin only)
+app.delete("/api/branches/:id", authenticateToken, requireRole(["SUPER_ADMIN"]), async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const branch = await prisma.branch.findUnique({ where: { id } });
+    if (!branch) {
+      return res.status(404).json({ error: "শোরুম পাওয়া যায়নি।" });
+    }
+
+    // Check if there are users assigned to this branch
+    const staffCount = await prisma.user.count({ where: { branchId: id } });
+    if (staffCount > 0) {
+      return res.status(400).json({ error: "এই শোরুমের অধীনে ম্যানেজার/কর্মী কর্মরত রয়েছে, প্রথমে তাদের প্রোফাইল মুছুন বা পরিবর্তন করুন।" });
+    }
+
+    // Check if there are orders assigned to this branch
+    const orderCount = await prisma.order.count({ where: { branchId: id } });
+    if (orderCount > 0) {
+      return res.status(400).json({ error: "এই শোরুমের বিক্রয় এন্ট্রি বা অর্ডার ইতিহাসে রেকর্ড রয়েছে, নিরাপত্তা স্বার্থে এটি ডিলিট করা যাবে না।" });
+    }
+
+    await prisma.$transaction([
+      prisma.branchStock.deleteMany({ where: { branchId: id } }),
+      prisma.branch.delete({ where: { id } })
+    ]);
+
+    logAdminActivity(req, "BRANCH_DELETE", `Deleted showroom branch: ${branch.name}`);
+    res.json({ message: "Branch deleted successfully" });
+  } catch (error: any) {
+    res.status(500).json({ error: "Failed to delete branch: " + error.message });
+  }
+});
+
 // 3. Products List Route
 app.get("/api/products", async (req, res) => {
   try {
+    const branchId = req.query.branchId as string;
+
     const products = await prisma.product.findMany({
       include: {
-        reviews: true
+        reviews: true,
+        branchStocks: branchId ? { where: { branchId } } : false
       }
     });
+
+    if (branchId) {
+      const mapped = products.map((p: any) => {
+        const bStock = p.branchStocks?.[0];
+        return {
+          ...p,
+          showroomSizesJson: bStock ? bStock.sizesJson : '{"S":0,"M":0,"L":0,"XL":0}',
+          branchStocks: undefined
+        };
+      });
+      return res.json(mapped);
+    }
+
     res.json(products);
   } catch (error: any) {
     res.status(500).json({ error: "Failed to load products: " + error.message });
   }
-});// Helper function to adjust order stock atomically
+});
+
+// Helper function to adjust order stock atomically
 async function adjustOrderStock(orderId: string, nextStatus: string, txClient?: any) {
   const prismaClient = txClient || prisma;
   // Fetch order
@@ -882,24 +1117,49 @@ async function adjustOrderStock(orderId: string, nextStatus: string, txClient?: 
       if (!prod) {
         throw new Error(`পোশাকটি পাওয়া যায়নি (কোড/আইডি: ${item.productId})`);
       }
-      const sizes = JSON.parse((order.isShowroom ? prod.showroomSizesJson : prod.sizesJson) || "{}");
-      const currentStock = Number(sizes[item.size] || 0);
+
+      let currentStock = 0;
+      if (order.isShowroom && order.branchId) {
+        const bStock = await prismaClient.branchStock.findUnique({
+          where: { productId_branchId: { productId: item.productId, branchId: order.branchId } }
+        });
+        const sizes = JSON.parse(bStock?.sizesJson || "{}");
+        currentStock = Number(sizes[item.size] || 0);
+      } else {
+        const sizes = JSON.parse((order.isShowroom ? prod.showroomSizesJson : prod.sizesJson) || "{}");
+        currentStock = Number(sizes[item.size] || 0);
+      }
+
       if (currentStock < item.quantity) {
         throw new Error(`দুঃখিত, "${prod.name}" (সাইজ: ${item.size}) এর পর্যাপ্ত স্টক নেই। বর্তমান স্টক: ${currentStock} টি, অর্ডার চাওয়া হয়েছে: ${item.quantity} টি।`);
       }
     }
+
     // Deduct stocks
     for (const item of order.items) {
       const prod = await prismaClient.product.findUnique({ where: { id: item.productId } });
       if (prod) {
-        const sizes = JSON.parse((order.isShowroom ? prod.showroomSizesJson : prod.sizesJson) || "{}");
-        sizes[item.size] = Math.max(0, Number(sizes[item.size] || 0) - item.quantity);
-        await prismaClient.product.update({
-          where: { id: item.productId },
-          data: {
-            [order.isShowroom ? "showroomSizesJson" : "sizesJson"]: JSON.stringify(sizes)
-          }
-        });
+        if (order.isShowroom && order.branchId) {
+          const bStock = await prismaClient.branchStock.findUnique({
+            where: { productId_branchId: { productId: item.productId, branchId: order.branchId } }
+          });
+          const sizes = JSON.parse(bStock?.sizesJson || "{}");
+          sizes[item.size] = Math.max(0, Number(sizes[item.size] || 0) - item.quantity);
+          await prismaClient.branchStock.upsert({
+            where: { productId_branchId: { productId: item.productId, branchId: order.branchId } },
+            update: { sizesJson: JSON.stringify(sizes) },
+            create: { productId: item.productId, branchId: order.branchId, sizesJson: JSON.stringify(sizes) }
+          });
+        } else {
+          const sizes = JSON.parse((order.isShowroom ? prod.showroomSizesJson : prod.sizesJson) || "{}");
+          sizes[item.size] = Math.max(0, Number(sizes[item.size] || 0) - item.quantity);
+          await prismaClient.product.update({
+            where: { id: item.productId },
+            data: {
+              [order.isShowroom ? "showroomSizesJson" : "sizesJson"]: JSON.stringify(sizes)
+            }
+          });
+        }
       }
     }
     // Mark order as stockAdjusted
@@ -912,14 +1172,27 @@ async function adjustOrderStock(orderId: string, nextStatus: string, txClient?: 
     for (const item of order.items) {
       const prod = await prismaClient.product.findUnique({ where: { id: item.productId } });
       if (prod) {
-        const sizes = JSON.parse((order.isShowroom ? prod.showroomSizesJson : prod.sizesJson) || "{}");
-        sizes[item.size] = Number(sizes[item.size] || 0) + item.quantity;
-        await prismaClient.product.update({
-          where: { id: item.productId },
-          data: {
-            [order.isShowroom ? "showroomSizesJson" : "sizesJson"]: JSON.stringify(sizes)
-          }
-        });
+        if (order.isShowroom && order.branchId) {
+          const bStock = await prismaClient.branchStock.findUnique({
+            where: { productId_branchId: { productId: item.productId, branchId: order.branchId } }
+          });
+          const sizes = JSON.parse(bStock?.sizesJson || "{}");
+          sizes[item.size] = Number(sizes[item.size] || 0) + item.quantity;
+          await prismaClient.branchStock.upsert({
+            where: { productId_branchId: { productId: item.productId, branchId: order.branchId } },
+            update: { sizesJson: JSON.stringify(sizes) },
+            create: { productId: item.productId, branchId: order.branchId, sizesJson: JSON.stringify(sizes) }
+          });
+        } else {
+          const sizes = JSON.parse((order.isShowroom ? prod.showroomSizesJson : prod.sizesJson) || "{}");
+          sizes[item.size] = Number(sizes[item.size] || 0) + item.quantity;
+          await prismaClient.product.update({
+            where: { id: item.productId },
+            data: {
+              [order.isShowroom ? "showroomSizesJson" : "sizesJson"]: JSON.stringify(sizes)
+            }
+          });
+        }
       }
     }
     // Mark order as not stockAdjusted
@@ -951,6 +1224,18 @@ app.post("/api/orders", async (req, res) => {
 
     const isShowroom = shippingMethod === "showroom" || shippingMethod === "walkin";
 
+    // Extract branchId from request body or authenticated token
+    let branchId = req.body.branchId || null;
+    if (!branchId) {
+      const token = req.cookies?.token;
+      if (token) {
+        try {
+          const decoded: any = jwt.verify(token, JWT_SECRET);
+          branchId = decoded.branchId || null;
+        } catch (e) {}
+      }
+    }
+
     // Default fields for showroom/walkin POS checkouts to save cashier time
     if (isShowroom) {
       if (!name) name = "শোরুম কাস্টমার";
@@ -975,9 +1260,22 @@ app.post("/api/orders", async (req, res) => {
           throw new Error(`পোশাকটি পাওয়া যায়নি (কোড/আইডি: ${productId})`);
         }
         const size = item.size || "M";
-        const sizes = JSON.parse((isShowroom ? prod.showroomSizesJson : prod.sizesJson) || "{}");
-        const currentStock = Number(sizes[size] || 0);
         const qty = Number(item.quantity);
+
+        let currentStock = 0;
+        if (isShowroom && branchId) {
+          // Look up from branch-specific stock
+          const bStock = await tx.branchStock.findUnique({
+            where: { productId_branchId: { productId, branchId } }
+          });
+          const sizes = JSON.parse(bStock?.sizesJson || "{}");
+          currentStock = Number(sizes[size] || 0);
+        } else {
+          // Online store web stock or fallback showroom stock
+          const sizes = JSON.parse((isShowroom ? prod.showroomSizesJson : prod.sizesJson) || "{}");
+          currentStock = Number(sizes[size] || 0);
+        }
+
         if (currentStock < qty) {
           throw new Error(`দুঃখিত, "${prod.name}" (সাইজ: ${size}) এর পর্যাপ্ত স্টক নেই। বর্তমান স্টক: ${currentStock} টি, অর্ডার চাওয়া হয়েছে: ${qty} টি।`);
         }
@@ -987,15 +1285,40 @@ app.post("/api/orders", async (req, res) => {
       const orderItemsToCreate = [];
 
       for (const item of items) {
-        const price = Number(item.price);
+        const productId = item.id || "1";
+        const size = item.size || "M";
         const qty = Number(item.quantity);
-        subtotal += price * qty;
+
+        const prod = await tx.product.findUnique({ where: { id: productId } });
+        if (!prod) {
+          throw new Error(`পোশাকটি পাওয়া যায়নি (কোড/আইডি: ${productId})`);
+        }
+
+        // Determine size-specific price from DB
+        let resolvedPrice = prod.price;
+        if (prod.sizePricesJson) {
+          try {
+            const sizePrices = JSON.parse(prod.sizePricesJson);
+            if (sizePrices[size] !== undefined && sizePrices[size] !== null && Number(sizePrices[size]) > 0) {
+              resolvedPrice = Number(sizePrices[size]);
+            }
+          } catch (e) {}
+        }
+
+        // For showroom POS sales, we can trust the client override if provided. Otherwise use resolvedPrice.
+        // For online store sales, we ALWAYS force resolvedPrice to prevent client tampering.
+        let finalPrice = resolvedPrice;
+        if (isShowroom && item.price !== undefined && item.price !== null) {
+          finalPrice = Number(item.price);
+        }
+
+        subtotal += finalPrice * qty;
 
         orderItemsToCreate.push({
-          productId: item.id || "1",
-          size: item.size || "M",
+          productId,
+          size,
           quantity: qty,
-          price: price
+          price: finalPrice
         });
       }
 
@@ -1024,14 +1347,31 @@ app.post("/api/orders", async (req, res) => {
           if (prod) {
             const size = item.size || "M";
             const qty = Number(item.quantity);
-            const sizes = JSON.parse((isShowroom ? prod.showroomSizesJson : prod.sizesJson) || "{}");
-            sizes[size] = Math.max(0, Number(sizes[size] || 0) - qty);
-            await tx.product.update({
-              where: { id: productId },
-              data: { 
-                [isShowroom ? "showroomSizesJson" : "sizesJson"]: JSON.stringify(sizes) 
-              }
-            });
+
+            if (isShowroom && branchId) {
+              // Deduct from branch-specific stock
+              const bStock = await tx.branchStock.findUnique({
+                where: { productId_branchId: { productId, branchId } }
+              });
+              const sizes = JSON.parse(bStock?.sizesJson || "{}");
+              sizes[size] = Math.max(0, Number(sizes[size] || 0) - qty);
+
+              await tx.branchStock.upsert({
+                where: { productId_branchId: { productId, branchId } },
+                update: { sizesJson: JSON.stringify(sizes) },
+                create: { productId, branchId, sizesJson: JSON.stringify(sizes) }
+              });
+            } else {
+              // Deduct from Product (sizesJson or showroomSizesJson fallback)
+              const sizes = JSON.parse((isShowroom ? prod.showroomSizesJson : prod.sizesJson) || "{}");
+              sizes[size] = Math.max(0, Number(sizes[size] || 0) - qty);
+              await tx.product.update({
+                where: { id: productId },
+                data: { 
+                  [isShowroom ? "showroomSizesJson" : "sizesJson"]: JSON.stringify(sizes) 
+                }
+              });
+            }
           }
         }
         stockAdjusted = true;
@@ -1055,13 +1395,19 @@ app.post("/api/orders", async (req, res) => {
           orderStatus: targetOrderStatus,
           stockAdjusted,
           isShowroom,
+          branchId: isShowroom ? branchId : null,
           trxId: trxId || null,
           items: {
             create: orderItemsToCreate
           }
         },
         include: {
-          items: true
+          branch: true,
+          items: {
+            include: {
+              product: true
+            }
+          }
         }
       });
     });
@@ -1073,7 +1419,8 @@ app.post("/api/orders", async (req, res) => {
     if (token) {
       try {
         const decoded: any = jwt.verify(token, JWT_SECRET);
-        if (decoded && decoded.role === "ADMIN") {
+        const isAllowed = decoded.role === "ADMIN" || decoded.role === "SUPER_ADMIN" || decoded.role === "BRANCH_MANAGER";
+        if (decoded && isAllowed) {
           await logActivity(
             decoded.email,
             decoded.name || "অ্যাডমিন",
@@ -1094,11 +1441,32 @@ app.post("/api/orders", async (req, res) => {
 });
 
 // 5. List Orders Route
-app.get("/api/orders", authenticateToken, requireRole(["ADMIN"]), async (req, res) => {
+app.get("/api/orders", authenticateToken, requireRole(["SUPER_ADMIN", "BRANCH_MANAGER"]), async (req: any, res: any) => {
   try {
+    const userRole = req.user.role === "ADMIN" ? "SUPER_ADMIN" : req.user.role;
+    let whereClause = {};
+
+    if (userRole === "BRANCH_MANAGER") {
+      if (!req.user.branchId) {
+        return res.status(400).json({ error: "ইউজারের জন্য কোনো শোরুম আউটলেট অ্যাসাইন করা নেই।" });
+      }
+      whereClause = { branchId: req.user.branchId };
+    } else {
+      const branchIdQuery = req.query.branchId as string;
+      if (branchIdQuery) {
+        whereClause = { branchId: branchIdQuery };
+      }
+    }
+
     const orders = await prisma.order.findMany({
+      where: whereClause,
       include: {
-        items: true
+        branch: true,
+        items: {
+          include: {
+            product: true
+          }
+        }
       },
       orderBy: {
         createdAt: "desc"
@@ -1335,7 +1703,12 @@ app.put("/api/orders/:id", authenticateToken, requireRole(["ADMIN"]), async (req
           ...(trxId !== undefined && { trxId })
         },
         include: {
-          items: true
+          branch: true,
+          items: {
+            include: {
+              product: true
+            }
+          }
         }
       });
     });
@@ -1362,7 +1735,7 @@ app.put("/api/orders/:id", authenticateToken, requireRole(["ADMIN"]), async (req
 // 10. Create Product Route
 app.post("/api/products", authenticateToken, requireRole(["ADMIN"]), async (req, res) => {
   try {
-    const { sku, name, price, category, imgUrl, sizesJson, showroomSizesJson } = req.body;
+    const { sku, name, price, category, imgUrl, sizesJson, showroomSizesJson, sizePricesJson } = req.body;
 
     if (!sku || !name || !price || !category || !imgUrl) {
       return res.status(400).json({ error: "Missing required product fields" });
@@ -1382,7 +1755,8 @@ app.post("/api/products", authenticateToken, requireRole(["ADMIN"]), async (req,
         category,
         imgUrl,
         sizesJson: sizesJson || '{"S":10,"M":15,"L":15,"XL":5}',
-        showroomSizesJson: showroomSizesJson || sizesJson || '{"S":10,"M":15,"L":15,"XL":5}'
+        showroomSizesJson: showroomSizesJson || sizesJson || '{"S":10,"M":15,"L":15,"XL":5}',
+        sizePricesJson: sizePricesJson || '{}'
       }
     });
     logAdminActivity(req, "PRODUCT_CREATE", `Created new product: ${name} (SKU: ${sku}, Price: ৳${price})`);
@@ -1393,10 +1767,47 @@ app.post("/api/products", authenticateToken, requireRole(["ADMIN"]), async (req,
 });
 
 // 11. Update Product Route
-app.put("/api/products/:id", authenticateToken, requireRole(["ADMIN"]), async (req, res) => {
+app.put("/api/products/:id", authenticateToken, requireRole(["SUPER_ADMIN", "BRANCH_MANAGER"]), async (req: any, res: any) => {
   try {
     const { id } = req.params;
-    const { name, price, category, imgUrl, sizesJson, showroomSizesJson } = req.body;
+    const { name, price, category, imgUrl, sizesJson, showroomSizesJson, sizePricesJson } = req.body;
+    let branchId = req.body.branchId || null;
+
+    const userRole = req.user.role === "ADMIN" ? "SUPER_ADMIN" : req.user.role;
+
+    if (userRole === "BRANCH_MANAGER") {
+      // Branch manager can ONLY update showroom stock (showroomSizesJson)
+      if (name || price || category || imgUrl || sizesJson || sizePricesJson) {
+        return res.status(403).json({ error: "আপনার এই পণ্য তথ্য পরিবর্তন করার অনুমতি নেই।" });
+      }
+      if (!req.user.branchId) {
+        return res.status(400).json({ error: "ইউজারের জন্য কোনো শোরুম আউটলেট অ্যাসাইন করা নেই।" });
+      }
+      branchId = req.user.branchId;
+    }
+
+    // If updating showroom stock and a branchId is resolved/provided, update the BranchStock pivot table!
+    if (showroomSizesJson && branchId) {
+      try {
+        JSON.parse(showroomSizesJson);
+      } catch (e) {
+        return res.status(400).json({ error: "Invalid showroomSizesJson format" });
+      }
+
+      await prisma.branchStock.upsert({
+        where: { productId_branchId: { productId: id, branchId } },
+        update: { sizesJson: showroomSizesJson },
+        create: { productId: id, branchId, sizesJson: showroomSizesJson }
+      });
+
+      const product = await prisma.product.findUnique({ where: { id } });
+      logAdminActivity(req, "STOCK_UPDATE", `Updated showroom stock for product ${product?.sku} at branch ${branchId}`);
+      
+      return res.json({
+        ...product,
+        showroomSizesJson
+      });
+    }
 
     if (category) {
       // Verify category exists in database
@@ -1414,7 +1825,8 @@ app.put("/api/products/:id", authenticateToken, requireRole(["ADMIN"]), async (r
         ...(category && { category }),
         ...(imgUrl && { imgUrl }),
         ...(sizesJson && { sizesJson }),
-        ...(showroomSizesJson && { showroomSizesJson })
+        ...(showroomSizesJson && { showroomSizesJson }),
+        ...(sizePricesJson && { sizePricesJson })
       }
     });
     logAdminActivity(req, "PRODUCT_UPDATE", `Updated product: ${updatedProduct.name} (SKU: ${updatedProduct.sku}, Price: ৳${updatedProduct.price})`);
@@ -1849,9 +2261,25 @@ app.delete("/api/suppliers/:id", authenticateToken, requireRole(["ADMIN"]), asyn
 });
 
 // 4. Retrieve purchase logs
-app.get("/api/purchases", authenticateToken, requireRole(["ADMIN"]), async (req, res) => {
+app.get("/api/purchases", authenticateToken, requireRole(["SUPER_ADMIN", "BRANCH_MANAGER"]), async (req: any, res: any) => {
   try {
+    const userRole = req.user.role === "ADMIN" ? "SUPER_ADMIN" : req.user.role;
+    let whereClause = {};
+
+    if (userRole === "BRANCH_MANAGER") {
+      if (!req.user.branchId) {
+        return res.status(400).json({ error: "ইউজারের জন্য কোনো শোরুম আউটলেট অ্যাসাইন করা নেই।" });
+      }
+      whereClause = { branchId: req.user.branchId };
+    } else {
+      const branchIdQuery = req.query.branchId as string;
+      if (branchIdQuery) {
+        whereClause = { branchId: branchIdQuery };
+      }
+    }
+
     const purchases = await prisma.stockPurchase.findMany({
+      where: whereClause,
       include: {
         supplier: true,
         product: true
@@ -1865,9 +2293,19 @@ app.get("/api/purchases", authenticateToken, requireRole(["ADMIN"]), async (req,
 });
 
 // 5. Record new purchase and increment stock atomically
-app.post("/api/purchases", authenticateToken, requireRole(["ADMIN"]), async (req, res) => {
+app.post("/api/purchases", authenticateToken, requireRole(["SUPER_ADMIN", "BRANCH_MANAGER"]), async (req: any, res: any) => {
   try {
     const { supplierId, productId, size, quantity, buyingPrice, target } = req.body;
+    let branchId = req.body.branchId || null;
+
+    const userRole = req.user.role === "ADMIN" ? "SUPER_ADMIN" : req.user.role;
+    if (userRole === "BRANCH_MANAGER") {
+      if (!req.user.branchId) {
+        return res.status(400).json({ error: "ইউজারের জন্য কোনো শোরুম আউটলেট অ্যাসাইন করা নেই।" });
+      }
+      branchId = req.user.branchId;
+    }
+
     if (!productId || !size || !quantity || !buyingPrice) {
       return res.status(400).json({ error: "Product ID, size, quantity, and buying price are required" });
     }
@@ -1891,12 +2329,26 @@ app.post("/api/purchases", authenticateToken, requireRole(["ADMIN"]), async (req
 
     // Increment stock count
     let sizes: any = {};
-    try {
-      sizes = JSON.parse((isShowroom ? product.showroomSizesJson : product.sizesJson) || "{}");
-    } catch (e) {
-      sizes = {};
+    let branchSizes: any = {};
+
+    if (isShowroom && branchId) {
+      const bStock = await prisma.branchStock.findUnique({
+        where: { productId_branchId: { productId, branchId } }
+      });
+      try {
+        branchSizes = JSON.parse(bStock?.sizesJson || "{}");
+      } catch (e) {
+        branchSizes = {};
+      }
+      branchSizes[size] = (branchSizes[size] || 0) + qty;
+    } else {
+      try {
+        sizes = JSON.parse((isShowroom ? product.showroomSizesJson : product.sizesJson) || "{}");
+      } catch (e) {
+        sizes = {};
+      }
+      sizes[size] = (sizes[size] || 0) + qty;
     }
-    sizes[size] = (sizes[size] || 0) + qty;
 
     // Use Prisma transaction to ensure atomicity
     const result = await prisma.$transaction(async (tx) => {
@@ -1908,7 +2360,8 @@ app.post("/api/purchases", authenticateToken, requireRole(["ADMIN"]), async (req
           size,
           quantity: qty,
           buyingPrice: price,
-          totalCost: qty * price
+          totalCost: qty * price,
+          branchId: isShowroom ? branchId : null
         },
         include: {
           supplier: true,
@@ -1916,13 +2369,21 @@ app.post("/api/purchases", authenticateToken, requireRole(["ADMIN"]), async (req
         }
       });
 
-      // 2. Update Product sizesJson or showroomSizesJson
-      await tx.product.update({
-        where: { id: productId },
-        data: {
-          [isShowroom ? "showroomSizesJson" : "sizesJson"]: JSON.stringify(sizes)
-        }
-      });
+      // 2. Update Product or BranchStock
+      if (isShowroom && branchId) {
+        await tx.branchStock.upsert({
+          where: { productId_branchId: { productId, branchId } },
+          update: { sizesJson: JSON.stringify(branchSizes) },
+          create: { productId, branchId, sizesJson: JSON.stringify(branchSizes) }
+        });
+      } else {
+        await tx.product.update({
+          where: { id: productId },
+          data: {
+            [isShowroom ? "showroomSizesJson" : "sizesJson"]: JSON.stringify(sizes)
+          }
+        });
+      }
 
       return purchase;
     });
@@ -2097,10 +2558,19 @@ app.post("/api/orders/:id/sync-steadfast", authenticateToken, requireRole(["ADMI
 });
 
 // 12. Product Stock Transfer Route (Online ⇄ Showroom)
-app.post("/api/products/:id/transfer-stock", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
+app.post("/api/products/:id/transfer-stock", authenticateToken, requireRole(["SUPER_ADMIN", "BRANCH_MANAGER"]), async (req: any, res: any) => {
   try {
     const { id } = req.params;
     const { size, quantity, direction } = req.body;
+    let branchId = req.body.branchId || null;
+
+    const userRole = req.user.role === "ADMIN" ? "SUPER_ADMIN" : req.user.role;
+    if (userRole === "BRANCH_MANAGER") {
+      if (!req.user.branchId) {
+        return res.status(400).json({ error: "ইউজারের জন্য কোনো শোরুম আউটলেট অ্যাসাইন করা নেই।" });
+      }
+      branchId = req.user.branchId;
+    }
 
     if (!size || !quantity || quantity <= 0 || !direction) {
       return res.status(400).json({ error: "Invalid transfer parameters" });
@@ -2112,7 +2582,17 @@ app.post("/api/products/:id/transfer-stock", authenticateToken, requireRole(["AD
     }
 
     const sizes = JSON.parse(product.sizesJson || "{}");
-    const showroomSizes = JSON.parse(product.showroomSizesJson || "{}");
+
+    // Load target showroom stock
+    let showroomSizes: any = {};
+    if (branchId) {
+      const bStock = await prisma.branchStock.findUnique({
+        where: { productId_branchId: { productId: id, branchId } }
+      });
+      showroomSizes = JSON.parse(bStock?.sizesJson || "{}");
+    } else {
+      showroomSizes = JSON.parse(product.showroomSizesJson || "{}");
+    }
 
     if (direction === "online_to_showroom") {
       const currentOnlineStock = Number(sizes[size] || 0);
@@ -2132,13 +2612,24 @@ app.post("/api/products/:id/transfer-stock", authenticateToken, requireRole(["AD
       return res.status(400).json({ error: "Invalid transfer direction" });
     }
 
-    const updatedProduct = await prisma.product.update({
+    // Save changes
+    await prisma.product.update({
       where: { id },
-      data: {
-        sizesJson: JSON.stringify(sizes),
-        showroomSizesJson: JSON.stringify(showroomSizes)
-      }
+      data: { sizesJson: JSON.stringify(sizes) }
     });
+
+    if (branchId) {
+      await prisma.branchStock.upsert({
+        where: { productId_branchId: { productId: id, branchId } },
+        update: { sizesJson: JSON.stringify(showroomSizes) },
+        create: { productId: id, branchId, sizesJson: JSON.stringify(showroomSizes) }
+      });
+    } else {
+      await prisma.product.update({
+        where: { id },
+        data: { showroomSizesJson: JSON.stringify(showroomSizes) }
+      });
+    }
 
     const dirLabel = direction === "online_to_showroom" ? "অনলাইন -> শোরুম" : "শোরুম -> অনলাইন";
     logAdminActivity(
@@ -2147,16 +2638,39 @@ app.post("/api/products/:id/transfer-stock", authenticateToken, requireRole(["AD
       `Transferred ${quantity} pcs of ${product.name} (Size: ${size}) from ${dirLabel}`
     );
 
-    res.json(updatedProduct);
+    res.json({
+      ...product,
+      sizesJson: JSON.stringify(sizes),
+      showroomSizesJson: JSON.stringify(showroomSizes)
+    });
   } catch (error: any) {
     res.status(500).json({ error: "Stock transfer failed: " + error.message });
   }
 });
 
 // 13. Expense API Routes
-app.get("/api/expenses", authenticateToken, requireRole(["ADMIN"]), async (req, res) => {
+app.get("/api/expenses", authenticateToken, requireRole(["SUPER_ADMIN", "BRANCH_MANAGER"]), async (req: any, res: any) => {
   try {
+    const userRole = req.user.role === "ADMIN" ? "SUPER_ADMIN" : req.user.role;
+    let whereClause = {};
+
+    if (userRole === "BRANCH_MANAGER") {
+      if (!req.user.branchId) {
+        return res.status(400).json({ error: "ইউজারের জন্য কোনো শোরুম আউটলেট অ্যাসাইন করা নেই।" });
+      }
+      whereClause = { branchId: req.user.branchId };
+    } else {
+      const branchIdQuery = req.query.branchId as string;
+      if (branchIdQuery) {
+        whereClause = { branchId: branchIdQuery };
+      }
+    }
+
     const expenses = await prisma.expense.findMany({
+      where: whereClause,
+      include: {
+        branch: true
+      },
       orderBy: { date: "desc" }
     });
     res.json(expenses);
@@ -2165,9 +2679,19 @@ app.get("/api/expenses", authenticateToken, requireRole(["ADMIN"]), async (req, 
   }
 });
 
-app.post("/api/expenses", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
+app.post("/api/expenses", authenticateToken, requireRole(["SUPER_ADMIN", "BRANCH_MANAGER"]), async (req: any, res: any) => {
   try {
     const { category, amount, description, date } = req.body;
+    let branchId = req.body.branchId || null;
+
+    const userRole = req.user.role === "ADMIN" ? "SUPER_ADMIN" : req.user.role;
+    if (userRole === "BRANCH_MANAGER") {
+      if (!req.user.branchId) {
+        return res.status(400).json({ error: "ইউজারের জন্য কোনো শোরুম আউটলেট অ্যাসাইন করা নেই।" });
+      }
+      branchId = req.user.branchId;
+    }
+
     if (!category || !amount || amount <= 0) {
       return res.status(400).json({ error: "Category and valid amount are required" });
     }
@@ -2179,6 +2703,7 @@ app.post("/api/expenses", authenticateToken, requireRole(["ADMIN"]), async (req:
         category,
         amount: Number(amount),
         description: description || null,
+        branchId,
         date: parsedDate
       }
     });
@@ -2190,12 +2715,17 @@ app.post("/api/expenses", authenticateToken, requireRole(["ADMIN"]), async (req:
   }
 });
 
-app.delete("/api/expenses/:id", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
+app.delete("/api/expenses/:id", authenticateToken, requireRole(["SUPER_ADMIN", "BRANCH_MANAGER"]), async (req: any, res: any) => {
   try {
     const { id } = req.params;
     const expense = await prisma.expense.findUnique({ where: { id } });
     if (!expense) {
       return res.status(404).json({ error: "Expense not found" });
+    }
+
+    const userRole = req.user.role === "ADMIN" ? "SUPER_ADMIN" : req.user.role;
+    if (userRole === "BRANCH_MANAGER" && expense.branchId !== req.user.branchId) {
+      return res.status(403).json({ error: "আপনার এই আউটলেটের ব্যয় বিবরণী ডিলিট করার অনুমতি নেই।" });
     }
 
     await prisma.expense.delete({ where: { id } });
@@ -2204,6 +2734,137 @@ app.delete("/api/expenses/:id", authenticateToken, requireRole(["ADMIN"]), async
     res.json({ message: "Expense deleted successfully" });
   } catch (error: any) {
     res.status(500).json({ error: "Failed to delete expense: " + error.message });
+  }
+});
+
+// 14. Staff Management API Routes (Super Admin only)
+app.get("/api/staff", authenticateToken, requireRole(["SUPER_ADMIN"]), async (req: any, res: any) => {
+  try {
+    const staff = await prisma.user.findMany({
+      where: {
+        role: {
+          in: ["SUPER_ADMIN", "BRANCH_MANAGER", "ADMIN"]
+        }
+      },
+      include: {
+        branch: true
+      },
+      orderBy: { createdAt: "desc" }
+    });
+    res.json(staff);
+  } catch (error: any) {
+    res.status(500).json({ error: "Failed to load staff list: " + error.message });
+  }
+});
+
+app.post("/api/staff", authenticateToken, requireRole(["SUPER_ADMIN"]), async (req: any, res: any) => {
+  try {
+    const { email, password, name, role, branchId, phone, allowedModules } = req.body;
+
+    if (!email || !password || !name || !role) {
+      return res.status(400).json({ error: "Email, password, name, and role are required." });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({ error: "Password must be at least 6 characters long." });
+    }
+
+    const emailClean = email.toLowerCase().trim();
+    const existing = await prisma.user.findUnique({ where: { email: emailClean } });
+    if (existing) {
+      return res.status(400).json({ error: "এই ইমেইল দিয়ে অলরেডি অ্যাকাউন্ট রয়েছে।" });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const user = await prisma.user.create({
+      data: {
+        email: emailClean,
+        password: hashedPassword,
+        name,
+        role,
+        branchId: role === "BRANCH_MANAGER" ? branchId : null,
+        phone: phone || null,
+        allowedModules: allowedModules || null
+      },
+      include: {
+        branch: true
+      }
+    });
+
+    logAdminActivity(req, "STAFF_CREATE", `Created new staff account: ${name} (${role})`);
+    res.status(201).json(user);
+  } catch (error: any) {
+    res.status(500).json({ error: "Failed to create staff account: " + error.message });
+  }
+});
+
+app.put("/api/staff/:id", authenticateToken, requireRole(["SUPER_ADMIN"]), async (req: any, res: any) => {
+  try {
+    const { id } = req.params;
+    const { email, password, name, role, branchId, phone, allowedModules } = req.body;
+
+    const staffUser = await prisma.user.findUnique({ where: { id } });
+    if (!staffUser) {
+      return res.status(404).json({ error: "Staff user not found" });
+    }
+
+    let hashedPassword = staffUser.password;
+    if (password && password.trim()) {
+      if (password.length < 6) {
+        return res.status(400).json({ error: "Password must be at least 6 characters long." });
+      }
+      hashedPassword = await bcrypt.hash(password, 10);
+    }
+
+    const emailClean = email ? email.toLowerCase().trim() : staffUser.email;
+    if (email && emailClean !== staffUser.email) {
+      const existing = await prisma.user.findUnique({ where: { email: emailClean } });
+      if (existing) {
+        return res.status(400).json({ error: "এই ইমেইল দিয়ে অলরেডি অন্য একটি অ্যাকাউন্ট রয়েছে।" });
+      }
+    }
+
+    const updated = await prisma.user.update({
+      where: { id },
+      data: {
+        email: emailClean,
+        password: hashedPassword,
+        name: name || staffUser.name,
+        role: role || staffUser.role,
+        branchId: role === "BRANCH_MANAGER" ? branchId : null,
+        phone: phone !== undefined ? phone : staffUser.phone,
+        allowedModules: allowedModules !== undefined ? allowedModules : staffUser.allowedModules
+      },
+      include: {
+        branch: true
+      }
+    });
+
+    logAdminActivity(req, "STAFF_UPDATE", `Updated staff account: ${updated.name} (${updated.role})`);
+    res.json(updated);
+  } catch (error: any) {
+    res.status(500).json({ error: "Failed to update staff account: " + error.message });
+  }
+});
+
+app.delete("/api/staff/:id", authenticateToken, requireRole(["SUPER_ADMIN"]), async (req: any, res: any) => {
+  try {
+    const { id } = req.params;
+
+    if (req.user.id === id) {
+      return res.status(400).json({ error: "আপনি নিজের সচল অ্যাডমিন অ্যাকাউন্ট মুছতে পারবেন না।" });
+    }
+
+    const staffUser = await prisma.user.findUnique({ where: { id } });
+    if (!staffUser) {
+      return res.status(404).json({ error: "Staff user not found" });
+    }
+
+    await prisma.user.delete({ where: { id } });
+    logAdminActivity(req, "STAFF_DELETE", `Deleted staff account: ${staffUser.name} (${staffUser.role})`);
+    res.json({ message: "Staff account deleted successfully" });
+  } catch (error: any) {
+    res.status(500).json({ error: "Failed to delete staff account: " + error.message });
   }
 });
 

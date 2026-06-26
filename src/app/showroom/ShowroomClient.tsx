@@ -30,6 +30,17 @@ import ToastNotification from "@/components/overlays/ToastNotification";
 // Import Showroom mock interior banner
 import showroomOutletBanner from "@/assets/showroom_banner.png";
 
+interface Branch {
+  id: string;
+  name: string;
+  address?: string | null;
+  phone?: string | null;
+  city: string;
+  timings: string;
+  holiday: string;
+  location?: string | null;
+}
+
 export default function ShowroomClient() {
   const router = useRouter();
   const { cartCount, cartDrawerOpen, setCartDrawerOpen } = useCart();
@@ -38,6 +49,10 @@ export default function ShowroomClient() {
   const [searchQuery, setSearchQuery] = useState("");
   const [toastActive, setToastActive] = useState(false);
   const [toastMsg, setToastMsg] = useState("");
+
+  // Dynamic branches state
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [isLoadingBranches, setIsLoadingBranches] = useState(true);
 
   useEffect(() => {
     document.documentElement.classList.remove("dark");
@@ -49,33 +64,30 @@ export default function ShowroomClient() {
     setTimeout(() => setToastActive(false), 2000);
   };
 
+  // Fetch branches on mount
+  useEffect(() => {
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/branches`)
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to fetch branches");
+        return res.json();
+      })
+      .then((data) => {
+        setBranches(data);
+      })
+      .catch((err) => {
+        console.error("Error fetching branches:", err);
+      })
+      .finally(() => {
+        setIsLoadingBranches(false);
+      });
+  }, []);
+
   // Redirect search requests
   useEffect(() => {
     if (searchQuery.trim()) {
       router.push(`/?search=${encodeURIComponent(searchQuery)}`);
     }
   }, [searchQuery, router]);
-
-  const showroomOutlets = [
-    {
-      name: "মিরপুর শোরুম আউটলেট",
-      city: "Dhaka",
-      address: "শপ নং ২০২, লেভেল ২, মিরপুর শপিং সেন্টার, মিরপুর-১, ঢাকা-১২১৬।",
-      phone: "০৯৬১২-৩৪৫৬৭৮",
-      timings: "সকাল ১০:০০ টা - রাত ৯:০০ টা",
-      holiday: "বুধবার (সাপ্তাহিক বন্ধ)",
-      hotline: "tel:09612345678"
-    },
-    {
-      name: "উত্তরা শোরুম আউটলেট",
-      city: "Dhaka",
-      address: "হাউজ ১৫, রোড ৭, সেক্টর ৩, উত্তরা, ঢাকা-১২৩০।",
-      phone: "০৯৬১২-৮৭৬৫৪৩",
-      timings: "সকাল ১০:০০ টা - রাত ৯:০০ টা",
-      holiday: "বুধবার (সাপ্তাহিক বন্ধ)",
-      hotline: "tel:09612876543"
-    }
-  ];
 
   const perks = [
     {
@@ -147,53 +159,67 @@ export default function ShowroomClient() {
         </div>
 
         {/* Outlets Listing Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-16">
-          {showroomOutlets.map((outlet, index) => (
-            <div 
-              key={index} 
-              className="bg-card border border-border/80 rounded-2xl p-6 sm:p-8 shadow-2xs hover:shadow-md transition-shadow flex flex-col justify-between"
-            >
-              <div>
-                <span className="text-[10px] bg-primary/10 border border-primary/20 text-primary px-2.5 py-1 rounded-full font-bold uppercase tracking-wider inline-block mb-3.5">
-                  Dhaka Outlet
-                </span>
-                <h3 className="text-lg sm:text-xl font-bold text-foreground font-display mb-4">{outlet.name}</h3>
-                
-                <div className="flex flex-col gap-3.5 text-xs text-muted-foreground font-semibold">
-                  <div className="flex items-start gap-3">
-                    <MapPin className="text-primary flex-shrink-0 mt-0.5" size={16} />
-                    <span className="text-foreground leading-relaxed">{outlet.address}</span>
+        <div className="mb-16">
+          {isLoadingBranches ? (
+            <div className="flex flex-col items-center justify-center py-16 w-full">
+              <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mb-3"></div>
+              <p className="text-xs text-muted-foreground font-semibold">আউটলেট সমূহের তালিকা লোড হচ্ছে...</p>
+            </div>
+          ) : branches.length === 0 ? (
+            <div className="text-center py-16 w-full text-slate-400 font-semibold text-xs border border-dashed border-border rounded-2xl bg-white">
+              কোনো শোরুম আউটলেট খুঁজে পাওয়া যায়নি।
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full">
+              {branches.map((outlet, index) => (
+                <div 
+                  key={outlet.id || index} 
+                  className="bg-card border border-border/80 rounded-2xl p-6 sm:p-8 shadow-2xs hover:shadow-md transition-shadow flex flex-col justify-between"
+                >
+                  <div>
+                    <span className="text-[10px] bg-primary/10 border border-primary/20 text-primary px-2.5 py-1 rounded-full font-bold uppercase tracking-wider inline-block mb-3.5">
+                      {outlet.city || "Dhaka"} Outlet
+                    </span>
+                    <h3 className="text-lg sm:text-xl font-bold text-foreground font-display mb-4">{outlet.name}</h3>
+                    
+                    <div className="flex flex-col gap-3.5 text-xs text-muted-foreground font-semibold">
+                      <div className="flex items-start gap-3">
+                        <MapPin className="text-primary flex-shrink-0 mt-0.5" size={16} />
+                        <span className="text-foreground leading-relaxed">{outlet.address || "—"}</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <Clock className="text-primary flex-shrink-0" size={16} />
+                        <span>প্রতিদিন: {outlet.timings || "সকাল ১০:০০ টা - রাত ৯:০০ টা"} <strong className="text-primary">({outlet.holiday || "বুধবার (সাপ্তাহিক বন্ধ)"})</strong></span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <Phone className="text-primary flex-shrink-0" size={16} />
+                        <span className="font-mono text-foreground">{outlet.phone || "—"}</span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <Clock className="text-primary flex-shrink-0" size={16} />
-                    <span>প্রতিদিন: {outlet.timings} <strong className="text-primary">({outlet.holiday})</strong></span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Phone className="text-primary flex-shrink-0" size={16} />
-                    <span className="font-mono text-foreground">{outlet.phone}</span>
+
+                  <div className="mt-8 border-t border-border/60 pt-6 flex gap-3">
+                    <a 
+                      href={`tel:${outlet.phone || ""}`}
+                      className="flex-1 text-center py-2.5 px-4 bg-primary hover:bg-primary/95 text-white font-bold rounded-xl text-xs transition-colors border-none no-underline flex items-center justify-center gap-1.5 shadow-xs"
+                    >
+                      <Phone size={13} />
+                      <span>কল করুন</span>
+                    </a>
+                    <a 
+                      href={outlet.location || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(outlet.name + " " + (outlet.address || ""))}`} 
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 text-center py-2.5 px-4 bg-secondary hover:bg-secondary-foreground/10 border border-border text-foreground font-bold rounded-xl text-xs transition-colors no-underline flex items-center justify-center gap-1.5"
+                    >
+                      <MapPin size={13} />
+                      <span>গুগল ম্যাপ</span>
+                    </a>
                   </div>
                 </div>
-              </div>
-
-              <div className="mt-8 border-t border-border/60 pt-6 flex gap-3">
-                <a 
-                  href={outlet.hotline}
-                  className="flex-1 text-center py-2.5 px-4 bg-primary hover:bg-primary/95 text-white font-bold rounded-xl text-xs transition-colors border-none no-underline flex items-center justify-center gap-1.5 shadow-xs"
-                >
-                  <Phone size={13} />
-                  <span>কল করুন</span>
-                </a>
-                <a 
-                  href="https://maps.google.com" 
-                  target="_blank"
-                  className="flex-1 text-center py-2.5 px-4 bg-secondary hover:bg-secondary-foreground/10 border border-border text-foreground font-bold rounded-xl text-xs transition-colors no-underline flex items-center justify-center gap-1.5"
-                >
-                  <MapPin size={13} />
-                  <span>গুগল ম্যাপ</span>
-                </a>
-              </div>
+              ))}
             </div>
-          ))}
+          )}
         </div>
 
         {/* Boutique Services perks section */}
