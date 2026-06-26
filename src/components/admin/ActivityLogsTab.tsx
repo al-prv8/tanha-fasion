@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
-import { Search, Activity, Calendar } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Search, Activity, Calendar, RefreshCw, X } from "lucide-react";
 import { toBanglaNumber } from "@/lib/products";
 
 interface ActivityLogItem {
@@ -16,16 +16,67 @@ interface ActivityLogItem {
 interface ActivityLogsTabProps {
   logs: ActivityLogItem[];
   isLoading: boolean;
+  onRefresh?: () => void;
 }
 
-export default function ActivityLogsTab({ logs, isLoading }: ActivityLogsTabProps) {
-  const [searchQuery, setSearchQuery] = useState("");
+const ACTION_CATEGORIES = [
+  { value: "ALL", label: "সকল অ্যাকশন (All Actions)" },
+  { value: "PRODUCT", label: "পণ্য (Product Operations)" },
+  { value: "ORDER", label: "অর্ডার (Order Modifications)" },
+  { value: "CATEGORY", label: "ক্যাটাগরি (Category Operations)" },
+  { value: "COUPON", label: "কুপন (Coupon Codes)" },
+  { value: "FAQ", label: "এফএকিউ (FAQ Section)" },
+  { value: "ANNOUNCEMENT", label: "ঘোষণা (Announcements)" },
+  { value: "IMAGE", label: "ছবি আপলোড (Uploads)" },
+  { value: "NEWSLETTER", label: "নিউজলেটার (Newsletters)" },
+  { value: "REVIEW", label: "রিভিউ (Customer Reviews)" }
+];
 
-  const filteredLogs = logs.filter((log) =>
-    log.adminName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    log.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    log.action.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    log.details.toLowerCase().includes(searchQuery.toLowerCase())
+export default function ActivityLogsTab({ logs, isLoading, onRefresh }: ActivityLogsTabProps) {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedActionCat, setSelectedActionCat] = useState("ALL");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+
+  const filteredLogs = logs.filter((log) => {
+    const matchesSearch = 
+      log.adminName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      log.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      log.action.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      log.details.toLowerCase().includes(searchQuery.toLowerCase());
+
+    const matchesActionCat = 
+      selectedActionCat === "ALL" || 
+      log.action.startsWith(selectedActionCat) ||
+      (selectedActionCat === "IMAGE" && log.action.includes("IMAGE"));
+
+    let matchesDate = true;
+    if (startDate) {
+      const logTime = new Date(log.createdAt).getTime();
+      const startDateTime = new Date(startDate + "T00:00:00").getTime();
+      matchesDate = matchesDate && logTime >= startDateTime;
+    }
+    if (endDate) {
+      const logTime = new Date(log.createdAt).getTime();
+      const endDateTime = new Date(endDate + "T23:59:59").getTime();
+      matchesDate = matchesDate && logTime <= endDateTime;
+    }
+
+    return matchesSearch && matchesActionCat && matchesDate;
+  });
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 50;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedActionCat, startDate, endDate]);
+
+  const totalPages = Math.ceil(filteredLogs.length / itemsPerPage);
+  const paginatedLogs = filteredLogs.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
   );
 
   const getActionBadgeColor = (action: string) => {
@@ -73,34 +124,112 @@ export default function ActivityLogsTab({ logs, isLoading }: ActivityLogsTabProp
       {/* Header Info */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-xl font-extrabold text-slate-900 tracking-tight font-display">
+          <h2 className="text-xl font-extrabold text-slate-900 tracking-tight font-display text-left">
             অ্যাডমিন অ্যাক্টিভিটি লগ (Admin Logs)
           </h2>
-          <p className="text-xs text-muted-foreground mt-0.5">
+          <p className="text-xs text-muted-foreground mt-0.5 text-left">
             সিস্টেমে অ্যাডমিনদের দ্বারা করা সকল গুরুত্বপূর্ণ পরিবর্তন এবং কার্যক্রমের ইতিহাস দেখুন।
           </p>
+        </div>
+
+        <div className="flex items-center gap-3 self-start sm:self-center">
+          <div className="text-xs text-muted-foreground font-bold font-sans bg-white border border-border/80 px-3.5 py-2 rounded-xl shadow-3xs">
+            মোট রেকর্ড: <span className="text-primary font-black">{toBanglaNumber(filteredLogs.length)}</span> টি
+          </div>
+          {onRefresh && (
+            <button
+              type="button"
+              onClick={onRefresh}
+              disabled={isLoading}
+              className="py-2 px-4 bg-white hover:bg-slate-50 text-slate-705 border border-slate-200 rounded-xl transition-all cursor-pointer shadow-3xs flex items-center justify-center gap-1.5 text-xs font-bold disabled:opacity-50"
+              title="রিলোড করুন"
+            >
+              <RefreshCw size={13} className={isLoading ? "animate-spin" : ""} />
+              <span>রিফ্রেশ</span>
+            </button>
+          )}
         </div>
       </div>
 
       {/* Main Container */}
       <div className="bg-card border border-border/80 rounded-2xl shadow-xs overflow-hidden">
         
-        {/* Search Bar Section */}
-        <div className="p-5 border-b border-border/60 bg-white/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="relative max-w-md w-full">
-            <input
-              type="text"
-              placeholder="অ্যাডমিন, অ্যাকশন বা বিবরণ দিয়ে খুঁজুন..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 border border-border bg-[#FCFAF7] rounded-xl text-xs outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all font-semibold"
-            />
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={13} />
+        {/* Search Bar & Filters Section */}
+        <div className="p-5 border-b border-border/60 bg-white/50 flex flex-col gap-4 text-left">
+          
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            
+            {/* Search Input */}
+            <div className="relative">
+              <label className="block text-[10px] text-slate-400 font-bold mb-1.5 uppercase tracking-wider">অনুসন্ধান করুন</label>
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="অ্যাডমিন, অ্যাকশন বা বিবরণ..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 border border-border bg-[#FCFAF7] rounded-xl text-xs outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all font-semibold"
+                />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={13} />
+              </div>
+            </div>
+
+            {/* Action Type Dropdown */}
+            <div>
+              <label className="block text-[10px] text-slate-400 font-bold mb-1.5 uppercase tracking-wider">অ্যাকশন টাইপ</label>
+              <select
+                value={selectedActionCat}
+                onChange={(e) => setSelectedActionCat(e.target.value)}
+                className="w-full px-3 py-2 border border-border bg-[#FCFAF7] rounded-xl text-xs outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all font-semibold text-slate-700"
+              >
+                {ACTION_CATEGORIES.map((cat) => (
+                  <option key={cat.value} value={cat.value}>{cat.label}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Start Date */}
+            <div>
+              <label className="block text-[10px] text-slate-400 font-bold mb-1.5 uppercase tracking-wider">শুরুর তারিখ</label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="w-full px-3 py-2 border border-border bg-[#FCFAF7] rounded-xl text-xs outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all font-semibold text-slate-705 font-sans"
+              />
+            </div>
+
+            {/* End Date */}
+            <div>
+              <label className="block text-[10px] text-slate-400 font-bold mb-1.5 uppercase tracking-wider">শেষের তারিখ</label>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="w-full px-3 py-2 border border-border bg-[#FCFAF7] rounded-xl text-xs outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all font-semibold text-slate-705 font-sans"
+              />
+            </div>
+
           </div>
 
-          <div className="text-xs text-muted-foreground font-bold font-sans">
-            মোট রেকর্ড: <span className="text-primary font-black">{toBanglaNumber(filteredLogs.length)}</span> টি
-          </div>
+          {(searchQuery || selectedActionCat !== "ALL" || startDate || endDate) && (
+            <div className="flex justify-start border-t border-slate-100 pt-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery("");
+                  setSelectedActionCat("ALL");
+                  setStartDate("");
+                  setEndDate("");
+                }}
+                className="py-1.5 px-3 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 text-xs font-bold"
+                title="ফিল্টার মুছে ফেলুন"
+              >
+                <X size={13} />
+                <span>ফিল্টার রিসেট</span>
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Table Listing */}
@@ -129,11 +258,13 @@ export default function ActivityLogsTab({ logs, isLoading }: ActivityLogsTabProp
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/60 text-xs text-foreground font-sans">
-                {filteredLogs.map((log, index) => (
-                  <tr key={log.id} className="hover:bg-slate-50/30 transition-colors">
-                    <td className="py-4 px-6 text-center font-bold text-muted-foreground">
-                      {toBanglaNumber(index + 1)}
-                    </td>
+                {paginatedLogs.map((log, index) => {
+                  const actualIndex = (currentPage - 1) * itemsPerPage + index + 1;
+                  return (
+                    <tr key={log.id} className="hover:bg-slate-50/30 transition-colors">
+                      <td className="py-4 px-6 text-center font-bold text-muted-foreground">
+                        {toBanglaNumber(actualIndex)}
+                      </td>
                     <td className="py-4 px-6">
                       <div className="font-bold text-slate-900">{log.adminName}</div>
                       <div className="text-[10px] text-muted-foreground/80 mt-0.5 select-all">{log.email}</div>
@@ -158,10 +289,34 @@ export default function ActivityLogsTab({ logs, isLoading }: ActivityLogsTabProp
                         })}
                       </span>
                     </td>
-                  </tr>
-                ))}
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="p-4 border-t border-slate-100 flex items-center justify-between gap-4">
+            <button
+              onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
+              disabled={currentPage === 1}
+              className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:hover:bg-white rounded-lg text-xs font-bold transition-all cursor-pointer shadow-3xs"
+            >
+              পূর্ববর্তী (Prev)
+            </button>
+            <span className="text-xs font-bold text-muted-foreground">
+              পৃষ্ঠা {toBanglaNumber(currentPage)} / {toBanglaNumber(totalPages)}
+            </span>
+            <button
+              onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
+              disabled={currentPage === totalPages}
+              className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:hover:bg-white rounded-lg text-xs font-bold transition-all cursor-pointer shadow-3xs"
+            >
+              পরবর্তী (Next)
+            </button>
           </div>
         )}
       </div>

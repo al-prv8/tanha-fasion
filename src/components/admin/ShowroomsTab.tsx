@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { Plus, Trash2, Edit3, X, Store, MapPin, Phone, Clock, Calendar, Mail, AlertTriangle } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Plus, Trash2, Edit3, X, Store, MapPin, Phone, Clock, Calendar, Mail, AlertTriangle, RefreshCw } from "lucide-react";
 import { toBanglaNumber } from "@/lib/products";
 
 interface Branch {
@@ -19,12 +19,39 @@ interface ShowroomsTabProps {
   onCreateBranch: (payload: any) => Promise<void>;
   onUpdateBranch: (id: string, payload: any) => Promise<void>;
   onDeleteBranch: (id: string) => Promise<void>;
+  onRefresh?: () => void;
+  isLoading?: boolean;
 }
 
-export default function ShowroomsTab({ branches, onCreateBranch, onUpdateBranch, onDeleteBranch }: ShowroomsTabProps) {
+export default function ShowroomsTab({ branches, onCreateBranch, onUpdateBranch, onDeleteBranch, onRefresh, isLoading = false }: ShowroomsTabProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingBranch, setEditingBranch] = useState<Branch | null>(null);
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
+
+  const filteredBranches = branches.filter(b => {
+    const query = searchQuery.toLowerCase().trim();
+    if (!query) return true;
+    return (
+      b.name.toLowerCase().includes(query) ||
+      (b.address && b.address.toLowerCase().includes(query)) ||
+      (b.phone && b.phone.includes(query)) ||
+      b.city.toLowerCase().includes(query)
+    );
+  });
+
+  const totalPages = Math.ceil(filteredBranches.length / itemsPerPage) || 1;
+  const paginatedBranches = filteredBranches.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
   // Form states
   const [nameInput, setNameInput] = useState("");
@@ -92,17 +119,6 @@ export default function ShowroomsTab({ branches, onCreateBranch, onUpdateBranch,
     }
   };
 
-  const filteredBranches = branches.filter(b => {
-    const query = searchQuery.toLowerCase().trim();
-    if (!query) return true;
-    return (
-      b.name.toLowerCase().includes(query) ||
-      (b.address && b.address.toLowerCase().includes(query)) ||
-      (b.phone && b.phone.includes(query)) ||
-      b.city.toLowerCase().includes(query)
-    );
-  });
-
   return (
     <div className="flex flex-col gap-6 font-sans text-foreground">
       {/* Header */}
@@ -127,17 +143,30 @@ export default function ShowroomsTab({ branches, onCreateBranch, onUpdateBranch,
 
       {/* Control bar */}
       <div className="bg-card border border-border/80 rounded-2xl p-4 shadow-2xs flex flex-col md:flex-row gap-4">
-        <div className="relative flex-grow">
-          <input
-            type="text"
-            placeholder="শোরুমের নাম, শহর বা ঠিকানা দিয়ে খুঁজুন..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 border border-border bg-white rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary font-semibold text-foreground"
-          />
-          <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-            <Store size={15} />
+        <div className="flex flex-wrap items-center gap-3 w-full">
+          <div className="relative flex-grow">
+            <input
+              type="text"
+              placeholder="শোরুমের নাম, শহর বা ঠিকানা দিয়ে খুঁজুন..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 border border-border bg-white rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary font-semibold text-foreground"
+            />
+            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+              <Store size={15} />
+            </div>
           </div>
+          {onRefresh && (
+            <button
+              type="button"
+              onClick={onRefresh}
+              className="p-2 bg-white hover:bg-slate-50 text-slate-655 hover:text-slate-800 border border-border rounded-xl transition-all cursor-pointer shadow-3xs flex items-center justify-center gap-1.5"
+              title="রিলোড করুন"
+            >
+              <RefreshCw size={13} className={isLoading ? "animate-spin" : ""} />
+              <span className="text-[10px] font-bold hidden sm:inline">রিফ্রেশ</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -163,7 +192,7 @@ export default function ShowroomsTab({ branches, onCreateBranch, onUpdateBranch,
                   </td>
                 </tr>
               ) : (
-                filteredBranches.map((b) => (
+                paginatedBranches.map((b) => (
                   <tr key={b.id} className="hover:bg-slate-50/40 transition-colors">
                     <td className="py-4 px-6">
                       <div className="font-bold text-foreground flex items-center gap-1.5">
@@ -217,6 +246,29 @@ export default function ShowroomsTab({ branches, onCreateBranch, onUpdateBranch,
             </tbody>
           </table>
         </div>
+
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="p-4 border-t border-slate-100 flex items-center justify-between gap-4 mt-4 bg-white">
+            <button
+              onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
+              disabled={currentPage === 1}
+              className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:hover:bg-white rounded-lg text-xs font-bold transition-all cursor-pointer shadow-3xs"
+            >
+              পূর্ববর্তী (Prev)
+            </button>
+            <span className="text-xs font-bold text-muted-foreground">
+              পৃষ্ঠা {toBanglaNumber(currentPage)} / {toBanglaNumber(totalPages)}
+            </span>
+            <button
+              onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
+              disabled={currentPage === totalPages}
+              className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:hover:bg-white rounded-lg text-xs font-bold transition-all cursor-pointer shadow-3xs"
+            >
+              পরবর্তী (Next)
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Add/Edit Modal */}

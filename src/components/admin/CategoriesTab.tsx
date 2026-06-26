@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
-import { Plus, Trash2, Edit3, Save, X, Layers, AlertCircle, Upload, Image as ImageIcon } from "lucide-react";
+import { Plus, Trash2, Edit3, Save, X, Layers, AlertCircle, Upload, Image as ImageIcon, RefreshCw } from "lucide-react";
 import { toBanglaNumber } from "@/lib/products";
 
 interface Category {
@@ -21,6 +21,8 @@ interface CategoriesTabProps {
   onCreateCategory: (name: string, englishName?: string, imgUrl?: string, bannerUrl?: string, order?: number, bannerSubtitle?: string, bannerDescription?: string) => Promise<void>;
   onUpdateCategory: (id: string, name: string, englishName?: string, imgUrl?: string, bannerUrl?: string, order?: number, bannerSubtitle?: string, bannerDescription?: string) => Promise<void>;
   onDeleteCategory: (id: string) => Promise<void>;
+  onRefresh?: () => void;
+  isLoading?: boolean;
 }
 
 const PRESET_THUMBNAILS = [
@@ -46,7 +48,9 @@ export default function CategoriesTab({
   products,
   onCreateCategory,
   onUpdateCategory,
-  onDeleteCategory
+  onDeleteCategory,
+  onRefresh,
+  isLoading = false
 }: CategoriesTabProps) {
   // Form input states
   const [nameInput, setNameInput] = useState("");
@@ -57,6 +61,16 @@ export default function CategoriesTab({
   const [bannerSubtitleInput, setBannerSubtitleInput] = useState("");
   const [bannerDescriptionInput, setBannerDescriptionInput] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  const totalPages = Math.ceil(categories.length / itemsPerPage);
+  const paginatedCategories = categories.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
   // Selection states (Preset vs Custom vs Upload)
   const [thumbMode, setThumbMode] = useState<"preset" | "custom" | "upload">("preset");
@@ -535,9 +549,22 @@ export default function CategoriesTab({
 
       {/* Listing Categories */}
       <div className="bg-card border border-border/80 rounded-2xl p-6 shadow-2xs text-left">
-        <div className="mb-6">
-          <h3 className="text-sm font-bold font-display font-black">সক্রিয় ক্যাটাগরি তালিকা</h3>
-          <p className="text-[10px] text-muted-foreground mt-0.5">মোট {toBanglaNumber(categories.length)}টি ক্যাটাগরি ডাটাবেজে রয়েছে।</p>
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h3 className="text-sm font-bold font-display font-black">সক্রিয় ক্যাটাগরি তালিকা</h3>
+            <p className="text-[10px] text-muted-foreground mt-0.5">মোট {toBanglaNumber(categories.length)}টি ক্যাটাগরি ডাটাবেজে রয়েছে।</p>
+          </div>
+          {onRefresh && (
+            <button
+              type="button"
+              onClick={onRefresh}
+              className="p-2 bg-white hover:bg-slate-50 text-slate-655 hover:text-slate-800 border border-slate-200 rounded-xl transition-all cursor-pointer shadow-3xs flex items-center justify-center gap-1.5"
+              title="রিলোড করুন"
+            >
+              <RefreshCw size={13} className={isLoading ? "animate-spin" : ""} />
+              <span className="text-[10px] font-bold hidden sm:inline">রিফ্রেশ</span>
+            </button>
+          )}
         </div>
 
         {categories.length === 0 ? (
@@ -555,7 +582,7 @@ export default function CategoriesTab({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-slate-800">
-                {categories.map((cat) => {
+                {paginatedCategories.map((cat) => {
                   const productCount = products.filter(p => p.category === cat.name).length;
                   const isEditingThis = editingId === cat.id;
 
@@ -656,6 +683,29 @@ export default function CategoriesTab({
                 })}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="p-4 border-t border-slate-100 flex items-center justify-between gap-4 mt-4">
+            <button
+              onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
+              disabled={currentPage === 1}
+              className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:hover:bg-white rounded-lg text-xs font-bold transition-all cursor-pointer shadow-3xs"
+            >
+              পূর্ববর্তী (Prev)
+            </button>
+            <span className="text-xs font-bold text-muted-foreground">
+              পৃষ্ঠা {toBanglaNumber(currentPage)} / {toBanglaNumber(totalPages)}
+            </span>
+            <button
+              onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
+              disabled={currentPage === totalPages}
+              className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:hover:bg-white rounded-lg text-xs font-bold transition-all cursor-pointer shadow-3xs"
+            >
+              পরবর্তী (Next)
+            </button>
           </div>
         )}
       </div>

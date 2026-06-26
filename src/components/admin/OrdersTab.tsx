@@ -17,7 +17,8 @@ import {
   Phone,
   AlertTriangle,
   ChevronDown,
-  ShoppingBag
+  ShoppingBag,
+  RefreshCw
 } from "lucide-react";
 import { formatBanglaPriceWithCommas, toBanglaNumber } from "@/lib/products";
 
@@ -31,6 +32,8 @@ interface OrdersTabProps {
   onDeleteOrder: (orderId: string) => Promise<void>;
   onBookSteadfast?: (orderId: string, codAmount: number, note: string) => Promise<any>;
   onSyncSteadfast?: (orderId: string) => Promise<any>;
+  onRefresh?: () => void;
+  isLoading?: boolean;
 }
 
 interface CourierBookingFormProps {
@@ -107,11 +110,17 @@ export default function OrdersTab({
   onUpdateOrderInfo,
   onDeleteOrder,
   onBookSteadfast,
-  onSyncSteadfast
+  onSyncSteadfast,
+  onRefresh,
+  isLoading = false
 }: OrdersTabProps) {
   // Tab-level filter status: "ALL" | "UNFULFILLED" | "UNPAID" | "PAID" | "DELIVERED" | "CANCELLED"
   const [activeFilter, setActiveFilter] = useState<string>("ALL");
   const [channelFilter, setChannelFilter] = useState<"ALL" | "ONLINE" | "SHOWROOM">("ALL");
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   const [isClient, setIsClient] = useState(false);
   useEffect(() => {
@@ -234,6 +243,16 @@ export default function OrdersTab({
     
     return matchesSearch && matchesStatus && matchesChannel;
   });
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [orderSearch, activeFilter, channelFilter]);
+
+  const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
+  const paginatedOrders = filteredOrders.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
   const getStatusCount = (status: string) => {
     let baseOrders = orders;
@@ -480,6 +499,18 @@ export default function OrdersTab({
               />
               <Search size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
             </div>
+
+            {onRefresh && (
+              <button
+                type="button"
+                onClick={onRefresh}
+                className="p-2 bg-white hover:bg-slate-50 text-slate-655 hover:text-slate-800 border border-slate-200 rounded-xl transition-all cursor-pointer shadow-3xs flex items-center justify-center gap-1.5"
+                title="রিলোড করুন"
+              >
+                <RefreshCw size={13} className={isLoading ? "animate-spin" : ""} />
+                <span className="text-[10px] font-bold hidden sm:inline">রিফ্রেশ</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -507,7 +538,7 @@ export default function OrdersTab({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-slate-800">
-                {filteredOrders.map((o) => {
+                {paginatedOrders.map((o) => {
                   const isExpanded = expandedOrderId === o.id;
                   const isEditingThisOrder = editingOrderId === o.id;
 
@@ -1020,6 +1051,29 @@ export default function OrdersTab({
                 })}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="p-4 border-t border-slate-100 flex items-center justify-between gap-4 mt-4">
+            <button
+              onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
+              disabled={currentPage === 1}
+              className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:hover:bg-white rounded-lg text-xs font-bold transition-all cursor-pointer shadow-3xs"
+            >
+              পূর্ববর্তী (Prev)
+            </button>
+            <span className="text-xs font-bold text-muted-foreground">
+              পৃষ্ঠা {toBanglaNumber(currentPage)} / {toBanglaNumber(totalPages)}
+            </span>
+            <button
+              onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
+              disabled={currentPage === totalPages}
+              className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:hover:bg-white rounded-lg text-xs font-bold transition-all cursor-pointer shadow-3xs"
+            >
+              পরবর্তী (Next)
+            </button>
           </div>
         )}
       </div>

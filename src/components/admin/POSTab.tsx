@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -86,7 +87,7 @@ export default function POSTab({ embedded = false, activeBranchId }: POSTabProps
   const [searchQuery, setSearchQuery] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [flatDiscount, setFlatDiscount] = useState<number>(0);
-  const [paymentMethod, setPaymentMethod] = useState<"cash" | "card" | "bkash" | "nagad">("cash");
+  const [paymentMethod, setPaymentMethod] = useState<"cash" | "card" | "bkash" | "nagad" >("cash");
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [receivedCash, setReceivedCash] = useState<number>(0);
@@ -120,6 +121,21 @@ export default function POSTab({ embedded = false, activeBranchId }: POSTabProps
   // Printing state
   const [receiptOrder, setReceiptOrder] = useState<any>(null);
   const barcodeInputRef = useRef<HTMLInputElement>(null);
+
+  const [isClient, setIsClient] = useState(false);
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  useEffect(() => {
+    if (receiptOrder) {
+      const timer = setTimeout(() => {
+        window.print();
+        setReceiptOrder(null);
+      }, 150);
+      return () => clearTimeout(timer);
+    }
+  }, [receiptOrder]);
 
   // Authenticate admin
   useEffect(() => {
@@ -569,11 +585,6 @@ export default function POSTab({ embedded = false, activeBranchId }: POSTabProps
         setSplitBkashTrx("");
         setSplitNagadTrx("");
         loadPOSData(); // Reload inventory counts
-
-        // Auto trigger print frame
-        setTimeout(() => {
-          window.print();
-        }, 300);
       } else {
         const err = await res.json();
         toast.error(err.error || "অর্ডার সম্পন্ন করা যায়নি।");
@@ -913,7 +924,7 @@ export default function POSTab({ embedded = false, activeBranchId }: POSTabProps
                       clearLinkedCustomer();
                       setIsNewCustomerForm(false);
                     }}
-                    className="text-[9px] text-rose-500 hover:text-rose-600 font-bold border-none bg-transparent cursor-pointer"
+                    className="text-[9px] text-rose-500 hover:text-rose-650 font-bold border-none bg-transparent cursor-pointer"
                   >
                     লিঙ্ক বাতিল
                   </button>
@@ -1242,7 +1253,7 @@ export default function POSTab({ embedded = false, activeBranchId }: POSTabProps
               </div>
               <button 
                 onClick={() => setSelectedProdForSize(null)}
-                className="text-slate-400 hover:text-slate-650 border-none bg-transparent cursor-pointer p-1 text-sm font-bold leading-none"
+                className="text-slate-400 hover:text-slate-655 border-none bg-transparent cursor-pointer p-1 text-sm font-bold leading-none"
               >
                 ✕
               </button>
@@ -1345,8 +1356,8 @@ export default function POSTab({ embedded = false, activeBranchId }: POSTabProps
       )}
 
       {/* POS Receipt Area (Hidden on screen, formatted for thermal print) */}
-      {receiptOrder && (
-        <div id="pos-receipt-print-area" className="hidden print:block">
+      {isClient && receiptOrder && createPortal(
+        <div id="pos-receipt-print-area">
           <div className="receipt-center">
             <h2 className="receipt-bold" style={{ fontSize: "14px", margin: "0 0 2px 0" }}>তানহা ফ্যাশন</h2>
             {receiptOrder.branch ? (
@@ -1460,7 +1471,8 @@ export default function POSTab({ embedded = false, activeBranchId }: POSTabProps
             <div>ক্রয়কৃত পণ্য পরিবর্তনের জন্য ৩ দিনের মধ্যে শোরুমে রশিদসহ যোগাযোগ করুন। (অনুগ্রহ করে ধোয়া বা ব্যবহৃত কাপড় পরিবর্তনযোগ্য নয়)।</div>
             <div style={{ marginTop: "5px", fontSize: "7px", color: "#666" }}>Powered by Tanha Fashion Cloud POS v1.1</div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

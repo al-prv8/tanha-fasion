@@ -1,9 +1,11 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import "@/app/pos/receipt.css";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Lock, Store, Barcode, ArrowLeft, User, ShieldCheck, LogOut, Loader2, Package, LayoutDashboard, Truck, Menu, X, ShoppingBag, Wallet, Trash2, Plus } from "lucide-react";
+import { Lock, Store, Barcode, ArrowLeft, User, ShieldCheck, LogOut, Loader2, Package, LayoutDashboard, Truck, Menu, X, ShoppingBag, Wallet, Trash2, Plus, RefreshCw } from "lucide-react";
 
 const parseSplitPayment = (methodStr: string) => {
   if (!methodStr || !methodStr.startsWith("split:")) return null;
@@ -81,6 +83,48 @@ export default function ShowroomAdminPage() {
   const [expenseDescription, setExpenseDescription] = useState("");
   const [expenseDate, setExpenseDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [expenseFilterCategory, setExpenseFilterCategory] = useState("All");
+
+  const [isClient, setIsClient] = useState(false);
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  // Local pagination states for showroom dashboard (Sales Log and Expenses)
+  const [currentPageOrders, setCurrentPageOrders] = useState(1);
+  const itemsPerPageOrders = 10;
+  
+  const [currentPageExpenses, setCurrentPageExpenses] = useState(1);
+  const itemsPerPageExpenses = 10;
+
+  const showroomOrders = orders.filter(o => o.isShowroom);
+  const totalPagesOrders = Math.ceil(showroomOrders.length / itemsPerPageOrders) || 1;
+  const paginatedOrders = showroomOrders.slice(
+    (currentPageOrders - 1) * itemsPerPageOrders,
+    currentPageOrders * itemsPerPageOrders
+  );
+
+  const filteredExpenses = expenses.filter(e => expenseFilterCategory === "All" || e.category === expenseFilterCategory);
+  
+  // Reset page when expense category filter changes
+  useEffect(() => {
+    setCurrentPageExpenses(1);
+  }, [expenseFilterCategory]);
+
+  const totalPagesExpenses = Math.ceil(filteredExpenses.length / itemsPerPageExpenses) || 1;
+  const paginatedExpenses = filteredExpenses.slice(
+    (currentPageExpenses - 1) * itemsPerPageExpenses,
+    currentPageExpenses * itemsPerPageExpenses
+  );
+
+  useEffect(() => {
+    if (printOrder) {
+      const timer = setTimeout(() => {
+        window.print();
+        setPrintOrder(null);
+      }, 150);
+      return () => clearTimeout(timer);
+    }
+  }, [printOrder]);
 
   // Toast Notification States
   const [toastActive, setToastActive] = useState(false);
@@ -550,6 +594,29 @@ export default function ShowroomAdminPage() {
     const hasOnlineAccess = adminUser?.role === "SUPER_ADMIN" || adminUser?.role === "ADMIN" || 
       (adminUser?.allowedModules && adminUser.allowedModules.split(",").some((m: string) => m.trim().startsWith("online_")));
 
+    const sections = [
+      {
+        title: "কাউন্টার অপারেশনস",
+        items: [
+          { id: "pos", label: "পিওএস শোরুম বিক্রয় (POS)", icon: <Store size={16} />, module: "showroom_pos" },
+          { id: "orders", label: "বিক্রয় ইতিহাস (Sales Log)", icon: <ShoppingBag size={16} />, module: "showroom_orders", count: orders.filter(o => o.isShowroom).length },
+        ]
+      },
+      {
+        title: "ইনভেন্টরি ও লজিস্টিকস",
+        items: [
+          { id: "showroom", label: "শোরুম স্টক ও বারকোড", icon: <Barcode size={16} />, module: "showroom_stock", count: lowStockShowroomItemsCount },
+          { id: "purchases", label: "পাইকারি ক্রয় (Wholesale)", icon: <Truck size={16} />, module: "showroom_purchases", count: purchases.length },
+        ]
+      },
+      {
+        title: "হিসাব ও ব্যয়",
+        items: [
+          { id: "expenses", label: "অন্যান্য ব্যয় (Expenses Log)", icon: <Wallet size={16} />, module: "showroom_expenses", count: expenses.length },
+        ]
+      }
+    ];
+
     return (
       <div className="w-64 bg-card border-r border-border/80 flex-shrink-0 flex flex-col h-full grain-bg">
         {/* Brand Header */}
@@ -585,103 +652,65 @@ export default function ShowroomAdminPage() {
         </div>
 
         {/* Navigation List */}
-        <nav className="flex-grow p-4 flex flex-col gap-2 overflow-y-auto">
-          {hasModuleAccess("showroom_pos") && (
-            <button
-              onClick={() => {
-                setActiveTab("pos");
-                if (onCloseMobile) onCloseMobile();
-              }}
-              className={`w-full text-left py-3 px-4 rounded-xl font-bold text-xs flex items-center gap-3 border transition-all cursor-pointer ${
-                activeTab === "pos"
-                  ? "bg-primary border-primary text-white shadow-sm"
-                  : "bg-transparent border-transparent text-muted-foreground hover:text-foreground hover:bg-secondary/60 hover:border-border/40"
-              }`}
-            >
-              <span><Store size={16} /></span>
-              <span>পিওএস শোরুম বিক্রয় (POS)</span>
-            </button>
-          )}
+        <nav className="flex-grow p-4 flex flex-col gap-3 overflow-y-auto scrollbar-none">
+          {sections.map((section, secIdx) => {
+            const visibleItems = section.items.filter(item => hasModuleAccess(item.module));
+            if (visibleItems.length === 0) return null;
 
-          {hasModuleAccess("showroom_stock") && (
-            <button
-              onClick={() => {
-                setActiveTab("showroom");
-                if (onCloseMobile) onCloseMobile();
-              }}
-              className={`w-full text-left py-3 px-4 rounded-xl font-bold text-xs flex items-center gap-3 border transition-all cursor-pointer ${
-                activeTab === "showroom"
-                  ? "bg-primary border-primary text-white shadow-sm"
-                  : "bg-transparent border-transparent text-muted-foreground hover:text-foreground hover:bg-secondary/60 hover:border-border/40"
-              }`}
-            >
-              <span><Barcode size={16} /></span>
-              <span>শোরুম স্টক ও বারকোড</span>
-            </button>
-          )}
-
-          {hasModuleAccess("showroom_purchases") && (
-            <button
-              onClick={() => {
-                setActiveTab("purchases");
-                if (onCloseMobile) onCloseMobile();
-              }}
-              className={`w-full text-left py-3 px-4 rounded-xl font-bold text-xs flex items-center gap-3 border transition-all cursor-pointer ${
-                activeTab === "purchases"
-                  ? "bg-primary border-primary text-white shadow-sm"
-                  : "bg-transparent border-transparent text-muted-foreground hover:text-foreground hover:bg-secondary/60 hover:border-border/40"
-              }`}
-            >
-              <span><Truck size={16} /></span>
-              <span>পাইকারি ক্রয় (Wholesale)</span>
-            </button>
-          )}
-
-          {hasModuleAccess("showroom_orders") && (
-            <button
-              onClick={() => {
-                setActiveTab("orders");
-                if (onCloseMobile) onCloseMobile();
-              }}
-              className={`w-full text-left py-3 px-4 rounded-xl font-bold text-xs flex items-center gap-3 border transition-all cursor-pointer ${
-                activeTab === "orders"
-                  ? "bg-primary border-primary text-white shadow-sm"
-                  : "bg-transparent border-transparent text-muted-foreground hover:text-foreground hover:bg-secondary/60 hover:border-border/40"
-              }`}
-            >
-              <span><ShoppingBag size={16} /></span>
-              <span>বিক্রয় ইতিহাস (Sales History)</span>
-            </button>
-          )}
-
-          {hasModuleAccess("showroom_expenses") && (
-            <button
-              onClick={() => {
-                setActiveTab("expenses");
-                if (onCloseMobile) onCloseMobile();
-              }}
-              className={`w-full text-left py-3 px-4 rounded-xl font-bold text-xs flex items-center gap-3 border transition-all cursor-pointer ${
-                activeTab === "expenses"
-                  ? "bg-primary border-primary text-white shadow-sm"
-                  : "bg-transparent border-transparent text-muted-foreground hover:text-foreground hover:bg-secondary/60 hover:border-border/40"
-              }`}
-            >
-              <span><Wallet size={16} /></span>
-              <span>অন্যান্য ব্যয় (Expenses Log)</span>
-            </button>
-          )}
+            return (
+              <div key={secIdx} className="flex flex-col gap-1">
+                <div className="text-[9px] font-black text-muted-foreground/60 uppercase tracking-wider px-3 mb-1.5 mt-2">
+                  {section.title}
+                </div>
+                {visibleItems.map((item) => {
+                  const isActive = activeTab === item.id;
+                  const isLowStockWarning = item.id === "showroom" && (item.count ?? 0) > 0;
+                  
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => {
+                        setActiveTab(item.id as any);
+                        if (onCloseMobile) onCloseMobile();
+                      }}
+                      className={`w-full text-left py-2.5 px-4 rounded-xl font-bold text-xs flex items-center gap-3 border transition-all cursor-pointer ${
+                        isActive
+                          ? "bg-primary border-primary text-white shadow-xs hover:bg-primary/95"
+                          : "bg-transparent border-transparent text-muted-foreground hover:text-foreground hover:bg-secondary/45 hover:border-border/20"
+                      }`}
+                    >
+                      <span className={isActive ? "text-white" : "text-primary"}>{item.icon}</span>
+                      <span>{item.label}</span>
+                      {item.count !== undefined && item.count > 0 && (
+                        <span className={`ml-auto font-sans text-[10px] px-2 py-0.5 rounded-full font-extrabold ${
+                          isActive
+                            ? "bg-white/20 text-white"
+                            : isLowStockWarning
+                              ? "bg-amber-150 text-amber-800 border border-amber-250 font-bold"
+                              : "bg-secondary text-foreground border border-border"
+                        }`}>
+                          {toBanglaNumber(item.count)}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            );
+          })}
 
           {hasOnlineAccess && (
             <>
               <div className="h-px bg-border/60 my-2"></div>
-
-              <Link
-                href="/admin"
-                className="w-full text-left py-3 px-4 rounded-xl font-bold text-xs flex items-center gap-3 border border-transparent text-muted-foreground hover:text-foreground hover:bg-secondary/60 hover:border-border/40 transition-all no-underline"
-              >
-                <span><LayoutDashboard size={16} className="text-primary" /></span>
-                <span>অনলাইন অ্যাডমিন প্যানেল</span>
-              </Link>
+              <div className="flex flex-col gap-1">
+                <Link
+                  href="/admin"
+                  className="w-full text-left py-3 px-4 rounded-xl font-bold text-xs flex items-center gap-3 border border-border/80 transition-all cursor-pointer bg-white text-slate-700 hover:bg-slate-50 no-underline shadow-3xs hover:shadow-2xs"
+                >
+                  <span><LayoutDashboard size={16} className="text-primary" /></span>
+                  <span>অনলাইন অ্যাডমিন প্যানেল</span>
+                </Link>
+              </div>
             </>
           )}
         </nav>
@@ -786,19 +815,14 @@ export default function ShowroomAdminPage() {
                 </div>
               </div>
 
-              {isLoading ? (
-                <div className="py-20 flex flex-col items-center justify-center text-muted-foreground">
-                  <Loader2 className="w-8 h-8 animate-spin text-primary mb-2" />
-                  <span className="text-xs font-bold font-sans">শোরুম ডাটাবেজ লোড হচ্ছে...</span>
-                </div>
-              ) : (
-                <ShowroomStockTab 
-                  products={products}
-                  CATEGORIES={activeCategoriesList}
-                  onUpdateProductShowroomStock={handleUpdateProductShowroomStock}
-                  onTransferProductStock={handleTransferProductStock}
-                />
-              )}
+              <ShowroomStockTab 
+                products={products}
+                CATEGORIES={activeCategoriesList}
+                onUpdateProductShowroomStock={handleUpdateProductShowroomStock}
+                onTransferProductStock={handleTransferProductStock}
+                onRefresh={fetchData}
+                isLoading={isLoading}
+              />
             </div>
           )}
 
@@ -814,29 +838,35 @@ export default function ShowroomAdminPage() {
 
           {activeTab === "purchases" && (
             <div className="space-y-4">
-              {isLoading ? (
-                <div className="py-20 flex flex-col items-center justify-center text-muted-foreground">
-                  <Loader2 className="w-8 h-8 animate-spin text-primary mb-2" />
-                  <span className="text-xs font-bold font-sans">ক্রয় ডাটাবেজ লোড হচ্ছে...</span>
-                </div>
-              ) : (
-                <PurchasesTab 
-                  products={products}
-                  suppliers={suppliers}
-                  purchases={purchases}
-                  onAddSupplier={handleAddSupplier}
-                  onDeleteSupplier={handleDeleteSupplier}
-                  onAddPurchase={handleAddPurchase}
-                />
-              )}
+              <PurchasesTab 
+                products={products}
+                suppliers={suppliers}
+                purchases={purchases}
+                onAddSupplier={handleAddSupplier}
+                onDeleteSupplier={handleDeleteSupplier}
+                onAddPurchase={handleAddPurchase}
+                onRefresh={fetchData}
+                isLoading={isLoading}
+              />
             </div>
           )}
 
           {activeTab === "orders" && (
             <div className="space-y-4">
-              <div>
-                <h2 className="text-xl font-extrabold text-slate-900 tracking-tight font-display text-left">শোরুম বিক্রয় ইতিহাস (POS Sales Log)</h2>
-                <p className="text-xs text-muted-foreground mt-0.5 text-left">শোরুমের বিক্রয় রশিদ অনুসন্ধান, পর্যালোচনা ও পুনরায় প্রিন্ট করুন।</p>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <h2 className="text-xl font-extrabold text-slate-900 tracking-tight font-display text-left">শোরুম বিক্রয় ইতিহাস (POS Sales Log)</h2>
+                  <p className="text-xs text-muted-foreground mt-0.5 text-left">শোরুমের বিক্রয় রশিদ অনুসন্ধান, পর্যালোচনা ও পুনরায় প্রিন্ট করুন।</p>
+                </div>
+                <button
+                  onClick={() => fetchData()}
+                  disabled={isLoading}
+                  className="inline-flex items-center gap-1.5 py-2 px-4 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold rounded-xl cursor-pointer transition-all shadow-3xs disabled:opacity-50 self-start"
+                  title="রিফ্রেশ করুন"
+                >
+                  <RefreshCw size={13} className={isLoading ? "animate-spin" : ""} />
+                  <span>রিফ্রেশ</span>
+                </button>
               </div>
 
               {isLoading ? (
@@ -846,28 +876,8 @@ export default function ShowroomAdminPage() {
                 </div>
               ) : (
                 <div className="bg-card border border-border/80 rounded-2xl overflow-hidden shadow-2xs text-left">
-                  {/* CSS Print styles for showroom receipt reprint */}
-                  <style dangerouslySetInnerHTML={{
-                    __html: `
-                      @media print {
-                        body > *:not(.print-receipt-section) {
-                          display: none !important;
-                        }
-                        .print-receipt-section {
-                          display: block !important;
-                          width: 80mm !important;
-                          margin: 0 auto !important;
-                          padding: 4mm !important;
-                          font-family: monospace !important;
-                          background: white !important;
-                          color: black !important;
-                        }
-                      }
-                    `
-                  }} />
-
                   <div className="p-6 border-b border-border/60 flex items-center justify-between gap-4">
-                    <span className="text-xs font-bold text-slate-800">সর্বমোট শোরুম বিক্রয়: <strong className="font-sans text-primary">{toBanglaNumber(orders.filter(o => o.isShowroom).length)}</strong> টি</span>
+                    <span className="text-xs font-bold text-slate-800">সর্বমোট শোরুম বিক্রয়: <strong className="font-sans text-primary">{toBanglaNumber(showroomOrders.length)}</strong> টি</span>
                   </div>
 
                   <div className="overflow-x-auto">
@@ -883,12 +893,12 @@ export default function ShowroomAdminPage() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 font-semibold text-slate-800">
-                        {orders.filter(o => o.isShowroom).length === 0 ? (
+                        {showroomOrders.length === 0 ? (
                           <tr>
                             <td colSpan={6} className="py-10 text-center text-slate-400 font-semibold">কোনো শোরুম বিক্রয় পাওয়া যায়নি।</td>
                           </tr>
                         ) : (
-                          orders.filter(o => o.isShowroom).map((o) => (
+                          paginatedOrders.map((o) => (
                             <tr key={o.id} className="hover:bg-slate-50/40 transition-colors">
                               <td className="py-3 px-6 font-mono font-bold text-primary">#{o.orderNumber}</td>
                               <td className="py-3 px-6 font-mono text-slate-400 text-[10px]">
@@ -908,12 +918,7 @@ export default function ShowroomAdminPage() {
                               </td>
                               <td className="py-3 px-6 text-center">
                                 <button
-                                  onClick={() => {
-                                    setPrintOrder(o);
-                                    setTimeout(() => {
-                                      window.print();
-                                    }, 200);
-                                  }}
+                                  onClick={() => setPrintOrder(o)}
                                   className="py-1.5 px-3 bg-slate-900 hover:bg-slate-800 text-white font-bold text-[10px] rounded-lg border-none cursor-pointer flex items-center gap-1 mx-auto transition-all shadow-3xs"
                                 >
                                   <span>রশিদ প্রিন্ট</span>
@@ -925,6 +930,31 @@ export default function ShowroomAdminPage() {
                       </tbody>
                     </table>
                   </div>
+
+                  {/* Pagination Controls */}
+                  {totalPagesOrders > 1 && (
+                    <div className="p-4 border-t border-slate-100 flex items-center justify-between gap-4 mt-4">
+                      <button
+                        type="button"
+                        onClick={() => setCurrentPageOrders(p => Math.max(p - 1, 1))}
+                        disabled={currentPageOrders === 1}
+                        className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:hover:bg-white rounded-lg text-xs font-bold transition-all cursor-pointer shadow-3xs"
+                      >
+                        পূর্ববর্তী (Prev)
+                      </button>
+                      <span className="text-xs font-bold text-muted-foreground">
+                        পৃষ্ঠা {toBanglaNumber(currentPageOrders)} / {toBanglaNumber(totalPagesOrders)}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setCurrentPageOrders(p => Math.min(p + 1, totalPagesOrders))}
+                        disabled={currentPageOrders === totalPagesOrders}
+                        className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:hover:bg-white rounded-lg text-xs font-bold transition-all cursor-pointer shadow-3xs"
+                      >
+                        পরবর্তী (Next)
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -937,13 +967,24 @@ export default function ShowroomAdminPage() {
                   <h2 className="text-xl font-extrabold text-slate-900 tracking-tight font-display text-left">শোরুম ব্যয় রেজিস্ট্রি (Showroom Expenses)</h2>
                   <p className="text-xs text-muted-foreground mt-0.5 text-left">শোরুমের দৈনন্দিন আনুষঙ্গিক ও অন্যান্য খরচ নথিভুক্ত করুন।</p>
                 </div>
-                <button
-                  onClick={() => setIsAddExpenseModalOpen(true)}
-                  className="bg-primary hover:bg-primary/95 text-white font-bold py-2.5 px-5 rounded-xl border-none cursor-pointer text-xs transition-all shadow-xs flex items-center gap-2 self-start"
-                >
-                  <Plus size={14} />
-                  <span>ব্যয় যোগ করুন</span>
-                </button>
+                <div className="flex items-center gap-2 self-start">
+                  <button
+                    onClick={() => fetchData()}
+                    disabled={isLoading}
+                    className="inline-flex items-center gap-1.5 py-2 px-4 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold rounded-xl cursor-pointer transition-all shadow-3xs disabled:opacity-50"
+                    title="রিফ্রেশ করুন"
+                  >
+                    <RefreshCw size={13} className={isLoading ? "animate-spin" : ""} />
+                    <span>রিফ্রেশ</span>
+                  </button>
+                  <button
+                    onClick={() => setIsAddExpenseModalOpen(true)}
+                    className="bg-primary hover:bg-primary/95 text-white font-bold py-2.5 px-5 rounded-xl border-none cursor-pointer text-xs transition-all shadow-xs flex items-center gap-2"
+                  >
+                    <Plus size={14} />
+                    <span>ব্যয় যোগ করুন</span>
+                  </button>
+                </div>
               </div>
 
               {/* Stats Summary Cards */}
@@ -1035,44 +1076,68 @@ export default function ShowroomAdminPage() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 font-semibold text-slate-800">
-                        {expenses.filter(e => expenseFilterCategory === "All" || e.category === expenseFilterCategory).length === 0 ? (
+                        {filteredExpenses.length === 0 ? (
                           <tr>
                             <td colSpan={5} className="py-10 text-center text-slate-400 font-semibold">কোনো ব্যয় রেকর্ড পাওয়া যায়নি।</td>
                           </tr>
                         ) : (
-                          expenses
-                            .filter(e => expenseFilterCategory === "All" || e.category === expenseFilterCategory)
-                            .map((e) => (
-                              <tr key={e.id} className="hover:bg-slate-50/40 transition-colors">
-                                <td className="py-3 px-6">
-                                  <span className="text-[10px] font-bold text-slate-800 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full">
-                                    {EXPENSE_CATEGORIES[e.category] ? EXPENSE_CATEGORIES[e.category].split(" (")[0] : e.category}
-                                  </span>
-                                </td>
-                                <td className="py-3 px-6 font-mono text-slate-400 text-[10px]">
-                                  {new Date(e.date).toLocaleDateString("bn-BD", { year: "numeric", month: "long", day: "numeric" })}
-                                </td>
-                                <td className="py-3 px-6 text-slate-500 font-medium max-w-xs truncate" title={e.description || ""}>
-                                  {e.description || "—"}
-                                </td>
-                                <td className="py-3 px-6 text-right font-black text-rose-600 font-sans">
-                                  ৳ {e.amount.toLocaleString("bn-BD")}
-                                </td>
-                                <td className="py-3 px-6 text-center">
-                                  <button
-                                    onClick={() => handleDeleteExpense(e.id)}
-                                    className="py-1 px-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-[10px] rounded-lg border border-rose-200 cursor-pointer transition-all inline-flex items-center gap-1"
-                                  >
-                                    <Trash2 size={12} />
-                                    <span>মুছুন</span>
-                                  </button>
-                                </td>
-                              </tr>
-                            ))
+                          paginatedExpenses.map((e) => (
+                            <tr key={e.id} className="hover:bg-slate-50/40 transition-colors">
+                              <td className="py-3 px-6">
+                                <span className="text-[10px] font-bold text-slate-800 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full">
+                                  {EXPENSE_CATEGORIES[e.category] ? EXPENSE_CATEGORIES[e.category].split(" (")[0] : e.category}
+                                </span>
+                              </td>
+                              <td className="py-3 px-6 font-mono text-slate-400 text-[10px]">
+                                {new Date(e.date).toLocaleDateString("bn-BD", { year: "numeric", month: "long", day: "numeric" })}
+                              </td>
+                              <td className="py-3 px-6 text-slate-500 font-medium max-w-xs truncate" title={e.description || ""}>
+                                {e.description || "—"}
+                              </td>
+                              <td className="py-3 px-6 text-right font-black text-rose-600 font-sans">
+                                ৳ {e.amount.toLocaleString("bn-BD")}
+                              </td>
+                              <td className="py-3 px-6 text-center">
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteExpense(e.id)}
+                                  className="py-1 px-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-[10px] rounded-lg border border-rose-200 cursor-pointer transition-all inline-flex items-center gap-1"
+                                >
+                                  <Trash2 size={12} />
+                                  <span>মুছুন</span>
+                                </button>
+                              </td>
+                            </tr>
+                          ))
                         )}
                       </tbody>
                     </table>
                   </div>
+
+                  {/* Pagination Controls */}
+                  {totalPagesExpenses > 1 && (
+                    <div className="p-4 border-t border-slate-100 flex items-center justify-between gap-4 mt-4">
+                      <button
+                        type="button"
+                        onClick={() => setCurrentPageExpenses(p => Math.max(p - 1, 1))}
+                        disabled={currentPageExpenses === 1}
+                        className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:hover:bg-white rounded-lg text-xs font-bold transition-all cursor-pointer shadow-3xs"
+                      >
+                        পূর্ববর্তী (Prev)
+                      </button>
+                      <span className="text-xs font-bold text-muted-foreground">
+                        পৃষ্ঠা {toBanglaNumber(currentPageExpenses)} / {toBanglaNumber(totalPagesExpenses)}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setCurrentPageExpenses(p => Math.min(p + 1, totalPagesExpenses))}
+                        disabled={currentPageExpenses === totalPagesExpenses}
+                        className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:hover:bg-white rounded-lg text-xs font-bold transition-all cursor-pointer shadow-3xs"
+                      >
+                        পরবর্তী (Next)
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -1081,12 +1146,25 @@ export default function ShowroomAdminPage() {
         </main>
       </div>
 
-      {printOrder && (
-        <div className="print-receipt-section hidden">
+      {isClient && printOrder && createPortal(
+        <div 
+          id={`printable-showroom-receipt-${printOrder.id}`}
+          className="bg-white p-4 text-slate-800"
+        >
           <div style={{ textAlign: 'center', marginBottom: '10px' }}>
             <h3 style={{ margin: '0 0 5px 0', fontSize: '15px', fontWeight: 'bold' }}>তানহা ফ্যাশন</h3>
-            <p style={{ margin: '0', fontSize: '9px', color: '#555' }}>বসুন্ধরা সিটি শোরুম, ঢাকা</p>
-            <p style={{ margin: '3px 0', fontSize: '9px', color: '#555' }}>মোবাইল: 01700000000</p>
+            {printOrder.branch ? (
+              <>
+                <p style={{ margin: '0', fontSize: '9px', color: '#555', fontWeight: 'bold' }}>{printOrder.branch.name}</p>
+                <p style={{ margin: '0', fontSize: '9px', color: '#555' }}>{printOrder.branch.address || printOrder.branch.city}</p>
+                <p style={{ margin: '3px 0', fontSize: '9px', color: '#555' }}>হটলাইন: {printOrder.branch.phone}</p>
+              </>
+            ) : (
+              <>
+                <p style={{ margin: '0', fontSize: '9px', color: '#555' }}>বসুন্ধরা সিটি শোরুম, ঢাকা</p>
+                <p style={{ margin: '3px 0', fontSize: '9px', color: '#555' }}>মোবাইল: 01700000000</p>
+              </>
+            )}
             <div style={{ borderBottom: '1px dashed #bbb', margin: '8px 0' }}></div>
           </div>
           <table style={{ width: '100%', fontSize: '9.5px', borderCollapse: 'collapse', textAlign: 'left', marginBottom: '10px' }}>
@@ -1176,7 +1254,8 @@ export default function ShowroomAdminPage() {
             <p style={{ margin: '0' }}>ক্রয় করার জন্য ধন্যবাদ!</p>
             <p style={{ margin: '3px 0' }}>তানহা ফ্যাশন</p>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Add Expense Modal */}

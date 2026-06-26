@@ -9,7 +9,8 @@ import {
   X, 
   Search, 
   CheckCircle, 
-  AlertCircle
+  AlertCircle,
+  RefreshCw
 } from "lucide-react";
 
 interface AnnouncementItem {
@@ -24,13 +25,18 @@ interface AnnouncementItem {
 interface AnnouncementsTabProps {
   showToast: (msg: string) => void;
   onRefresh?: () => void;
+  isLoading?: boolean;
 }
 
-export default function AnnouncementsTab({ showToast, onRefresh }: AnnouncementsTabProps) {
+export default function AnnouncementsTab({ showToast, onRefresh, isLoading = false }: AnnouncementsTabProps) {
   const [announcements, setAnnouncements] = useState<AnnouncementItem[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   // Add/Edit Form states
   const [text, setText] = useState("");
@@ -198,10 +204,30 @@ export default function AnnouncementsTab({ showToast, onRefresh }: Announcements
     return linkVal;
   };
 
-  const filteredAnnouncements = announcements.filter(ann => 
-    ann.text.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (ann.buttonText && ann.buttonText.toLowerCase().includes(searchQuery.toLowerCase()))
+  const filteredAnnouncements = (() => {
+    let matched = announcements;
+    if (searchQuery.trim()) {
+      matched = announcements.filter(ann => 
+        ann.text.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (ann.buttonText && ann.buttonText.toLowerCase().includes(searchQuery.toLowerCase()))
+      );
+    }
+    return matched;
+  })();
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
+
+  const totalPages = Math.ceil(filteredAnnouncements.length / itemsPerPage);
+  const paginatedAnnouncements = filteredAnnouncements.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
   );
+
+  const toBanglaNumber = (num: number) => {
+    return num.toString().replace(/\d/g, d => '০১২৩৪৫৬৭৮৯'[parseInt(d)]);
+  };
 
   return (
     <div className="flex flex-col gap-6 font-sans text-foreground">
@@ -326,15 +352,31 @@ export default function AnnouncementsTab({ showToast, onRefresh }: Announcements
       <div className="bg-white border border-border/80 rounded-2xl shadow-sm overflow-hidden">
         {/* Search Header */}
         <div className="p-4 border-b border-border/60 bg-white/50 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="relative w-full sm:max-w-xs">
-            <input 
-              type="text"
-              placeholder="ঘোষণা খুঁজুন..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 border border-border rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all text-foreground"
-            />
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={13} />
+          <div className="flex flex-wrap items-center gap-3 w-full sm:max-w-md">
+            <div className="relative flex-grow">
+              <input 
+                type="text"
+                placeholder="ঘোষণা খুঁজুন..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 border border-border rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all text-foreground"
+              />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={13} />
+            </div>
+            {onRefresh && (
+              <button
+                type="button"
+                onClick={async () => {
+                  await fetchAnnouncements();
+                  if (onRefresh) onRefresh();
+                }}
+                className="p-2 bg-white hover:bg-slate-50 text-slate-655 hover:text-slate-800 border border-slate-200 rounded-xl transition-all cursor-pointer shadow-3xs flex items-center justify-center gap-1.5"
+                title="রিলোড করুন"
+              >
+                <RefreshCw size={13} className={(loading || isLoading) ? "animate-spin" : ""} />
+                <span className="text-[10px] font-bold hidden sm:inline">রিফ্রেশ</span>
+              </button>
+            )}
           </div>
           <div className="text-xs text-muted-foreground font-semibold">
             সর্বমোট ঘোষণা: <span className="text-foreground font-extrabold">{announcements.length}</span> টি
@@ -365,9 +407,11 @@ export default function AnnouncementsTab({ showToast, onRefresh }: Announcements
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/60">
-                {filteredAnnouncements.map((ann, idx) => (
-                  <tr key={ann.id} className="hover:bg-secondary/15 transition-colors">
-                    <td className="py-4 px-4 font-bold text-muted-foreground">{idx + 1}</td>
+                {paginatedAnnouncements.map((ann, idx) => {
+                  const actualIndex = (currentPage - 1) * itemsPerPage + idx + 1;
+                  return (
+                    <tr key={ann.id} className="hover:bg-secondary/15 transition-colors">
+                      <td className="py-4 px-4 font-bold text-muted-foreground">{actualIndex}</td>
                     <td className="py-4 px-4 font-semibold text-foreground max-w-sm whitespace-normal leading-relaxed">
                       {ann.text}
                     </td>
@@ -415,9 +459,33 @@ export default function AnnouncementsTab({ showToast, onRefresh }: Announcements
                       </div>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="p-4 border-t border-slate-100 flex items-center justify-between gap-4 mt-4 bg-white">
+            <button
+              onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
+              disabled={currentPage === 1}
+              className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:hover:bg-white rounded-lg text-xs font-bold transition-all cursor-pointer shadow-3xs"
+            >
+              পূর্ববর্তী (Prev)
+            </button>
+            <span className="text-xs font-bold text-muted-foreground">
+              পৃষ্ঠা {toBanglaNumber(currentPage)} / {toBanglaNumber(totalPages)}
+            </span>
+            <button
+              onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
+              disabled={currentPage === totalPages}
+              className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:hover:bg-white rounded-lg text-xs font-bold transition-all cursor-pointer shadow-3xs"
+            >
+              পরবর্তী (Next)
+            </button>
           </div>
         )}
       </div>

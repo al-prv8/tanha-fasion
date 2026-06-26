@@ -884,7 +884,7 @@ export default function AdminPage() {
         <AdminSidebar 
           activeTab={activeTab}
           setActiveTab={setActiveTab}
-          ordersCount={orders.length}
+          ordersCount={orders.filter(o => ["PENDING", "CONFIRMED", "SHIPPED"].includes(o.orderStatus)).length}
           productsCount={products.length}
           reviewsCount={reviews.length}
           categoriesCount={categories.length}
@@ -906,7 +906,7 @@ export default function AdminPage() {
             <AdminSidebar 
               activeTab={activeTab}
               setActiveTab={setActiveTab}
-              ordersCount={orders.length}
+              ordersCount={orders.filter(o => ["PENDING", "CONFIRMED", "SHIPPED"].includes(o.orderStatus)).length}
               productsCount={products.length}
               reviewsCount={reviews.length}
               categoriesCount={categories.length}
@@ -958,6 +958,8 @@ export default function AdminPage() {
               onDeleteOrder={handleDeleteOrder}
               onBookSteadfast={handleBookSteadfast}
               onSyncSteadfast={handleSyncSteadfast}
+              onRefresh={fetchData}
+              isLoading={isLoading}
             />
           )}
 
@@ -974,6 +976,8 @@ export default function AdminPage() {
               onDeleteProduct={handleDeleteProduct}
               onStartEditProduct={handleStartEditProduct}
               CATEGORIES={activeCategoriesList}
+              onRefresh={fetchData}
+              isLoading={isLoading}
             />
           )}
 
@@ -986,6 +990,8 @@ export default function AdminPage() {
               onCreateCategory={handleCreateCategory}
               onUpdateCategory={handleUpdateCategory}
               onDeleteCategory={handleDeleteCategory}
+              onRefresh={fetchData}
+              isLoading={isLoading}
             />
           )}
 
@@ -995,6 +1001,8 @@ export default function AdminPage() {
               onCreateCoupon={handleCreateCoupon}
               onToggleCouponActive={handleToggleCouponActive}
               onDeleteCoupon={handleDeleteCoupon}
+              onRefresh={fetchData}
+              isLoading={isLoading}
             />
           )}
 
@@ -1002,6 +1010,8 @@ export default function AdminPage() {
             <ReviewsTab 
               reviews={reviews}
               onDeleteReview={handleDeleteReview}
+              onRefresh={fetchData}
+              isLoading={isLoading}
             />
           )}
 
@@ -1009,6 +1019,7 @@ export default function AdminPage() {
             <FaqsTab 
               showToast={showToast}
               onRefresh={fetchData}
+              isLoading={isLoading}
             />
           )}
 
@@ -1016,6 +1027,7 @@ export default function AdminPage() {
             <AnnouncementsTab 
               showToast={showToast}
               onRefresh={fetchData}
+              isLoading={isLoading}
             />
           )}
 
@@ -1023,6 +1035,8 @@ export default function AdminPage() {
             <NewslettersTab 
               subscribers={subscribers}
               onDeleteSubscriber={handleDeleteSubscriber}
+              onRefresh={fetchData}
+              isLoading={isLoading}
             />
           )}
 
@@ -1030,6 +1044,7 @@ export default function AdminPage() {
             <ActivityLogsTab 
               logs={logs}
               isLoading={isLogsLoading}
+              onRefresh={fetchData}
             />
           )}
 
@@ -1040,6 +1055,8 @@ export default function AdminPage() {
               onCreateStaff={handleCreateStaff}
               onUpdateStaff={handleUpdateStaff}
               onDeleteStaff={handleDeleteStaff}
+              onRefresh={fetchData}
+              isLoading={isLoading}
             />
           )}
 
@@ -1049,6 +1066,8 @@ export default function AdminPage() {
               onCreateBranch={handleCreateBranch}
               onUpdateBranch={handleUpdateBranch}
               onDeleteBranch={handleDeleteBranch}
+              onRefresh={fetchData}
+              isLoading={isLoading}
             />
           )}
           </main>

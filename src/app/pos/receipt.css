@@ -1,24 +1,34 @@
 /* CSS for Thermal Receipt Printing */
-@media print {
-  /* Hide all interactive screen elements */
-  body * {
-    visibility: hidden;
-  }
-
-  /* Only show the print-only receipt container */
+@media screen {
   #pos-receipt-print-area,
-  #pos-receipt-print-area * {
-    visibility: visible;
+  [id^="printable-showroom-receipt-"] {
+    display: none !important;
+  }
+}
+
+@media print {
+  html, body {
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
   }
 
-  #pos-receipt-print-area {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 80mm; /* Standard 80mm receipt width */
+  /* Hide all other direct children of body to prevent trailing blank pages */
+  body > *:not(#pos-receipt-print-area):not([id^="printable-showroom-receipt-"]) {
+    display: none !important;
+  }
+
+  #pos-receipt-print-area,
+  [id^="printable-showroom-receipt-"] {
+    display: block !important;
+    position: relative !important;
+    width: 80mm !important; /* Standard 80mm receipt width */
     max-width: 100%;
-    margin: 0;
-    padding: 2mm;
+    margin: 0 auto;
+    padding: 4mm;
     font-family: 'Courier New', Courier, monospace, 'Outfit', sans-serif;
     font-size: 11px;
     line-height: 1.3;
@@ -72,7 +82,6 @@
     font-size: 10px;
   }
 
-  /* Helper tags */
   .receipt-bold {
     font-weight: bold;
   }

@@ -12,7 +12,8 @@ import {
   X,
   Save,
   Layers,
-  Barcode
+  Barcode,
+  RefreshCw
 } from "lucide-react";
 import { formatBanglaPriceWithCommas, toBanglaNumber, getProductTotalStock } from "@/lib/products";
 
@@ -44,6 +45,8 @@ interface ProductsTabProps {
   onDeleteProduct: (id: string) => Promise<void>;
   onStartEditProduct: (product: any) => void;
   CATEGORIES: string[];
+  onRefresh?: () => void;
+  isLoading?: boolean;
 }
 
 const STATIC_PRODUCT_ASSETS = [
@@ -84,10 +87,16 @@ export default function ProductsTab({
   onProductSubmit,
   onDeleteProduct,
   onStartEditProduct,
-  CATEGORIES
+  CATEGORIES,
+  onRefresh,
+  isLoading = false
 }: ProductsTabProps) {
   // Tracking if Custom URL mode or Upload mode is active
   const [imageMode, setImageMode] = useState<"preset" | "custom" | "upload">("preset");
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   // Barcode Print Modal State
   const [barcodeProduct, setBarcodeProduct] = useState<any>(null);
@@ -419,6 +428,16 @@ export default function ProductsTab({
 
     return matchesSearch && matchesCategory;
   });
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [productSearch, activeCategoryFilter]);
+
+  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
+  const paginatedProducts = filteredProducts.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
   return (
     <div className="flex flex-col gap-6 font-sans text-foreground">
@@ -759,15 +778,29 @@ export default function ProductsTab({
           </div>
 
           {/* Quick Search */}
-          <div className="relative w-full sm:max-w-xs">
-            <input 
-              type="text" 
-              placeholder="পণ্য বা SKU কোড খুঁজুন..."
-              value={productSearch}
-              onChange={(e) => setProductSearch(e.target.value)}
-              className="w-full pl-9 pr-4 py-1.5 border border-slate-200 bg-slate-50/50 focus:bg-white rounded-xl focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-xs text-foreground placeholder-slate-405 transition-all"
-            />
-            <Search size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+          <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+            <div className="relative w-full sm:max-w-xs">
+              <input 
+                type="text" 
+                placeholder="পণ্য বা SKU কোড খুঁজুন..."
+                value={productSearch}
+                onChange={(e) => setProductSearch(e.target.value)}
+                className="w-full pl-9 pr-4 py-1.5 border border-slate-200 bg-slate-50/50 focus:bg-white rounded-xl focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-xs text-foreground placeholder-slate-405 transition-all"
+              />
+              <Search size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+            </div>
+
+            {onRefresh && (
+              <button
+                type="button"
+                onClick={onRefresh}
+                className="p-2 bg-white hover:bg-slate-50 text-slate-655 hover:text-slate-800 border border-slate-200 rounded-xl transition-all cursor-pointer shadow-3xs flex items-center justify-center gap-1.5"
+                title="রিলোড করুন"
+              >
+                <RefreshCw size={13} className={isLoading ? "animate-spin" : ""} />
+                <span className="text-[10px] font-bold hidden sm:inline">রিফ্রেশ</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -793,7 +826,7 @@ export default function ProductsTab({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-slate-800">
-                {filteredProducts.map((p) => {
+                {paginatedProducts.map((p) => {
                   const isExpanded = expandedProductId === p.id;
                   const totalStock = getProductTotalStock(p);
 
@@ -1245,6 +1278,29 @@ export default function ProductsTab({
                 })}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="p-4 border-t border-slate-100 flex items-center justify-between gap-4 mt-4">
+            <button
+              onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
+              disabled={currentPage === 1}
+              className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:hover:bg-white rounded-lg text-xs font-bold transition-all cursor-pointer shadow-3xs"
+            >
+              পূর্ববর্তী (Prev)
+            </button>
+            <span className="text-xs font-bold text-muted-foreground">
+              পৃষ্ঠা {toBanglaNumber(currentPage)} / {toBanglaNumber(totalPages)}
+            </span>
+            <button
+              onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
+              disabled={currentPage === totalPages}
+              className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:hover:bg-white rounded-lg text-xs font-bold transition-all cursor-pointer shadow-3xs"
+            >
+              পরবর্তী (Next)
+            </button>
           </div>
         )}
       </div>

@@ -1,12 +1,12 @@
 # Ubuntu 24.04 VPS Deployment & Domain Configuration Guide
 
-This guide describes how to deploy the **Tanha Fashion** e-commerce store (Next.js frontend & Express/Prisma/SQLite backend) on a clean **Ubuntu 24.04 LTS** VPS and bind it to your domain **tanhafasion.com**.
+This guide describes how to deploy the **Tanha Fashion** e-commerce store (Next.js frontend & Express/Prisma/SQLite backend) on a clean **Ubuntu 24.04 LTS** VPS and bind it to your domain **tanhafashion.com**.
 
 ---
 
 ## Architecture Overview
 
-We will configure a single-domain routing architecture. Running both frontend and backend under the same domain (e.g., `tanhafasion.com` and `tanhafasion.com/api`) avoids cross-domain CORS issues, cookie blockage, and simplifies SSL certificate management.
+We will configure a single-domain routing architecture. Running both frontend and backend under the same domain (e.g., `tanhafashion.com` and `tanhafashion.com/api`) avoids cross-domain CORS issues, cookie blockage, and simplifies SSL certificate management.
 
 * **Frontend**: Next.js (runs locally on port `3000`)
 * **Backend**: Express API (runs locally on port `5000`)
@@ -84,7 +84,7 @@ STEADFAST_API_KEY="az7qvs57zmyzdea0bj0t9lj3h6ff6xd9"
 STEADFAST_SECRET_KEY="md14najjfbq1gvgndgw0oiq3"
 
 # Your production domain (no trailing slash)
-FRONTEND_URL="https://tanhafasion.com"
+FRONTEND_URL="https://tanhafashion.com"
 ```
 *Press `Ctrl + O` and `Enter` to save, then `Ctrl + X` to exit.*
 
@@ -96,7 +96,7 @@ nano .env.production
 Paste the following:
 ```env
 # Tells the client to send requests to the relative /api route under the same domain
-NEXT_PUBLIC_API_URL="https://tanhafasion.com"
+NEXT_PUBLIC_API_URL="https://tanhafashion.com"
 ```
 *Save and exit.*
 
@@ -212,13 +212,13 @@ sudo apt install -y nginx
 ### 2. Create Virtual Host Configuration
 Create a new configuration block for your domain:
 ```bash
-sudo nano /etc/nginx/sites-available/tanhafasion.com
+sudo nano /etc/nginx/sites-available/tanhafashion.com
 ```
-Paste the following Nginx server blocks (replace `tanhafasion.com` with your actual domain):
+Paste the following Nginx server blocks (replace `tanhafashion.com` with your actual domain):
 ```nginx
 server {
     listen 80;
-    server_name tanhafasion.com www.tanhafasion.com;
+    server_name tanhafashion.com www.tanhafashion.com;
 
     # Frontend (Next.js running on port 3000)
     location / {
@@ -256,7 +256,7 @@ server {
 ### 3. Enable Configuration & Test Nginx
 Link the site configuration to enable it, remove the default site, and check for syntax errors:
 ```bash
-sudo ln -s /etc/nginx/sites-available/tanhafasion.com /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/tanhafashion.com /etc/nginx/sites-enabled/
 sudo rm /etc/nginx/sites-enabled/default
 sudo nginx -t
 ```
@@ -273,7 +273,7 @@ sudo systemctl enable nginx
 ### 1. Point DNS Records
 Log in to your Domain Registrar (Namecheap, GoDaddy, Cloudflare, etc.) and add the following records:
 * **A Record**: `@` -> `103.168.91.79`
-* **CNAME Record**: `www` -> `tanhafasion.com`
+* **CNAME Record**: `www` -> `tanhafashion.com`
 
 *Wait a few minutes for DNS propagation.*
 
@@ -286,7 +286,7 @@ sudo apt install -y certbot python3-certbot-nginx
 ### 3. Generate SSL Certificate
 Run Certbot to fetch the certificate and let it automatically update your Nginx configuration to support secure HTTPS redirects:
 ```bash
-sudo certbot --nginx -d tanhafasion.com -d www.tanhafasion.com
+sudo certbot --nginx -d tanhafashion.com -d www.tanhafashion.com
 ```
 *Enter your email address and accept terms when prompted.*
 

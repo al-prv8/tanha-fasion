@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Tag, Plus, Trash2, ShieldAlert, CheckCircle, XCircle, Save } from "lucide-react";
+import { Tag, Plus, Trash2, ShieldAlert, CheckCircle, XCircle, Save, RefreshCw } from "lucide-react";
 import { toBanglaNumber, formatBanglaPriceWithCommas } from "@/lib/products";
 
 interface Coupon {
@@ -17,19 +17,33 @@ interface CouponsTabProps {
   onCreateCoupon: (code: string, type: string, value: number, minSubtotal: number) => Promise<void>;
   onToggleCouponActive: (id: string, isActive: boolean) => Promise<void>;
   onDeleteCoupon: (id: string) => Promise<void>;
+  onRefresh?: () => void;
+  isLoading?: boolean;
 }
 
 export default function CouponsTab({
   coupons,
   onCreateCoupon,
   onToggleCouponActive,
-  onDeleteCoupon
+  onDeleteCoupon,
+  onRefresh,
+  isLoading = false
 }: CouponsTabProps) {
   const [code, setCode] = useState("");
   const [type, setType] = useState("FLAT"); // FLAT or PERCENTAGE
   const [value, setValue] = useState("");
   const [minSubtotal, setMinSubtotal] = useState("0");
   const [showAddForm, setShowAddForm] = useState(false);
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  const totalPages = Math.ceil(coupons.length / itemsPerPage);
+  const paginatedCoupons = coupons.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -143,6 +157,23 @@ export default function CouponsTab({
 
       {/* 2. COUPON TABLE LIST */}
       <div className="bg-white border border-slate-200/80 rounded-2xl shadow-3xs p-6">
+        <div className="flex justify-between items-center mb-4">
+          <div>
+            <h3 className="text-sm font-bold font-display font-black">সক্রিয় কুপন তালিকা</h3>
+            <p className="text-[10px] text-muted-foreground mt-0.5">মোট {toBanglaNumber(coupons.length)}টি কুপন কোড ডাটাবেজে রয়েছে।</p>
+          </div>
+          {onRefresh && (
+            <button
+              type="button"
+              onClick={onRefresh}
+              className="p-2 bg-white hover:bg-slate-50 text-slate-655 hover:text-slate-800 border border-slate-200 rounded-xl transition-all cursor-pointer shadow-3xs flex items-center justify-center gap-1.5"
+              title="রিলোড করুন"
+            >
+              <RefreshCw size={13} className={isLoading ? "animate-spin" : ""} />
+              <span className="text-[10px] font-bold hidden sm:inline">রিফ্রেশ</span>
+            </button>
+          )}
+        </div>
         {coupons.length === 0 ? (
           <div className="py-16 text-center text-slate-450 text-xs font-semibold flex flex-col items-center gap-3">
             <Tag size={28} className="text-slate-300" />
@@ -162,7 +193,7 @@ export default function CouponsTab({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-slate-800">
-                {coupons.map((c) => (
+                {paginatedCoupons.map((c) => (
                   <tr key={c.id} className="hover:bg-slate-50/40 transition-colors">
                     {/* Code */}
                     <td className="py-3.5 px-4">
@@ -224,6 +255,29 @@ export default function CouponsTab({
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="p-4 border-t border-slate-100 flex items-center justify-between gap-4 mt-4">
+            <button
+              onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
+              disabled={currentPage === 1}
+              className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:hover:bg-white rounded-lg text-xs font-bold transition-all cursor-pointer shadow-3xs"
+            >
+              পূর্ববর্তী (Prev)
+            </button>
+            <span className="text-xs font-bold text-muted-foreground">
+              পৃষ্ঠা {toBanglaNumber(currentPage)} / {toBanglaNumber(totalPages)}
+            </span>
+            <button
+              onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
+              disabled={currentPage === totalPages}
+              className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:hover:bg-white rounded-lg text-xs font-bold transition-all cursor-pointer shadow-3xs"
+            >
+              পরবর্তী (Next)
+            </button>
           </div>
         )}
       </div>

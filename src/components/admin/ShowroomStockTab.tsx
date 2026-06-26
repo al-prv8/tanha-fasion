@@ -17,13 +17,17 @@ interface ShowroomStockTabProps {
   CATEGORIES: string[];
   onUpdateProductShowroomStock: (id: string, showroomSizesJson: string) => Promise<void>;
   onTransferProductStock?: (id: string, size: string, qty: number, direction: "online_to_showroom" | "showroom_to_online") => Promise<void>;
+  onRefresh?: () => void;
+  isLoading?: boolean;
 }
 
 export default function ShowroomStockTab({
   products,
   CATEGORIES,
   onUpdateProductShowroomStock,
-  onTransferProductStock
+  onTransferProductStock,
+  onRefresh,
+  isLoading = false
 }: ShowroomStockTabProps) {
   const [productSearch, setProductSearch] = useState("");
   const [activeCategoryFilter, setActiveCategoryFilter] = useState("ALL");
@@ -42,6 +46,10 @@ export default function ShowroomStockTab({
   const [transferQty, setTransferQty] = useState<number>(1);
   const [transferDirection, setTransferDirection] = useState<"online_to_showroom" | "showroom_to_online">("online_to_showroom");
   const [isTransferring, setIsTransferring] = useState(false);
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   const getProductSizes = (prod: any) => {
     try {
@@ -222,18 +230,43 @@ export default function ShowroomStockTab({
     return matchesSearch && matchesCategory;
   });
 
+  // Reset page when category filter or search input changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [productSearch, activeCategoryFilter]);
+
+  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage) || 1;
+  const paginatedProducts = filteredProducts.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
   return (
     <div className="flex flex-col gap-6 font-sans text-foreground">
       
       {/* Header */}
-      <div>
-        <h2 className="text-xl font-extrabold text-slate-900 tracking-tight font-display flex items-center gap-2">
-          <Package className="text-primary" />
-          <span>শোরুম ইনভেন্টরি ও বারকোড সেন্টার (Showroom Stock)</span>
-        </h2>
-        <p className="text-xs text-muted-foreground mt-0.5">
-          বসুন্ধরা সিটি শোরুমের ফিজিক্যাল পোশাক স্টক নিরীক্ষণ, পরিমার্জন এবং কাস্টম বারকোড লেবেল তৈরি করুন।
-        </p>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h2 className="text-xl font-extrabold text-slate-900 tracking-tight font-display flex items-center gap-2 text-left">
+            <Package className="text-primary" />
+            <span>শোরুম ইনভেন্টরি ও বারকোড সেন্টার (Showroom Stock)</span>
+          </h2>
+          <p className="text-xs text-muted-foreground mt-0.5 text-left">
+            বসুন্ধরা সিটি শোরুমের ফিজিক্যাল পোশাক স্টক নিরীক্ষণ, পরিমার্জন এবং কাস্টম বারকোড লেবেল তৈরি করুন।
+          </p>
+        </div>
+
+        {onRefresh && (
+          <button
+            onClick={() => onRefresh()}
+            disabled={isLoading}
+            className="inline-flex items-center gap-1.5 py-2.5 px-4 bg-white hover:bg-slate-50 border border-slate-200 text-slate-705 text-xs font-bold rounded-xl cursor-pointer transition-all shadow-3xs disabled:opacity-50"
+            title="রিফ্রেশ করুন"
+          >
+            <RefreshCw size={14} className={isLoading ? "animate-spin" : ""} />
+            <span>রিফ্রেশ</span>
+          </button>
+        )}
       </div>
 
       {lowStockShowroomProducts.length > 0 && (
@@ -293,138 +326,170 @@ export default function ShowroomStockTab({
               placeholder="পণ্য বা SKU কোড খুঁজুন..."
               value={productSearch}
               onChange={(e) => setProductSearch(e.target.value)}
-              className="w-full pl-9 pr-4 py-1.5 border border-slate-200 bg-slate-50/50 focus:bg-white rounded-xl focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-xs text-foreground placeholder-slate-405 transition-all"
+              className="w-full pl-9 pr-4 py-1.5 border border-slate-200 bg-slate-50/50 focus:bg-white rounded-xl focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-xs text-foreground placeholder-slate-400 transition-all"
             />
             <Search size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
           </div>
         </div>
 
         {/* Showroom Products Table */}
-        {filteredProducts.length === 0 ? (
+        {isLoading ? (
+          <div className="py-20 text-center text-slate-400 text-xs font-semibold flex flex-col items-center justify-center gap-2">
+            <RefreshCw size={24} className="animate-spin text-primary" />
+            <span>লোড হচ্ছে...</span>
+          </div>
+        ) : filteredProducts.length === 0 ? (
           <div className="py-20 text-center text-slate-450 text-xs font-semibold">শোরুমে কোনো পণ্য পাওয়া যায়নি।</div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-left text-xs text-slate-700">
-              <thead>
-                <tr className="border-b border-slate-200/80 bg-slate-50/60 text-slate-400 font-black text-[9px] uppercase tracking-wider">
-                  <th className="py-3 px-3 w-12 text-center">ছবি</th>
-                  <th className="py-3 px-3">পোশাক ও ক্যাটাগরি</th>
-                  <th className="py-3 px-3">SKU কোড</th>
-                  <th className="py-3 px-3 text-right">মূল্য</th>
-                  <th className="py-3 px-3 text-center">সাইজ ও শোরুম স্টক</th>
-                  <th className="py-3 px-3 text-center">মোট শোরুম স্টক</th>
-                  <th className="py-3 px-3 text-center">অ্যাকশন</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 text-slate-800">
-                {filteredProducts.map((p) => {
-                  const totalStock = getProductTotalShowroomStock(p);
-                  return (
-                    <tr key={p.id} className="hover:bg-slate-50/40 transition-colors">
-                      {/* Image */}
-                      <td className="py-2.5 px-3 text-center">
-                        <Image 
-                          src={p.imgUrl || "/assets/cotton_1.png"} 
-                          alt={p.name} 
-                          width={36}
-                          height={48}
-                          className="w-9 h-12 object-cover bg-secondary border border-border/80 rounded-md mx-auto" 
-                        />
-                      </td>
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse text-left text-xs text-slate-700">
+                <thead>
+                  <tr className="border-b border-slate-200/80 bg-slate-50/60 text-slate-400 font-black text-[9px] uppercase tracking-wider">
+                    <th className="py-3 px-3 w-12 text-center">ছবি</th>
+                    <th className="py-3 px-3">পোশাক ও ক্যাটাগরি</th>
+                    <th className="py-3 px-3">SKU কোড</th>
+                    <th className="py-3 px-3 text-right">মূল্য</th>
+                    <th className="py-3 px-3 text-center">সাইজ ও শোরুম স্টক</th>
+                    <th className="py-3 px-3 text-center">মোট শোরুম স্টক</th>
+                    <th className="py-3 px-3 text-center">অ্যাকশন</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-slate-800">
+                  {paginatedProducts.map((p) => {
+                    const totalStock = getProductTotalShowroomStock(p);
+                    return (
+                      <tr key={p.id} className="hover:bg-slate-50/40 transition-colors">
+                        {/* Image */}
+                        <td className="py-2.5 px-3 text-center">
+                          <Image 
+                            src={p.imgUrl || "/assets/cotton_1.png"} 
+                            alt={p.name} 
+                            width={36}
+                            height={48}
+                            className="w-9 h-12 object-cover bg-secondary border border-border/80 rounded-md mx-auto" 
+                          />
+                        </td>
 
-                      {/* Name & Category */}
-                      <td className="py-2.5 px-3">
-                        <div className="font-bold text-slate-900 truncate max-w-[200px]" title={p.name}>{p.name}</div>
-                        <div className="text-slate-400 text-[10px] mt-0.5">{p.category}</div>
-                      </td>
+                        {/* Name & Category */}
+                        <td className="py-2.5 px-3">
+                          <div className="font-bold text-slate-900 truncate max-w-[200px]" title={p.name}>{p.name}</div>
+                          <div className="text-slate-400 text-[10px] mt-0.5">{p.category}</div>
+                        </td>
 
-                      {/* SKU */}
-                      <td className="py-2.5 px-3 font-mono font-bold text-slate-550">{p.sku}</td>
+                        {/* SKU */}
+                        <td className="py-2.5 px-3 font-mono font-bold text-slate-550">{p.sku}</td>
 
-                      {/* Price */}
-                      <td className="py-2.5 px-3 text-right font-black text-slate-900">৳{toBanglaNumber(p.price)}</td>
+                        {/* Price */}
+                        <td className="py-2.5 px-3 text-right font-black text-slate-900">৳{toBanglaNumber(p.price)}</td>
 
-                      {/* Showroom Sizes */}
-                      <td className="py-2.5 px-3 text-center">
-                        <div className="flex flex-wrap gap-1 justify-center max-w-[200px] mx-auto">
-                          {(() => {
-                            try {
-                              const sizesObj = JSON.parse(p.showroomSizesJson || p.sizesJson || "{}");
-                              return Object.entries(sizesObj).map(([sz, qty]) => {
-                                const quantity = Number(qty || 0);
-                                let badgeClass = "bg-secondary text-foreground border-border";
-                                if (quantity === 0) {
-                                  badgeClass = "bg-rose-50 text-rose-600 border-rose-200";
-                                } else if (quantity < 5) {
-                                  badgeClass = "bg-amber-50 text-amber-700 border-amber-250";
-                                }
-                                return (
-                                  <span key={sz} className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold border ${badgeClass}`}>
-                                    <span className="font-extrabold">{sz}:</span>
-                                    <span>{toBanglaNumber(quantity)}</span>
-                                  </span>
-                                );
-                              });
-                            } catch (e) {
-                              return <span className="text-[10px] text-rose-500 font-bold">ত্রুটি</span>;
-                            }
-                          })()}
-                        </div>
-                      </td>
+                        {/* Showroom Sizes */}
+                        <td className="py-2.5 px-3 text-center">
+                          <div className="flex flex-wrap gap-1 justify-center max-w-[200px] mx-auto">
+                            {(() => {
+                              try {
+                                const sizesObj = JSON.parse(p.showroomSizesJson || p.sizesJson || "{}");
+                                return Object.entries(sizesObj).map(([sz, qty]) => {
+                                  const quantity = Number(qty || 0);
+                                  let badgeClass = "bg-secondary text-foreground border-border";
+                                  if (quantity === 0) {
+                                    badgeClass = "bg-rose-50 text-rose-600 border-rose-200";
+                                  } else if (quantity < 5) {
+                                    badgeClass = "bg-amber-50 text-amber-700 border-amber-250";
+                                  }
+                                  return (
+                                    <span key={sz} className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold border ${badgeClass}`}>
+                                      <span className="font-extrabold">{sz}:</span>
+                                      <span>{toBanglaNumber(quantity)}</span>
+                                    </span>
+                                  );
+                                });
+                              } catch (e) {
+                                return <span className="text-[10px] text-rose-500 font-bold">ত্রুটি</span>;
+                              }
+                            })()}
+                          </div>
+                        </td>
 
-                      {/* Total Stock status badge */}
-                      <td className="py-2.5 px-3 text-center">
-                        {totalStock === 0 ? (
-                          <span className="inline-flex items-center py-0.5 px-2 text-[9px] font-black bg-rose-50 text-rose-600 border border-rose-200 rounded-md">স্টক শেষ</span>
-                        ) : totalStock < 5 ? (
-                          <span className="inline-flex items-center py-0.5 px-2 text-[9px] font-black bg-amber-50 text-amber-600 border border-amber-250 rounded-md">সীমিত: {toBanglaNumber(totalStock)}</span>
-                        ) : (
-                          <span className="inline-flex items-center py-0.5 px-2 text-[9px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-md">{toBanglaNumber(totalStock)} টি</span>
-                        )}
-                      </td>
+                        {/* Total Stock status badge */}
+                        <td className="py-2.5 px-3 text-center">
+                          {totalStock === 0 ? (
+                            <span className="inline-flex items-center py-0.5 px-2 text-[9px] font-black bg-rose-50 text-rose-600 border border-rose-200 rounded-md">স্টক শেষ</span>
+                          ) : totalStock < 5 ? (
+                            <span className="inline-flex items-center py-0.5 px-2 text-[9px] font-black bg-amber-50 text-amber-600 border border-amber-250 rounded-md">সীমিত: {toBanglaNumber(totalStock)}</span>
+                          ) : (
+                            <span className="inline-flex items-center py-0.5 px-2 text-[9px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-md">{toBanglaNumber(totalStock)} টি</span>
+                          )}
+                        </td>
 
-                      {/* Action buttons */}
-                      <td className="py-2.5 px-3 text-center">
-                        <div className="flex items-center justify-center gap-1.5">
-                          <button 
-                            onClick={() => handleStartEdit(p)}
-                            className="p-1.5 bg-slate-50 hover:bg-primary/10 border border-slate-200 hover:border-primary text-slate-700 hover:text-primary rounded-lg cursor-pointer transition-colors"
-                            title="শোরুম স্টক পরিমার্জন"
-                          >
-                            <Edit3 size={12} />
-                          </button>
-                          <button 
-                            onClick={() => {
-                              const sizes = getProductSizes(p);
-                              setTransferProduct(p);
-                              setTransferSize(sizes[0] || "M");
-                              setTransferQty(1);
-                              setTransferDirection("online_to_showroom");
-                            }}
-                            className="p-1.5 bg-slate-50 hover:bg-emerald-100 border border-slate-200 hover:border-emerald-600 text-slate-700 hover:text-emerald-700 rounded-lg cursor-pointer transition-colors"
-                            title="স্টক স্থানান্তর (Online ⇄ Showroom)"
-                          >
-                            <RefreshCw size={12} />
-                          </button>
-                          <button 
-                            onClick={() => {
-                              const sizes = getProductSizes(p);
-                              setBarcodeProduct(p);
-                              setBarcodeSize(sizes[0] || "M");
-                            }}
-                            className="p-1.5 bg-slate-50 hover:bg-slate-900 border border-slate-200 hover:border-slate-900 text-slate-700 hover:text-white rounded-lg cursor-pointer transition-colors"
-                            title="বারকোড লেবেল প্রিন্ট"
-                          >
-                            <Barcode size={12} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                        {/* Action buttons */}
+                        <td className="py-2.5 px-3 text-center">
+                          <div className="flex items-center justify-center gap-1.5">
+                            <button 
+                              onClick={() => handleStartEdit(p)}
+                              className="p-1.5 bg-slate-50 hover:bg-primary/10 border border-slate-200 hover:border-primary text-slate-700 hover:text-primary rounded-lg cursor-pointer transition-colors"
+                              title="শোরুম স্টক পরিমার্জন"
+                            >
+                              <Edit3 size={12} />
+                            </button>
+                            <button 
+                              onClick={() => {
+                                const sizes = getProductSizes(p);
+                                setTransferProduct(p);
+                                setTransferSize(sizes[0] || "M");
+                                setTransferQty(1);
+                                setTransferDirection("online_to_showroom");
+                              }}
+                              className="p-1.5 bg-slate-50 hover:bg-emerald-100 border border-slate-200 hover:border-emerald-600 text-slate-700 hover:text-emerald-700 rounded-lg cursor-pointer transition-colors"
+                              title="স্টক স্থানান্তর (Online ⇄ Showroom)"
+                            >
+                              <RefreshCw size={12} />
+                            </button>
+                            <button 
+                              onClick={() => {
+                                const sizes = getProductSizes(p);
+                                setBarcodeProduct(p);
+                                setBarcodeSize(sizes[0] || "M");
+                              }}
+                              className="p-1.5 bg-slate-50 hover:bg-slate-900 border border-slate-200 hover:border-slate-900 text-slate-700 hover:text-white rounded-lg cursor-pointer transition-colors"
+                              title="বারকোড লেবেল প্রিন্ট"
+                            >
+                              <Barcode size={12} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="p-4 border-t border-slate-100 flex items-center justify-between gap-4 mt-4">
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:hover:bg-white rounded-lg text-xs font-bold transition-all cursor-pointer shadow-3xs"
+                >
+                  পূর্ববর্তী (Prev)
+                </button>
+                <span className="text-xs font-bold text-muted-foreground">
+                  পৃষ্ঠা {toBanglaNumber(currentPage)} / {toBanglaNumber(totalPages)}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:hover:bg-white rounded-lg text-xs font-bold transition-all cursor-pointer shadow-3xs"
+                >
+                  পরবর্তী (Next)
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
 
@@ -595,6 +660,7 @@ export default function ShowroomStockTab({
           </div>
         </div>
       )}
+
       {/* 5. STOCK TRANSFER MODAL */}
       {transferProduct && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
@@ -692,7 +758,7 @@ export default function ShowroomStockTab({
                       className={`py-1.5 border-none rounded-lg text-[9px] font-black cursor-pointer transition-all ${
                         transferDirection === "showroom_to_online"
                           ? "bg-slate-900 text-white shadow-xs"
-                          : "bg-transparent text-slate-600 hover:text-slate-900"
+                          : "bg-transparent text-slate-605 hover:text-slate-909"
                       }`}
                     >
                       শোরুম ➔ অনলাইন

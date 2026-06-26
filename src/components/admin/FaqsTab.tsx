@@ -9,7 +9,8 @@ import {
   Save, 
   X, 
   Search, 
-  AlertCircle 
+  AlertCircle,
+  RefreshCw
 } from "lucide-react";
 import { toBanglaNumber } from "@/lib/products";
 
@@ -24,12 +25,17 @@ interface FaqItem {
 interface FaqsTabProps {
   showToast: (msg: string) => void;
   onRefresh?: () => void;
+  isLoading?: boolean;
 }
 
-export default function FaqsTab({ showToast, onRefresh }: FaqsTabProps) {
+export default function FaqsTab({ showToast, onRefresh, isLoading = false }: FaqsTabProps) {
   const [faqs, setFaqs] = useState<FaqItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   // Add/Edit Form states
   const [question, setQuestion] = useState("");
@@ -147,6 +153,16 @@ export default function FaqsTab({ showToast, onRefresh }: FaqsTabProps) {
     faq.answer.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
+
+  const totalPages = Math.ceil(filteredFaqs.length / itemsPerPage);
+  const paginatedFaqs = filteredFaqs.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
   return (
     <div className="flex flex-col gap-6 font-sans text-foreground">
       
@@ -259,15 +275,29 @@ export default function FaqsTab({ showToast, onRefresh }: FaqsTabProps) {
           </div>
           
           {/* Quick Search */}
-          <div className="relative w-full sm:max-w-xs">
-            <input 
-              type="text" 
-              placeholder="প্রশ্ন বা উত্তর খুঁজুন..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 border border-slate-200 bg-slate-50/50 focus:bg-white rounded-xl focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-xs text-foreground placeholder-slate-405 transition-all font-semibold"
-            />
-            <Search size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+          <div className="flex flex-wrap items-center gap-3 w-full sm:max-w-md justify-end">
+            <div className="relative flex-grow max-w-xs">
+              <input 
+                type="text" 
+                placeholder="প্রশ্ন বা উত্তর খুঁজুন..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 border border-slate-200 bg-slate-50/50 focus:bg-white rounded-xl focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-xs text-foreground placeholder-slate-405 transition-all font-semibold"
+              />
+              <Search size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+            </div>
+            <button
+              type="button"
+              onClick={async () => {
+                await fetchFaqs();
+                if (onRefresh) onRefresh();
+              }}
+              className="p-2 bg-white hover:bg-slate-50 text-slate-655 hover:text-slate-800 border border-slate-200 rounded-xl transition-all cursor-pointer shadow-3xs flex items-center justify-center gap-1.5"
+              title="রিলোড করুন"
+            >
+              <RefreshCw size={13} className={(loading || isLoading) ? "animate-spin" : ""} />
+              <span className="text-[10px] font-bold hidden sm:inline">রিফ্রেশ</span>
+            </button>
           </div>
         </div>
 
@@ -287,14 +317,15 @@ export default function FaqsTab({ showToast, onRefresh }: FaqsTabProps) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-slate-800">
-                {filteredFaqs.map((faq, index) => {
+                {paginatedFaqs.map((faq, index) => {
                   const isEditingThis = editingId === faq.id;
+                  const actualIndex = (currentPage - 1) * itemsPerPage + index + 1;
 
                   return (
                     <tr key={faq.id} className={`hover:bg-slate-50/40 transition-colors ${isEditingThis ? "bg-primary/5" : ""}`}>
                       {/* Serial Number */}
                       <td className="py-4 px-4 text-center font-bold text-slate-400">
-                        {toBanglaNumber(index + 1)}
+                        {toBanglaNumber(actualIndex)}
                       </td>
                       
                       {/* FAQ Text Details */}
@@ -341,6 +372,29 @@ export default function FaqsTab({ showToast, onRefresh }: FaqsTabProps) {
                 })}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="p-4 border-t border-slate-100 flex items-center justify-between gap-4 mt-4 bg-white">
+            <button
+              onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
+              disabled={currentPage === 1}
+              className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:hover:bg-white rounded-lg text-xs font-bold transition-all cursor-pointer shadow-3xs"
+            >
+              পূর্ববর্তী (Prev)
+            </button>
+            <span className="text-xs font-bold text-muted-foreground">
+              পৃষ্ঠা {toBanglaNumber(currentPage)} / {toBanglaNumber(totalPages)}
+            </span>
+            <button
+              onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
+              disabled={currentPage === totalPages}
+              className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:hover:bg-white rounded-lg text-xs font-bold transition-all cursor-pointer shadow-3xs"
+            >
+              পরবর্তী (Next)
+            </button>
           </div>
         )}
       </div>

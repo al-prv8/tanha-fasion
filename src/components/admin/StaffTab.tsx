@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { Plus, Trash2, Edit3, X, User, ShieldCheck, Mail, Phone, Lock, Key, AlertTriangle, CheckSquare, Square } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Plus, Trash2, Edit3, X, User, ShieldCheck, Mail, Phone, Lock, Key, AlertTriangle, CheckSquare, Square, RefreshCw } from "lucide-react";
 import { toBanglaNumber } from "@/lib/products";
 
 interface Branch {
@@ -25,6 +25,8 @@ interface StaffTabProps {
   onCreateStaff: (payload: any) => Promise<void>;
   onUpdateStaff: (id: string, payload: any) => Promise<void>;
   onDeleteStaff: (id: string) => Promise<void>;
+  onRefresh?: () => void;
+  isLoading?: boolean;
 }
 
 const MODULES_MAP = {
@@ -49,10 +51,34 @@ const MODULES_MAP = {
   ]
 };
 
-export default function StaffTab({ staff, branches, onCreateStaff, onUpdateStaff, onDeleteStaff }: StaffTabProps) {
+export default function StaffTab({ staff, branches, onCreateStaff, onUpdateStaff, onDeleteStaff, onRefresh, isLoading = false }: StaffTabProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState<StaffUser | null>(null);
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
+
+  const filteredStaff = staff.filter(user => {
+    const query = searchQuery.toLowerCase().trim();
+    if (!query) return true;
+    return (
+      user.name.toLowerCase().includes(query) ||
+      user.email.toLowerCase().includes(query) ||
+      (user.phone && user.phone.includes(query))
+    );
+  });
+
+  const totalPages = Math.ceil(filteredStaff.length / itemsPerPage) || 1;
+  const paginatedStaff = filteredStaff.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
   // Form states
   const [nameInput, setNameInput] = useState("");
@@ -171,16 +197,6 @@ export default function StaffTab({ staff, branches, onCreateStaff, onUpdateStaff
     }
   };
 
-  const filteredStaff = staff.filter(user => {
-    const query = searchQuery.toLowerCase().trim();
-    if (!query) return true;
-    return (
-      user.name.toLowerCase().includes(query) ||
-      user.email.toLowerCase().includes(query) ||
-      (user.phone && user.phone.includes(query))
-    );
-  });
-
   const getRoleLabel = (role: string) => {
     if (role === "SUPER_ADMIN" || role === "ADMIN") return "সুপার অ্যাডমিন";
     if (role === "BRANCH_MANAGER") return "শোরুম ম্যানেজার";
@@ -211,17 +227,30 @@ export default function StaffTab({ staff, branches, onCreateStaff, onUpdateStaff
 
       {/* Control bar */}
       <div className="bg-card border border-border/80 rounded-2xl p-4 shadow-2xs flex flex-col md:flex-row gap-4">
-        <div className="relative flex-grow">
-          <input
-            type="text"
-            placeholder="কর্মীর নাম, ইমেইল বা মোবাইল দিয়ে খুঁজুন..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 border border-border bg-white rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary font-semibold text-foreground"
-          />
-          <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-            <User size={15} />
+        <div className="flex flex-wrap items-center gap-3 w-full">
+          <div className="relative flex-grow">
+            <input
+              type="text"
+              placeholder="কর্মীর নাম, ইমেইল বা মোবাইল দিয়ে খুঁজুন..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 border border-border bg-white rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary font-semibold text-foreground"
+            />
+            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+              <User size={15} />
+            </div>
           </div>
+          {onRefresh && (
+            <button
+              type="button"
+              onClick={onRefresh}
+              className="p-2 bg-white hover:bg-slate-50 text-slate-655 hover:text-slate-800 border border-border rounded-xl transition-all cursor-pointer shadow-3xs flex items-center justify-center gap-1.5"
+              title="রিলোড করুন"
+            >
+              <RefreshCw size={13} className={isLoading ? "animate-spin" : ""} />
+              <span className="text-[10px] font-bold hidden sm:inline">রিফ্রেশ</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -247,7 +276,7 @@ export default function StaffTab({ staff, branches, onCreateStaff, onUpdateStaff
                   </td>
                 </tr>
               ) : (
-                filteredStaff.map((user) => {
+                paginatedStaff.map((user) => {
                   const allowedList = user.allowedModules 
                     ? user.allowedModules.split(",").map(m => m.replace(/^(online_|showroom_)/, "")) 
                     : user.role === "SUPER_ADMIN" || user.role === "ADMIN"
@@ -322,6 +351,29 @@ export default function StaffTab({ staff, branches, onCreateStaff, onUpdateStaff
             </tbody>
           </table>
         </div>
+
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="p-4 border-t border-slate-100 flex items-center justify-between gap-4 mt-4 bg-white">
+            <button
+              onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
+              disabled={currentPage === 1}
+              className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:hover:bg-white rounded-lg text-xs font-bold transition-all cursor-pointer shadow-3xs"
+            >
+              পূর্ববর্তী (Prev)
+            </button>
+            <span className="text-xs font-bold text-muted-foreground">
+              পৃষ্ঠা {toBanglaNumber(currentPage)} / {toBanglaNumber(totalPages)}
+            </span>
+            <button
+              onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
+              disabled={currentPage === totalPages}
+              className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:hover:bg-white rounded-lg text-xs font-bold transition-all cursor-pointer shadow-3xs"
+            >
+              পরবর্তী (Next)
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Add/Edit Modal */}
