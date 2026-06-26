@@ -20,7 +20,7 @@ We will configure a single-domain routing architecture. Running both frontend an
 
 Log in to your Ubuntu 24.04 VPS via SSH:
 ```bash
-ssh root@your_vps_ip
+ssh root@103.168.91.79
 ```
 
 ### 1. Update Package Registry
@@ -270,7 +270,7 @@ sudo systemctl enable nginx
 
 ### 1. Point DNS Records
 Log in to your Domain Registrar (Namecheap, GoDaddy, Cloudflare, etc.) and add the following records:
-* **A Record**: `@` -> `your_vps_ip`
+* **A Record**: `@` -> `103.168.91.79`
 * **CNAME Record**: `www` -> `tanhafasion.com`
 
 *Wait a few minutes for DNS propagation.*
