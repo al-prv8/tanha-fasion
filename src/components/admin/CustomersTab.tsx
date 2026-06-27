@@ -126,7 +126,7 @@ export default function CustomersTab({ orders = [], onRefresh, isLoading = false
           <div>
             <span className="text-[10px] font-black text-muted-foreground uppercase tracking-wider block">সর্বমোট গ্রাহক কেনাকাটা</span>
             <span className="text-xl sm:text-2xl font-black text-foreground block mt-1.5">
-              ৳ {formatBanglaPriceWithCommas(metrics.totalSpentSum)}
+              {formatBanglaPriceWithCommas(metrics.totalSpentSum)}
             </span>
           </div>
           <div className="w-10 h-10 bg-emerald-50 border border-emerald-100 rounded-full flex items-center justify-center text-emerald-600 flex-shrink-0">
@@ -138,7 +138,7 @@ export default function CustomersTab({ orders = [], onRefresh, isLoading = false
           <div>
             <span className="text-[10px] font-black text-muted-foreground uppercase tracking-wider block">গড় কেনাকাটার পরিমাণ</span>
             <span className="text-xl sm:text-2xl font-black text-foreground block mt-1.5">
-              ৳ {formatBanglaPriceWithCommas(metrics.avgSpent)}
+              {formatBanglaPriceWithCommas(metrics.avgSpent)}
             </span>
           </div>
           <div className="w-10 h-10 bg-blue-50 border border-blue-100 rounded-full flex items-center justify-center text-blue-600 flex-shrink-0">
@@ -150,7 +150,7 @@ export default function CustomersTab({ orders = [], onRefresh, isLoading = false
           <div>
             <span className="text-[10px] font-black text-muted-foreground uppercase tracking-wider block">VIP গ্রাহক লিমিট</span>
             <span className="text-xl sm:text-2xl font-black text-foreground block mt-1.5">
-              ৳ {formatBanglaPriceWithCommas(metrics.vipThresholdPrice)}+
+              {formatBanglaPriceWithCommas(metrics.vipThresholdPrice)}+
             </span>
           </div>
           <div className="w-10 h-10 bg-amber-50 border border-amber-100 rounded-full flex items-center justify-center text-amber-600 flex-shrink-0">
@@ -222,7 +222,7 @@ export default function CustomersTab({ orders = [], onRefresh, isLoading = false
                         {c.address || "শোরুম ওয়াক-ইন"}
                       </td>
                       <td className="py-3.5 px-4 text-center font-sans">{toBanglaNumber(c.ordersCount)} টি</td>
-                      <td className="py-3.5 px-4 text-right font-sans text-slate-900 font-extrabold">৳{formatBanglaPriceWithCommas(c.totalSpent)}</td>
+                      <td className="py-3.5 px-4 text-right font-sans text-slate-900 font-extrabold">{formatBanglaPriceWithCommas(c.totalSpent)}</td>
                       <td className="py-3.5 px-4 text-center font-sans text-muted-foreground">{getFormattedDate(c.lastOrderDate)}</td>
                       <td className="py-3.5 px-5 text-center">
                         <button
@@ -254,7 +254,7 @@ export default function CustomersTab({ orders = [], onRefresh, isLoading = false
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-slate-900">{selectedCustomer.name}</h3>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">মোবাইল: {selectedCustomer.phone} | সর্বমোট কেনাকাটা: ৳{formatBanglaPriceWithCommas(selectedCustomer.totalSpent)}</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">মোবাইল: {selectedCustomer.phone} | সর্বমোট কেনাকাটা: {formatBanglaPriceWithCommas(selectedCustomer.totalSpent)}</p>
                 </div>
               </div>
               <button
@@ -313,7 +313,7 @@ export default function CustomersTab({ orders = [], onRefresh, isLoading = false
                             {o.paymentStatus === "PAID" ? "পরিশোধিত" : "বকেয়া"}
                           </span>
                         </td>
-                        <td className="py-3 px-4 text-right text-slate-900">৳{formatBanglaPriceWithCommas(o.grandTotal)}</td>
+                        <td className="py-3 px-4 text-right text-slate-900">{formatBanglaPriceWithCommas(o.grandTotal)}</td>
                       </tr>
                     ))}
                   </tbody>

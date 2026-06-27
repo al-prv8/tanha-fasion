@@ -1534,12 +1534,7 @@ app.get("/api/orders", authenticateToken, requireRole(["SUPER_ADMIN", "BRANCH_MA
 app.get("/api/customers", authenticateToken, requireRole(["SUPER_ADMIN", "BRANCH_MANAGER"]), async (req: any, res: any) => {
   try {
     const { query } = req.query;
-    const userRole = req.user.role === "ADMIN" ? "SUPER_ADMIN" : req.user.role;
     let whereClause: any = {};
-
-    if (userRole === "BRANCH_MANAGER") {
-      whereClause.branchId = req.user.branchId;
-    }
 
     if (query && String(query).trim().length >= 2) {
       const searchTerm = String(query).trim();
