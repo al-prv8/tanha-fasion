@@ -123,7 +123,7 @@ Push the database schema rules to the production SQLite file:
 ```bash
 npx prisma db push
 ```
-*Note: The database is seeded via a built-in Express API endpoint. Once the backend server is running (Step 5), you can seed/reset the database with default categories, 24 catalog products, coupons, FAQs, announcements, and the admin user (`admin@tanha.com` / `adminpassword123`) by running the following command:*
+*Note: The database is seeded via a built-in Express API endpoint. Once the backend server is running (Step 5), you can seed/reset the database with default categories, 24 catalog products, coupons, FAQs, announcements, and the super admin user (`super-admin@tanhafashion.com` / `superadmin123`) by running the following command:*
 ```bash
 curl -X POST http://localhost:5000/api/seed
 ```
@@ -331,9 +331,11 @@ Add it to your crontab (`crontab -e`) to run at midnight every day:
 When you push new changes to GitHub and need to deploy them to your server:
 ```bash
 cd ~/tanha-fasion
+# Discard server runtime changes to SQLite database to avoid pull conflicts
+git checkout server/prisma/dev.db
 git pull
 npm install
 cd server && npm install && npx prisma db push && cd ..
 npm run build:all
-pm2 restart ecosystem.config.cjs
+pm2 restart ecosystem.config.cjs --update-env
 ```

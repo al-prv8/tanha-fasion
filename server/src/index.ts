@@ -14,7 +14,12 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-const JWT_SECRET = process.env.JWT_SECRET || "tanha-fashion-jwt-secret-key-123!";
+const JWT_SECRET = process.env.JWT_SECRET || (() => {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("FATAL ERROR: JWT_SECRET environment variable is required in production mode.");
+  }
+  return "tanha-fashion-jwt-secret-key-123!";
+})();
 
 // Ensure uploads folder exists
 const UPLOADS_DIR = path.join(process.cwd(), "uploads");
@@ -119,6 +124,31 @@ const requireRole = (roles: string[]) => {
     if (!normalizedRoles.includes(userRole)) {
       return res.status(403).json({ error: "আপনার এই সুবিধা ব্যবহারের অনুমতি নেই।" });
     }
+    next();
+  };
+};
+
+const requireModule = (moduleName: string) => {
+  return (req: any, res: any, next: any) => {
+    if (!req.user) {
+      return res.status(401).json({ error: "অননুমোদিত প্রবেশ।" });
+    }
+
+    const userRole = req.user.role === "ADMIN" ? "SUPER_ADMIN" : req.user.role;
+    if (userRole === "SUPER_ADMIN") {
+      return next(); // Super Admin has access to all modules
+    }
+
+    const allowedModules = req.user.allowedModules;
+    if (!allowedModules) {
+      return res.status(403).json({ error: "আপনার এই সুবিধা ব্যবহারের অনুমতি নেই (কোনো মডিউল বরাদ্দ নেই)।" });
+    }
+
+    const modulesList = allowedModules.split(",").map((m: string) => m.trim());
+    if (!modulesList.includes(moduleName)) {
+      return res.status(403).json({ error: `আপনার "${moduleName}" মডিউলটি ব্যবহারের অনুমতি নেই।` });
+    }
+    
     next();
   };
 };
@@ -1226,18 +1256,34 @@ app.post("/api/orders", async (req, res) => {
 
     // Extract branchId from request body or authenticated token
     let branchId = req.body.branchId || null;
-    if (!branchId) {
-      const token = req.cookies?.token;
-      if (token) {
-        try {
-          const decoded: any = jwt.verify(token, JWT_SECRET);
-          branchId = decoded.branchId || null;
-        } catch (e) {}
-      }
+    let decodedToken: any = null;
+
+    const token = req.cookies?.token;
+    if (token) {
+      try {
+        decodedToken = jwt.verify(token, JWT_SECRET);
+        if (!branchId) {
+          branchId = decodedToken.branchId || null;
+        }
+      } catch (e) {}
     }
 
-    // Default fields for showroom/walkin POS checkouts to save cashier time
+    // Enforce showroom_pos authorization checks if POS checkout
     if (isShowroom) {
+      if (!decodedToken) {
+        return res.status(401).json({ error: "শোরুম অর্ডারের জন্য ক্যাশিয়ার লগইন করা আবশ্যক।" });
+      }
+
+      const userRole = decodedToken.role === "ADMIN" ? "SUPER_ADMIN" : decodedToken.role;
+      if (userRole !== "SUPER_ADMIN") {
+        const allowedModules = decodedToken.allowedModules || "";
+        const modulesList = allowedModules.split(",").map((m: string) => m.trim());
+        if (!modulesList.includes("showroom_pos")) {
+          return res.status(403).json({ error: "আপনার শোরুম POS ব্যবহারের অনুমতি নেই।" });
+        }
+      }
+
+      // Default fields for showroom/walkin POS checkouts to save cashier time
       if (!name) name = "শোরুম কাস্টমার";
       if (!phone) phone = "01700000000";
       if (!address) address = "বসুন্ধরা সিটি শোরুম";
@@ -1415,7 +1461,6 @@ app.post("/api/orders", async (req, res) => {
     console.log(`Order placed successfully: ${order.orderNumber}`);
 
     // Verify optional admin session to log activity
-    const token = req.cookies?.token;
     if (token) {
       try {
         const decoded: any = jwt.verify(token, JWT_SECRET);
@@ -1450,6 +1495,13 @@ app.get("/api/orders", authenticateToken, requireRole(["SUPER_ADMIN", "BRANCH_MA
       if (!req.user.branchId) {
         return res.status(400).json({ error: "ইউজারের জন্য কোনো শোরুম আউটলেট অ্যাসাইন করা নেই।" });
       }
+
+      const allowedModules = req.user.allowedModules || "";
+      const modulesList = allowedModules.split(",").map((m: string) => m.trim());
+      if (!modulesList.includes("showroom_orders") && !modulesList.includes("showroom_pos")) {
+        return res.status(403).json({ error: "আপনার অর্ডার লিস্ট দেখার অনুমতি নেই।" });
+      }
+
       whereClause = { branchId: req.user.branchId };
     } else {
       const branchIdQuery = req.query.branchId as string;
@@ -2261,7 +2313,7 @@ app.delete("/api/suppliers/:id", authenticateToken, requireRole(["ADMIN"]), asyn
 });
 
 // 4. Retrieve purchase logs
-app.get("/api/purchases", authenticateToken, requireRole(["SUPER_ADMIN", "BRANCH_MANAGER"]), async (req: any, res: any) => {
+app.get("/api/purchases", authenticateToken, requireRole(["SUPER_ADMIN", "BRANCH_MANAGER"]), requireModule("showroom_purchases"), async (req: any, res: any) => {
   try {
     const userRole = req.user.role === "ADMIN" ? "SUPER_ADMIN" : req.user.role;
     let whereClause = {};
@@ -2293,7 +2345,7 @@ app.get("/api/purchases", authenticateToken, requireRole(["SUPER_ADMIN", "BRANCH
 });
 
 // 5. Record new purchase and increment stock atomically
-app.post("/api/purchases", authenticateToken, requireRole(["SUPER_ADMIN", "BRANCH_MANAGER"]), async (req: any, res: any) => {
+app.post("/api/purchases", authenticateToken, requireRole(["SUPER_ADMIN", "BRANCH_MANAGER"]), requireModule("showroom_purchases"), async (req: any, res: any) => {
   try {
     const { supplierId, productId, size, quantity, buyingPrice, target } = req.body;
     let branchId = req.body.branchId || null;
@@ -2558,7 +2610,7 @@ app.post("/api/orders/:id/sync-steadfast", authenticateToken, requireRole(["ADMI
 });
 
 // 12. Product Stock Transfer Route (Online ⇄ Showroom)
-app.post("/api/products/:id/transfer-stock", authenticateToken, requireRole(["SUPER_ADMIN", "BRANCH_MANAGER"]), async (req: any, res: any) => {
+app.post("/api/products/:id/transfer-stock", authenticateToken, requireRole(["SUPER_ADMIN", "BRANCH_MANAGER"]), requireModule("showroom_stock"), async (req: any, res: any) => {
   try {
     const { id } = req.params;
     const { size, quantity, direction } = req.body;
@@ -2649,7 +2701,7 @@ app.post("/api/products/:id/transfer-stock", authenticateToken, requireRole(["SU
 });
 
 // 13. Expense API Routes
-app.get("/api/expenses", authenticateToken, requireRole(["SUPER_ADMIN", "BRANCH_MANAGER"]), async (req: any, res: any) => {
+app.get("/api/expenses", authenticateToken, requireRole(["SUPER_ADMIN", "BRANCH_MANAGER"]), requireModule("showroom_expenses"), async (req: any, res: any) => {
   try {
     const userRole = req.user.role === "ADMIN" ? "SUPER_ADMIN" : req.user.role;
     let whereClause = {};
@@ -2679,7 +2731,7 @@ app.get("/api/expenses", authenticateToken, requireRole(["SUPER_ADMIN", "BRANCH_
   }
 });
 
-app.post("/api/expenses", authenticateToken, requireRole(["SUPER_ADMIN", "BRANCH_MANAGER"]), async (req: any, res: any) => {
+app.post("/api/expenses", authenticateToken, requireRole(["SUPER_ADMIN", "BRANCH_MANAGER"]), requireModule("showroom_expenses"), async (req: any, res: any) => {
   try {
     const { category, amount, description, date } = req.body;
     let branchId = req.body.branchId || null;
@@ -2715,7 +2767,7 @@ app.post("/api/expenses", authenticateToken, requireRole(["SUPER_ADMIN", "BRANCH
   }
 });
 
-app.delete("/api/expenses/:id", authenticateToken, requireRole(["SUPER_ADMIN", "BRANCH_MANAGER"]), async (req: any, res: any) => {
+app.delete("/api/expenses/:id", authenticateToken, requireRole(["SUPER_ADMIN", "BRANCH_MANAGER"]), requireModule("showroom_expenses"), async (req: any, res: any) => {
   try {
     const { id } = req.params;
     const expense = await prisma.expense.findUnique({ where: { id } });
