@@ -1530,6 +1530,57 @@ app.get("/api/orders", authenticateToken, requireRole(["SUPER_ADMIN", "BRANCH_MA
   }
 });
 
+// 5.5. Search Customers (Linked from POS)
+app.get("/api/customers", authenticateToken, requireRole(["SUPER_ADMIN", "BRANCH_MANAGER"]), async (req: any, res: any) => {
+  try {
+    const { query } = req.query;
+    if (!query || String(query).trim().length < 2) {
+      return res.json([]);
+    }
+
+    const searchTerm = String(query).trim();
+
+    const orders = await prisma.order.findMany({
+      where: {
+        OR: [
+          { phone: { contains: searchTerm } },
+          { name: { contains: searchTerm } }
+        ]
+      },
+      select: {
+        name: true,
+        phone: true,
+        address: true,
+        city: true,
+        postcode: true
+      },
+      orderBy: {
+        createdAt: "desc"
+      },
+      take: 50
+    });
+
+    const seen = new Set();
+    const clients: any[] = [];
+    for (const o of orders) {
+      if (o.phone && !seen.has(o.phone)) {
+        seen.add(o.phone);
+        clients.push({
+          name: o.name,
+          phone: o.phone,
+          address: o.address || "",
+          city: o.city || "Dhaka",
+          postcode: o.postcode || "1215"
+        });
+      }
+    }
+
+    res.json(clients);
+  } catch (error: any) {
+    res.status(500).json({ error: "Failed to search customers: " + error.message });
+  }
+});
+
 // 6. Create Review Route
 app.post("/api/reviews", async (req, res) => {
   try {

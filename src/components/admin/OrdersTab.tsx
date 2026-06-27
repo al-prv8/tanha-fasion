@@ -34,6 +34,7 @@ interface OrdersTabProps {
   onSyncSteadfast?: (orderId: string) => Promise<any>;
   onRefresh?: () => void;
   isLoading?: boolean;
+  products?: any[];
 }
 
 interface CourierBookingFormProps {
@@ -112,7 +113,8 @@ export default function OrdersTab({
   onBookSteadfast,
   onSyncSteadfast,
   onRefresh,
-  isLoading = false
+  isLoading = false,
+  products = []
 }: OrdersTabProps) {
   // Tab-level filter status: "ALL" | "UNFULFILLED" | "UNPAID" | "PAID" | "DELIVERED" | "CANCELLED"
   const [activeFilter, setActiveFilter] = useState<string>("ALL");
@@ -158,6 +160,137 @@ export default function OrdersTab({
 
   // Bulk selection state
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
+
+  // Create Manual Order Modal States
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [custName, setCustName] = useState("");
+  const [custPhone, setCustPhone] = useState("");
+  const [custAddress, setCustAddress] = useState("");
+  const [custCity, setCustCity] = useState("Dhaka");
+  const [custPostcode, setCustPostcode] = useState("");
+  const [custPaymentMethod, setCustPaymentMethod] = useState("cod");
+  const [custShippingMethod, setCustShippingMethod] = useState("inside");
+  const [custDiscount, setCustDiscount] = useState("0");
+  const [selectedItems, setSelectedItems] = useState<{ product: any; size: string; quantity: number; price: number }[]>([]);
+  const [tempProductId, setTempProductId] = useState("");
+  const [tempSize, setTempSize] = useState("");
+  const [tempQty, setTempQty] = useState(1);
+  const [isCreatingOrder, setIsCreatingOrder] = useState(false);
+
+  const handleAddItem = () => {
+    if (!tempProductId) {
+      alert("দয়া করে একটি পোশাক নির্বাচন করুন।");
+      return;
+    }
+    if (!tempSize) {
+      alert("দয়া করে সাইজ নির্বাচন করুন।");
+      return;
+    }
+    const selectedProd = products?.find(p => p.id === tempProductId);
+    if (!selectedProd) return;
+
+    // Check if item already added
+    const exists = selectedItems.find(x => x.product.id === tempProductId && x.size === tempSize);
+    if (exists) {
+      alert("এই পোশাক এবং সাইজটি অলরেডি অর্ডারে যোগ করা হয়েছে।");
+      return;
+    }
+
+    // Resolve Price
+    let price = selectedProd.price;
+    if (selectedProd.sizePricesJson) {
+      try {
+        const sizePrices = JSON.parse(selectedProd.sizePricesJson);
+        if (sizePrices[tempSize] > 0) {
+          price = sizePrices[tempSize];
+        }
+      } catch (e) {}
+    }
+
+    setSelectedItems(prev => [...prev, {
+      product: selectedProd,
+      size: tempSize,
+      quantity: tempQty,
+      price: price
+    }]);
+
+    // Reset selectors
+    setTempProductId("");
+    setTempSize("");
+    setTempQty(1);
+  };
+
+  const handleRemoveItem = (index: number) => {
+    setSelectedItems(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleCreateOrder = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!custName.trim() || !custPhone.trim() || !custAddress.trim() || !custCity.trim() || !custPostcode.trim()) {
+      alert("অনুগ্রহ করে কাস্টমারের সব প্রয়োজনীয় তথ্য পূরণ করুন।");
+      return;
+    }
+    if (selectedItems.length === 0) {
+      alert("অনুগ্রহ করে অর্ডারে অন্তত একটি আইটেম যোগ করুন।");
+      return;
+    }
+
+    try {
+      setIsCreatingOrder(true);
+      const payload = {
+        name: custName,
+        phone: custPhone,
+        address: custAddress,
+        city: custCity,
+        postcode: custPostcode,
+        paymentMethod: custPaymentMethod,
+        shippingMethod: custShippingMethod,
+        discount: Number(custDiscount) || 0,
+        items: selectedItems.map(item => ({
+          id: item.product.id,
+          size: item.size,
+          quantity: item.quantity,
+          price: item.price
+        })),
+        orderStatus: "PENDING",
+        paymentStatus: custPaymentMethod === "cod" ? "UNPAID" : "PAID"
+      };
+
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/orders`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "অর্ডার তৈরি করতে ব্যর্থ হয়েছে।");
+      }
+
+      alert("ম্যানুয়াল অর্ডার সফলভাবে তৈরি করা হয়েছে।");
+      
+      // Reset Form states
+      setCustName("");
+      setCustPhone("");
+      setCustAddress("");
+      setCustCity("Dhaka");
+      setCustPostcode("");
+      setCustDiscount("0");
+      setSelectedItems([]);
+      setTempProductId("");
+      setTempSize("");
+      setTempQty(1);
+      setShowCreateModal(false);
+
+      if (onRefresh) onRefresh();
+    } catch (err: any) {
+      alert("ত্রুটি: " + err.message);
+    } finally {
+      setIsCreatingOrder(false);
+    }
+  };
 
   // Reset selection when page/filter changes
   useEffect(() => {
@@ -448,7 +581,7 @@ export default function OrdersTab({
             <span>এক্সপোর্ট</span>
           </button>
           <button 
-            onClick={() => alert('ম্যানুয়াল অর্ডার তৈরি করার ফর্মটি লোড হচ্ছে...')}
+            onClick={() => setShowCreateModal(true)}
             className="inline-flex items-center gap-1.5 py-1.5 px-3 bg-primary hover:bg-primary/95 text-white text-xs font-bold rounded-lg cursor-pointer transition-all shadow-2xs border-none"
           >
             <span>নতুন অর্ডার তৈরি (Create Order)</span>
@@ -1318,6 +1451,300 @@ export default function OrdersTab({
         document.body
       )}
 
+      {showCreateModal && createPortal(
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 font-sans no-print">
+          <div className="bg-white rounded-3xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col transition-all duration-300 scale-100">
+            {/* Header */}
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+              <div>
+                <h3 className="text-base font-bold text-slate-900">ম্যানুয়াল অর্ডার তৈরি (Create Manual Order)</h3>
+                <p className="text-[10px] text-muted-foreground mt-0.5">নতুন অন-অর্ডার কাস্টমার ইনফরমেশন ও ডেলিভারি ডিটেইলস যোগ করুন।</p>
+              </div>
+              <button
+                onClick={() => setShowCreateModal(false)}
+                className="w-8 h-8 rounded-full bg-white hover:bg-slate-100 text-slate-500 border border-slate-200 flex items-center justify-center transition-colors cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Scrollable Content */}
+            <div className="flex-1 overflow-y-auto p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Left Side: Customer & Shipping Details */}
+              <form id="create-order-form" onSubmit={handleCreateOrder} className="space-y-4">
+                <h4 className="text-xs font-bold text-slate-900 border-l-2 border-primary pl-2 mb-2">কাস্টমার ও ডেলিভারি বিবরণ</h4>
+                
+                <div>
+                  <label className="block text-[10px] text-slate-500 font-bold mb-1">ক্রেতার নাম *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="যেমন: আবির রহমান"
+                    value={custName}
+                    onChange={(e) => setCustName(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-200 focus:border-primary rounded-xl text-xs font-bold focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] text-slate-500 font-bold mb-1">ফোন নম্বর *</label>
+                  <input
+                    type="tel"
+                    required
+                    placeholder="যেমন: 017XXXXXXXX"
+                    value={custPhone}
+                    onChange={(e) => setCustPhone(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-200 focus:border-primary rounded-xl text-xs font-bold focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] text-slate-500 font-bold mb-1">ডেলিভারি ঠিকানা *</label>
+                  <textarea
+                    required
+                    placeholder="যেমন: বাড়ি নং ৪, রোড ১২, মিরপুর, ঢাকা"
+                    value={custAddress}
+                    onChange={(e) => setCustAddress(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-200 focus:border-primary rounded-xl text-xs font-bold focus:outline-none min-h-[60px] resize-none"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] text-slate-500 font-bold mb-1">জেলা/শহর *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="যেমন: Dhaka"
+                      value={custCity}
+                      onChange={(e) => setCustCity(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 focus:border-primary rounded-xl text-xs font-bold focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-slate-500 font-bold mb-1">পোস্টকোড *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="যেমন: 1215"
+                      value={custPostcode}
+                      onChange={(e) => setCustPostcode(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 focus:border-primary rounded-xl text-xs font-bold focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] text-slate-500 font-bold mb-1">শিপিং এলাকা *</label>
+                    <select
+                      value={custShippingMethod}
+                      onChange={(e) => setCustShippingMethod(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 focus:border-primary rounded-xl text-xs font-bold focus:outline-none cursor-pointer bg-white"
+                    >
+                      <option value="inside">ঢাকার ভেতরে (৳৮০)</option>
+                      <option value="outside">ঢাকার বাইরে (৳১৫০)</option>
+                      <option value="showroom">শোরুম পিকআপ (৳০)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-slate-500 font-bold mb-1">পেমেন্ট মেথড *</label>
+                    <select
+                      value={custPaymentMethod}
+                      onChange={(e) => setCustPaymentMethod(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 focus:border-primary rounded-xl text-xs font-bold focus:outline-none cursor-pointer bg-white"
+                    >
+                      <option value="cod">ক্যাশ অন ডেলিভারি (COD)</option>
+                      <option value="bkash">বিকাশ (bKash)</option>
+                      <option value="nagad">নগদ (Nagad)</option>
+                      <option value="cash">ক্যাশ (Cash)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] text-slate-500 font-bold mb-1">ডিসকাউন্ট পরিমাণ (৳)</label>
+                  <input
+                    type="number"
+                    placeholder="0"
+                    value={custDiscount}
+                    onChange={(e) => setCustDiscount(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-200 focus:border-primary rounded-xl text-xs font-bold focus:outline-none"
+                  />
+                </div>
+              </form>
+
+              {/* Right Side: Product Picker & Summary */}
+              <div className="space-y-4 flex flex-col">
+                <h4 className="text-xs font-bold text-slate-900 border-l-2 border-primary pl-2 mb-2">পোশাক ও কার্ট তালিকা</h4>
+                
+                {/* Product Add Row */}
+                <div className="bg-slate-50 border border-slate-200/60 p-4 rounded-2xl space-y-3">
+                  <div>
+                    <label className="block text-[10px] text-slate-500 font-bold mb-1">পোশাক নির্বাচন করুন</label>
+                    <select
+                      value={tempProductId}
+                      onChange={(e) => {
+                        setTempProductId(e.target.value);
+                        setTempSize("");
+                      }}
+                      className="w-full px-3 py-2 border border-slate-200 focus:border-primary rounded-xl text-xs font-bold focus:outline-none cursor-pointer bg-white"
+                    >
+                      <option value="">নির্বাচন করুন...</option>
+                      {products?.map(p => (
+                        <option key={p.id} value={p.id}>{p.name} (SKU: {p.sku}) — ৳{p.price}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {tempProductId && (() => {
+                    const selectedProd = products?.find(p => p.id === tempProductId);
+                    if (!selectedProd) return null;
+                    const sizes = JSON.parse(selectedProd.sizesJson || "{}");
+                    const sizeKeys = Object.keys(sizes);
+
+                    return (
+                      <div className="grid grid-cols-2 gap-4 animate-fadeIn">
+                        <div>
+                          <label className="block text-[10px] text-slate-500 font-bold mb-1">সাইজ নির্বাচন *</label>
+                          <select
+                            value={tempSize}
+                            onChange={(e) => setTempSize(e.target.value)}
+                            className="w-full px-3 py-2 border border-slate-200 focus:border-primary rounded-xl text-xs font-bold focus:outline-none cursor-pointer bg-white"
+                          >
+                            <option value="">সাইজ...</option>
+                            {sizeKeys.map(size => {
+                              const qty = Number(sizes[size] || 0);
+                              let displayPrice = selectedProd.price;
+                              if (selectedProd.sizePricesJson) {
+                                try {
+                                  const sizePrices = JSON.parse(selectedProd.sizePricesJson);
+                                  if (sizePrices[size] > 0) displayPrice = sizePrices[size];
+                                } catch (e) {}
+                              }
+                              return (
+                                <option key={size} value={size} disabled={qty <= 0}>
+                                  {size} (স্টক: {qty} টি) — ৳{displayPrice}
+                                </option>
+                              );
+                            })}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-[10px] text-slate-500 font-bold mb-1">পরিমাণ (Qty) *</label>
+                          <input
+                            type="number"
+                            min="1"
+                            max={tempSize && selectedProd ? Number(JSON.parse(selectedProd.sizesJson || "{}")[tempSize] || 1) : 99}
+                            value={tempQty}
+                            onChange={(e) => setTempQty(Math.max(1, Number(e.target.value)))}
+                            className="w-full px-3 py-2 border border-slate-200 focus:border-primary rounded-xl text-xs font-bold focus:outline-none"
+                          />
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  <button
+                    type="button"
+                    onClick={handleAddItem}
+                    className="w-full py-2 bg-slate-900 hover:bg-slate-800 text-white border-none font-bold rounded-xl text-xs cursor-pointer shadow-xs transition-all"
+                  >
+                    পোশাক যোগ করুন
+                  </button>
+                </div>
+
+                {/* Cart Items list */}
+                <div className="flex-1 border border-slate-200/80 rounded-2xl p-4 overflow-y-auto max-h-[160px] space-y-2.5">
+                  {selectedItems.length === 0 ? (
+                    <div className="h-full flex items-center justify-center text-[10px] text-slate-400 font-bold">
+                      কার্টে কোনো পোশাক যোগ করা হয়নি
+                    </div>
+                  ) : (
+                    selectedItems.map((item, idx) => (
+                      <div key={idx} className="flex items-center justify-between bg-slate-50 border border-slate-200/60 p-2.5 rounded-xl text-[10px] font-bold text-slate-800">
+                        <div className="min-w-0 pr-2">
+                          <p className="truncate text-slate-900 text-xs">{item.product.name}</p>
+                          <p className="text-[9px] text-muted-foreground mt-0.5">সাইজ: {item.size} | পরিমাণ: {item.quantity} টি</p>
+                        </div>
+                        <div className="flex items-center gap-3 flex-shrink-0">
+                          <span className="text-slate-900 font-black">৳{formatBanglaPriceWithCommas(item.price * item.quantity)}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveItem(idx)}
+                            className="text-rose-500 hover:text-rose-700 bg-none border-none cursor-pointer"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                {/* Subtotals footer */}
+                <div className="bg-slate-900 text-white rounded-2xl p-4 space-y-2 text-xs font-bold">
+                  {(() => {
+                    const subtotal = selectedItems.reduce((acc, x) => acc + (x.price * x.quantity), 0);
+                    let shipping = 80;
+                    if (custShippingMethod === "outside") shipping = 150;
+                    else if (custShippingMethod === "showroom") shipping = 0;
+                    const discountAmt = Number(custDiscount) || 0;
+                    const total = Math.max(0, subtotal + shipping - discountAmt);
+
+                    return (
+                      <>
+                        <div className="flex justify-between text-slate-400 text-[10px]">
+                          <span>সাবটোটাল:</span>
+                          <span>৳{formatBanglaPriceWithCommas(subtotal)}</span>
+                        </div>
+                        <div className="flex justify-between text-slate-400 text-[10px]">
+                          <span>শিপিং চার্জ:</span>
+                          <span>৳{formatBanglaPriceWithCommas(shipping)}</span>
+                        </div>
+                        {discountAmt > 0 && (
+                          <div className="flex justify-between text-rose-400 text-[10px]">
+                            <span>ডিসকাউন্ট:</span>
+                            <span>- ৳{formatBanglaPriceWithCommas(discountAmt)}</span>
+                          </div>
+                        )}
+                        <hr className="border-white/10 my-1" />
+                        <div className="flex justify-between text-sm font-black">
+                          <span>সর্বমোট পরিশোধযোগ্য:</span>
+                          <span className="text-primary font-black">৳{formatBanglaPriceWithCommas(total)}</span>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
+              </div>
+            </div>
+
+            {/* Footer buttons */}
+            <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-3 bg-slate-50">
+              <button
+                type="button"
+                onClick={() => setShowCreateModal(false)}
+                className="py-2.5 px-5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-bold rounded-xl text-xs cursor-pointer shadow-3xs transition-all"
+              >
+                বাতিল
+              </button>
+              <button
+                type="submit"
+                form="create-order-form"
+                disabled={isCreatingOrder}
+                className="py-2.5 px-6 bg-primary hover:bg-primary/95 text-white border-none font-bold rounded-xl text-xs cursor-pointer shadow-2xs transition-all disabled:opacity-50 flex items-center gap-1.5"
+              >
+                {isCreatingOrder && <RefreshCw size={12} className="animate-spin" />}
+                <span>অর্ডার নিশ্চিত করুন</span>
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
     </div>
   );
 }
+

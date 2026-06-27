@@ -504,6 +504,7 @@ export default function POSTab({ embedded = false, activeBranchId }: POSTabProps
     setCustomerAddress("");
     setCustomerCity("Dhaka");
     setCustomerPostcode("1215");
+    setIsNewCustomerForm(false);
   };
 
   // Submit POS Order Checkout
@@ -973,21 +974,12 @@ export default function POSTab({ embedded = false, activeBranchId }: POSTabProps
                     onChange={async (e) => {
                       const val = e.target.value;
                       setCustomerSearchQuery(val);
-                      if (val.length >= 3) {
+                      if (val.trim().length >= 2) {
                         try {
-                          const oRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/orders`, { credentials: "include" });
+                          const oRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/customers?query=${encodeURIComponent(val.trim())}`, { credentials: "include" });
                           if (oRes.ok) {
                             const oData = await oRes.json();
-                            const clients: any[] = [];
-                            const seen = new Set();
-                            oData.forEach((o: any) => {
-                              if (o.phone && !seen.has(o.phone)) {
-                                seen.add(o.phone);
-                                clients.push({ name: o.name, phone: o.phone, address: o.address, city: o.city, postcode: o.postcode });
-                              }
-                            });
-                            const matched = clients.filter(c => c.phone.includes(val) || c.name.toLowerCase().includes(val.toLowerCase()));
-                            setCustomers(matched);
+                            setCustomers(oData);
                           }
                         } catch (e) {
                           console.error(e);

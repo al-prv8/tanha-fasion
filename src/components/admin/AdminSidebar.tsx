@@ -21,8 +21,8 @@ import {
 import { toBanglaNumber } from "@/lib/products";
 
 interface SidebarProps {
-  activeTab: "dashboard" | "orders" | "products" | "reviews" | "categories" | "coupons" | "faqs" | "announcements" | "newsletters" | "activity-logs" | "staff" | "showrooms";
-  setActiveTab: (tab: "dashboard" | "orders" | "products" | "reviews" | "categories" | "coupons" | "faqs" | "announcements" | "newsletters" | "activity-logs" | "staff" | "showrooms") => void;
+  activeTab: "dashboard" | "orders" | "products" | "reviews" | "categories" | "coupons" | "faqs" | "announcements" | "newsletters" | "activity-logs" | "staff" | "showrooms" | "customers";
+  setActiveTab: (tab: "dashboard" | "orders" | "products" | "reviews" | "categories" | "coupons" | "faqs" | "announcements" | "newsletters" | "activity-logs" | "staff" | "showrooms" | "customers") => void;
   ordersCount: number;
   productsCount: number;
   reviewsCount: number;
@@ -89,6 +89,7 @@ export default function AdminSidebar({
     {
       title: "গ্রাহক ও প্রচারণা",
       items: [
+        { id: "customers", label: "গ্রাহক তালিকা", icon: <User size={16} /> },
         { id: "reviews", label: "রিভিউ মডারেশন", icon: <Star size={16} />, count: reviewsCount },
         { id: "faqs", label: "এফএকিউ পরিচালনা", icon: <HelpCircle size={16} />, count: faqsCount },
         { id: "announcements", label: "ঘোষণা পরিচালনা", icon: <Megaphone size={16} />, count: announcementsCount },

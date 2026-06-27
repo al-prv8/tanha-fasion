@@ -19,6 +19,7 @@ import NewslettersTab from "@/components/admin/NewslettersTab";
 import ActivityLogsTab from "@/components/admin/ActivityLogsTab";
 import StaffTab from "@/components/admin/StaffTab";
 import ShowroomsTab from "@/components/admin/ShowroomsTab";
+import CustomersTab from "@/components/admin/CustomersTab";
 import ToastNotification from "@/components/overlays/ToastNotification";
 
 const DEFAULT_CATEGORIES = [
@@ -41,7 +42,7 @@ export default function AdminPage() {
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
   // Navigation State
-  const [activeTab, setActiveTab] = useState<"dashboard" | "orders" | "products" | "reviews" | "categories" | "coupons" | "faqs" | "announcements" | "newsletters" | "activity-logs" | "staff" | "showrooms">("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "orders" | "products" | "reviews" | "categories" | "coupons" | "faqs" | "announcements" | "newsletters" | "activity-logs" | "staff" | "showrooms" | "customers">("dashboard");
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   // Staff and Branch States
@@ -950,6 +951,7 @@ export default function AdminPage() {
           {activeTab === "orders" && (
             <OrdersTab 
               orders={orders}
+              products={products}
               orderSearch={orderSearch}
               setOrderSearch={setOrderSearch}
               onUpdateOrderStatus={handleUpdateOrderStatus}
@@ -958,6 +960,14 @@ export default function AdminPage() {
               onDeleteOrder={handleDeleteOrder}
               onBookSteadfast={handleBookSteadfast}
               onSyncSteadfast={handleSyncSteadfast}
+              onRefresh={fetchData}
+              isLoading={isLoading}
+            />
+          )}
+
+          {activeTab === "customers" && (
+            <CustomersTab 
+              orders={orders}
               onRefresh={fetchData}
               isLoading={isLoading}
             />
