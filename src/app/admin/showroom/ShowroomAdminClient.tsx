@@ -826,6 +826,23 @@ export default function ShowroomAdminPage() {
             </div>
           )}
 
+          {activeTab === "pos" && (
+            <POSTab embedded={true} activeBranchId={activeBranchId} />
+          )}
+
+          {activeTab === "purchases" && (
+            <PurchasesTab 
+              products={products}
+              suppliers={suppliers}
+              purchases={purchases}
+              onAddSupplier={handleAddSupplier}
+              onDeleteSupplier={handleDeleteSupplier}
+              onAddPurchase={handleAddPurchase}
+              onRefresh={fetchData}
+              isLoading={isLoading}
+            />
+          )}
+
           {activeTab === "orders" && (
             <div className="space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

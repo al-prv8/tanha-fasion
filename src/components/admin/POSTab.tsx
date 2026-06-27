@@ -21,7 +21,8 @@ import {
   Loader2,
   AlertCircle,
   Users,
-  History
+  History,
+  LogOut
 } from "lucide-react";
 import { toast, Toaster } from "sonner";
 import { toBanglaNumber } from "@/lib/products";
@@ -624,6 +625,19 @@ export default function POSTab({ embedded = false, activeBranchId }: POSTabProps
     setIsNewCustomerForm(false);
   };
 
+  const handlePOSLogout = async () => {
+    try {
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/auth/logout`, {
+        method: "POST",
+        credentials: "include"
+      });
+      router.push("/admin");
+    } catch (e) {
+      console.error("Logout failed:", e);
+      toast.error("লগআউট ব্যর্থ হয়েছে");
+    }
+  };
+
   // Submit POS Order Checkout
   const handlePOSCheckout = async () => {
     if (cart.length === 0) {
@@ -782,6 +796,14 @@ export default function POSTab({ embedded = false, activeBranchId }: POSTabProps
             <span className="text-[9px] bg-amber-100 text-amber-700 font-bold px-2.5 py-1 rounded-full border border-amber-250 uppercase tracking-wider">
               Showroom Counter
             </span>
+            <button
+              onClick={handlePOSLogout}
+              className="p-1.5 bg-slate-50 hover:bg-rose-50 hover:text-rose-600 text-slate-500 border border-slate-200 hover:border-rose-200 rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 text-[10px] font-bold"
+              title="লগআউট (Logout)"
+            >
+              <LogOut size={12} />
+              <span className="hidden sm:inline">লগআউট</span>
+            </button>
           </div>
         </header>
       )}
