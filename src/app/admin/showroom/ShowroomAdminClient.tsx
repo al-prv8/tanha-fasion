@@ -36,6 +36,7 @@ const EXPENSE_CATEGORIES: { [key: string]: string } = {
 import ShowroomStockTab from "@/components/admin/ShowroomStockTab";
 import PurchasesTab from "@/components/admin/PurchasesTab";
 import POSTab from "@/components/admin/POSTab";
+import CustomersTab from "@/components/admin/CustomersTab";
 import ToastNotification from "@/components/overlays/ToastNotification";
 import { toBanglaNumber } from "@/lib/products";
 
@@ -62,8 +63,8 @@ export default function ShowroomAdminPage() {
   const [branches, setBranches] = useState<any[]>([]);
   const [activeBranchId, setActiveBranchId] = useState<string>("");
 
-  // Active Tab State: "showroom" | "pos" | "purchases" | "orders" | "expenses"
-  const [activeTab, setActiveTab] = useState<"showroom" | "pos" | "purchases" | "orders" | "expenses">("showroom");
+  // Active Tab State: "showroom" | "pos" | "purchases" | "orders" | "expenses" | "customers"
+  const [activeTab, setActiveTab] = useState<"showroom" | "pos" | "purchases" | "orders" | "expenses" | "customers">("showroom");
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [printOrder, setPrintOrder] = useState<any | null>(null);
 
@@ -168,13 +169,14 @@ export default function ShowroomAdminPage() {
               
               // land on first permitted showroom tab
               const allowed = data.user.allowedModules ? data.user.allowedModules.split(",").map((m: string) => m.trim()) : [];
-              const firstShowroom = ["showroom", "pos", "purchases", "orders", "expenses"].find(tabId => {
+              const firstShowroom = ["showroom", "pos", "purchases", "orders", "expenses", "customers"].find(tabId => {
                 const map: { [key: string]: string } = {
                   showroom: "showroom_stock",
                   pos: "showroom_pos",
                   purchases: "showroom_purchases",
                   orders: "showroom_orders",
-                  expenses: "showroom_expenses"
+                  expenses: "showroom_expenses",
+                  customers: "showroom_pos"
                 };
                 const moduleKey = map[tabId];
                 return !data.user.allowedModules || allowed.includes(moduleKey);
@@ -295,13 +297,14 @@ export default function ShowroomAdminPage() {
               
               // land on first permitted showroom tab
               const allowed = data.user.allowedModules ? data.user.allowedModules.split(",").map((m: string) => m.trim()) : [];
-              const firstShowroom = ["showroom", "pos", "purchases", "orders", "expenses"].find(tabId => {
+              const firstShowroom = ["showroom", "pos", "purchases", "orders", "expenses", "customers"].find(tabId => {
                 const map: { [key: string]: string } = {
                   showroom: "showroom_stock",
                   pos: "showroom_pos",
                   purchases: "showroom_purchases",
                   orders: "showroom_orders",
-                  expenses: "showroom_expenses"
+                  expenses: "showroom_expenses",
+                  customers: "showroom_pos"
                 };
                 const moduleKey = map[tabId];
                 return !data.user.allowedModules || allowed.includes(moduleKey);
@@ -600,6 +603,7 @@ export default function ShowroomAdminPage() {
         items: [
           { id: "pos", label: "পিওএস শোরুম বিক্রয় (POS)", icon: <Store size={16} />, module: "showroom_pos" },
           { id: "orders", label: "বিক্রয় ইতিহাস (Sales Log)", icon: <ShoppingBag size={16} />, module: "showroom_orders", count: orders.filter(o => o.isShowroom).length },
+          { id: "customers", label: "গ্রাহক তালিকা (Customers)", icon: <User size={16} />, module: "showroom_pos" },
         ]
       },
       {
@@ -828,6 +832,14 @@ export default function ShowroomAdminPage() {
 
           {activeTab === "pos" && (
             <POSTab embedded={true} activeBranchId={activeBranchId} />
+          )}
+
+          {activeTab === "customers" && (
+            <CustomersTab 
+              orders={orders}
+              onRefresh={fetchData}
+              isLoading={isLoading}
+            />
           )}
 
           {activeTab === "purchases" && (
