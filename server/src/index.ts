@@ -1534,30 +1534,36 @@ app.get("/api/orders", authenticateToken, requireRole(["SUPER_ADMIN", "BRANCH_MA
 app.get("/api/customers", authenticateToken, requireRole(["SUPER_ADMIN", "BRANCH_MANAGER"]), async (req: any, res: any) => {
   try {
     const { query } = req.query;
-    if (!query || String(query).trim().length < 2) {
-      return res.json([]);
+    const userRole = req.user.role === "ADMIN" ? "SUPER_ADMIN" : req.user.role;
+    let whereClause: any = {};
+
+    if (userRole === "BRANCH_MANAGER") {
+      whereClause.branchId = req.user.branchId;
     }
 
-    const searchTerm = String(query).trim();
+    if (query && String(query).trim().length >= 2) {
+      const searchTerm = String(query).trim();
+      whereClause.OR = [
+        { phone: { contains: searchTerm } },
+        { name: { contains: searchTerm } }
+      ];
+    }
 
     const orders = await prisma.order.findMany({
-      where: {
-        OR: [
-          { phone: { contains: searchTerm } },
-          { name: { contains: searchTerm } }
-        ]
-      },
+      where: whereClause,
       select: {
         name: true,
         phone: true,
         address: true,
         city: true,
-        postcode: true
+        postcode: true,
+        grandTotal: true,
+        createdAt: true
       },
       orderBy: {
         createdAt: "desc"
       },
-      take: 50
+      take: 200
     });
 
     const seen = new Set();
@@ -1568,14 +1574,21 @@ app.get("/api/customers", authenticateToken, requireRole(["SUPER_ADMIN", "BRANCH
         clients.push({
           name: o.name,
           phone: o.phone,
-          address: o.address || "",
+          address: `${o.address || ""}, ${o.city || ""}`.trim().replace(/^,\s*/, "").replace(/,\s*$/, ""),
           city: o.city || "Dhaka",
-          postcode: o.postcode || "1215"
+          postcode: o.postcode || "1215",
+          totalSpent: o.grandTotal,
+          lastOrderDate: o.createdAt
         });
+      } else if (o.phone) {
+        const existing = clients.find(x => x.phone === o.phone);
+        if (existing) {
+          existing.totalSpent += o.grandTotal;
+        }
       }
     }
 
-    res.json(clients);
+    res.json(clients.slice(0, 100));
   } catch (error: any) {
     res.status(500).json({ error: "Failed to search customers: " + error.message });
   }

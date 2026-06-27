@@ -19,7 +19,9 @@ import {
   UserPlus, 
   Check, 
   Loader2,
-  AlertCircle
+  AlertCircle,
+  Users,
+  History
 } from "lucide-react";
 import { toast, Toaster } from "sonner";
 import { toBanglaNumber } from "@/lib/products";
@@ -68,6 +70,92 @@ const parseSplitPayment = (methodStr: string) => {
   return result.length > 0 ? result : null;
 };
 
+interface POSHistoryListProps {
+  phone: string;
+}
+
+function POSHistoryList({ phone }: POSHistoryListProps) {
+  const [historyOrders, setHistoryOrders] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchHistory = async () => {
+      try {
+        setIsLoading(true);
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/orders`, { credentials: "include" });
+        if (res.ok) {
+          const data = await res.json();
+          const filtered = data.filter((o: any) => o.phone && o.phone.trim() === phone.trim());
+          setHistoryOrders(filtered);
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchHistory();
+  }, [phone]);
+
+  if (isLoading) {
+    return (
+      <div className="h-32 flex items-center justify-center flex-col gap-1.5">
+        <Loader2 className="w-5 h-5 text-primary animate-spin" />
+        <span className="text-[10px] text-muted-foreground font-bold">ইতিবৃত্ত লোড হচ্ছে...</span>
+      </div>
+    );
+  }
+
+  if (historyOrders.length === 0) {
+    return (
+      <div className="text-center p-6 text-slate-400 font-bold text-[10px]">
+        কোনো অর্ডার রেকর্ড পাওয়া যায়নি
+      </div>
+    );
+  }
+
+  return (
+    <div className="border border-slate-100 rounded-xl overflow-hidden text-[10px] font-bold text-slate-700">
+      <table className="w-full text-left border-collapse">
+        <thead>
+          <tr className="bg-slate-50 border-b border-slate-100 text-[9px] text-muted-foreground uppercase">
+            <th className="py-2 px-3">অর্ডার নম্বর</th>
+            <th className="py-2 px-3">তারিখ</th>
+            <th className="py-2 px-3 text-center">ডেলিভারি স্থিতি</th>
+            <th className="py-2 px-3 text-center">পেমেন্ট স্থিতি</th>
+            <th className="py-2 px-3 text-right">মূল্য</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-100 font-bold">
+          {historyOrders.map((o) => (
+            <tr key={o.id} className="hover:bg-slate-50/30">
+              <td className="py-2 px-3 font-mono font-black text-slate-900">{o.orderNumber}</td>
+              <td className="py-2 px-3 text-muted-foreground font-sans">{new Date(o.createdAt).toLocaleDateString("bn-BD")}</td>
+              <td className="py-2 px-3 text-center">
+                <span className={`py-0.5 px-1.5 rounded text-[8px] ${
+                  o.orderStatus === "DELIVERED" ? "bg-emerald-50 text-emerald-600" :
+                  o.orderStatus === "CANCELLED" ? "bg-rose-50 text-rose-600" :
+                  "bg-slate-100 text-slate-600"
+                }`}>
+                  {o.orderStatus}
+                </span>
+              </td>
+              <td className="py-2 px-3 text-center">
+                <span className={`py-0.5 px-1.5 rounded text-[8px] ${
+                  o.paymentStatus === "PAID" ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-600"
+                }`}>
+                  {o.paymentStatus === "PAID" ? "পরিশোধিত" : "বকেয়া"}
+                </span>
+              </td>
+              <td className="py-2 px-3 text-right text-slate-950 font-sans">৳{toBanglaNumber(o.grandTotal)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export default function POSTab({ embedded = false, activeBranchId }: POSTabProps) {
   const router = useRouter();
   
@@ -102,6 +190,35 @@ export default function POSTab({ embedded = false, activeBranchId }: POSTabProps
   const [customers, setCustomers] = useState<any[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [customerSearchQuery, setCustomerSearchQuery] = useState("");
+
+  // Dedicated POS Customer Modal States
+  const [showPOSCustomersModal, setShowPOSCustomersModal] = useState(false);
+  const [posCustomersList, setPOSCustomersList] = useState<any[]>([]);
+  const [posCustomerSearchQuery, setPOSCustomerSearchQuery] = useState("");
+  const [isPOSCustomersLoading, setIsPOSCustomersLoading] = useState(false);
+  const [selectedHistoryCustomer, setSelectedHistoryCustomer] = useState<any | null>(null);
+
+  const fetchPOSCustomersList = async (q = "") => {
+    try {
+      setIsPOSCustomersLoading(true);
+      const url = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/customers` + (q ? `?query=${encodeURIComponent(q)}` : "");
+      const res = await fetch(url, { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        setPOSCustomersList(data);
+      }
+    } catch (e) {
+      console.error("Failed to load POS customers: ", e);
+    } finally {
+      setIsPOSCustomersLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (showPOSCustomersModal) {
+      fetchPOSCustomersList(posCustomerSearchQuery);
+    }
+  }, [showPOSCustomersModal]);
 
   // Modal size selector state
   const [selectedProdForSize, setSelectedProdForSize] = useState<Product | null>(null);
@@ -911,13 +1028,22 @@ export default function POSTab({ embedded = false, activeBranchId }: POSTabProps
                   গ্রাহক লিঙ্ক (Customer Profile)
                 </span>
                 {!selectedCustomer && !isNewCustomerForm && (
-                  <button 
-                    onClick={() => setIsNewCustomerForm(true)}
-                    className="text-[9px] text-primary hover:text-primary/90 font-bold border-none bg-transparent cursor-pointer flex items-center gap-0.5"
-                  >
-                    <UserPlus size={12} />
-                    <span>নতুন গ্রাহক</span>
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button 
+                      onClick={() => setIsNewCustomerForm(true)}
+                      className="text-[9px] text-primary hover:text-primary/90 font-bold border-none bg-transparent cursor-pointer flex items-center gap-0.5"
+                    >
+                      <UserPlus size={12} />
+                      <span>নতুন গ্রাহক</span>
+                    </button>
+                    <button 
+                      onClick={() => setShowPOSCustomersModal(true)}
+                      className="text-[9px] text-slate-600 hover:text-slate-800 font-bold border-none bg-transparent cursor-pointer flex items-center gap-0.5"
+                    >
+                      <Users size={12} />
+                      <span>গ্রাহক তালিকা</span>
+                    </button>
+                  </div>
                 )}
                 {(selectedCustomer || isNewCustomerForm) && (
                   <button 
@@ -1462,6 +1588,176 @@ export default function POSTab({ embedded = false, activeBranchId }: POSTabProps
             <div className="receipt-bold">ধন্যবাদ! আবার আসবেন।</div>
             <div>ক্রয়কৃত পণ্য পরিবর্তনের জন্য ৩ দিনের মধ্যে শোরুমে রশিদসহ যোগাযোগ করুন। (অনুগ্রহ করে ধোয়া বা ব্যবহৃত কাপড় পরিবর্তনযোগ্য নয়)।</div>
             <div style={{ marginTop: "5px", fontSize: "7px", color: "#666" }}>Powered by Tanha Fashion Cloud POS v1.1</div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {showPOSCustomersModal && createPortal(
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 font-sans no-print">
+          <div className="bg-white rounded-3xl shadow-xl w-full max-w-4xl max-h-[85vh] overflow-hidden flex flex-col transition-all duration-300 scale-100">
+            {/* Header */}
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+              <div className="flex items-center gap-2">
+                <div className="w-9 h-9 bg-primary/10 rounded-full flex items-center justify-center text-primary">
+                  <Users size={18} />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 font-display">গ্রাহক তালিকা (Customer Directory)</h3>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">শোরুম ও অনলাইন কাস্টমারদের ডাটাবেজ এবং পূর্ববর্তী ক্রয়ের ইতিবৃত্ত খুঁজুন।</p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setShowPOSCustomersModal(false);
+                  setPOSCustomerSearchQuery("");
+                }}
+                className="w-8 h-8 rounded-full bg-white hover:bg-slate-100 text-slate-500 border border-slate-200 flex items-center justify-center transition-colors cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Search Header */}
+            <div className="p-5 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-center gap-4 bg-slate-50/50">
+              <div className="relative w-full sm:max-w-md">
+                <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <input 
+                  type="text" 
+                  placeholder="নাম বা মোবাইল নম্বর দিয়ে খুঁজুন (কমপক্ষে ২ অক্ষর)..." 
+                  value={posCustomerSearchQuery}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setPOSCustomerSearchQuery(val);
+                    if (val.trim() === "" || val.trim().length >= 2) {
+                      fetchPOSCustomersList(val.trim());
+                    }
+                  }}
+                  className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 focus:border-primary rounded-xl text-xs font-semibold focus:outline-none transition-all shadow-3xs"
+                />
+              </div>
+              <div className="text-xs font-bold text-slate-500">
+                মোট কাস্টমার লোড হয়েছে: <span className="text-slate-800 font-black">{toBanglaNumber(posCustomersList.length)}</span> জন
+              </div>
+            </div>
+
+            {/* List Table */}
+            <div className="flex-1 overflow-y-auto p-6">
+              {isPOSCustomersLoading ? (
+                <div className="h-48 flex items-center justify-center flex-col gap-2">
+                  <Loader2 className="w-8 h-8 text-primary animate-spin" />
+                  <span className="text-xs font-bold text-muted-foreground">কাস্টমার ডাটা লোড হচ্ছে...</span>
+                </div>
+              ) : posCustomersList.length === 0 ? (
+                <div className="h-48 flex items-center justify-center flex-col text-slate-400 font-bold text-xs">
+                  <Users size={32} className="mb-2 text-slate-300" />
+                  <span>কোনো গ্রাহক প্রোফাইল পাওয়া যায়নি</span>
+                </div>
+              ) : (
+                <div className="border border-slate-100 rounded-2xl overflow-hidden shadow-3xs">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-slate-50 border-b border-slate-100 text-[10px] font-black text-muted-foreground uppercase tracking-wider">
+                        <th className="py-2.5 px-4 text-center w-10">#</th>
+                        <th className="py-2.5 px-4">গ্রাহক নাম ও ফোন</th>
+                        <th className="py-2.5 px-4">ঠিকানা</th>
+                        <th className="py-2.5 px-4 text-right">সর্বমোট কেনাকাটা</th>
+                        <th className="py-2.5 px-4 text-center">সর্বশেষ কেনাকাটা</th>
+                        <th className="py-2.5 px-4 text-center w-40">অ্যাকশন</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 text-xs font-semibold text-slate-700">
+                      {posCustomersList.map((c, idx) => (
+                        <tr key={c.phone} className="hover:bg-slate-50/40">
+                          <td className="py-3 px-4 text-center text-muted-foreground font-sans">{toBanglaNumber(idx + 1)}</td>
+                          <td className="py-3 px-4">
+                            <span className="font-bold text-slate-900 block">{c.name}</span>
+                            <span className="text-[10px] text-muted-foreground font-sans block mt-0.5">{c.phone}</span>
+                          </td>
+                          <td className="py-3 px-4 truncate max-w-[200px]" title={c.address}>{c.address || "শোরুম ওয়াক-ইন"}</td>
+                          <td className="py-3 px-4 text-right font-extrabold text-slate-900 font-sans">৳{toBanglaNumber(c.totalSpent || 0)}</td>
+                          <td className="py-3 px-4 text-center text-muted-foreground font-sans">
+                            {c.lastOrderDate ? new Date(c.lastOrderDate).toLocaleDateString("bn-BD") : "N/A"}
+                          </td>
+                          <td className="py-3 px-4 text-center flex items-center justify-center gap-2">
+                            <button
+                              onClick={() => {
+                                handleSelectCustomer(c);
+                                setShowPOSCustomersModal(false);
+                                setPOSCustomerSearchQuery("");
+                              }}
+                              className="py-1 px-2.5 bg-primary hover:bg-primary/95 text-white border-none rounded-lg text-[10px] font-bold cursor-pointer transition-all shadow-3xs"
+                            >
+                              লিঙ্ক করুন
+                            </button>
+                            <button
+                              onClick={() => setSelectedHistoryCustomer(c)}
+                              className="py-1 px-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-lg text-[10px] font-bold cursor-pointer transition-all"
+                            >
+                              ইতিবৃত্ত
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 border-t border-slate-100 flex justify-end bg-slate-50">
+              <button
+                onClick={() => {
+                  setShowPOSCustomersModal(false);
+                  setPOSCustomerSearchQuery("");
+                }}
+                className="py-2 px-5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-bold rounded-xl text-xs cursor-pointer shadow-3xs"
+              >
+                বন্ধ করুন
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {selectedHistoryCustomer && createPortal(
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-[60] p-4 font-sans no-print">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[75vh] overflow-hidden flex flex-col transition-all duration-300">
+            {/* Header */}
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center text-slate-600">
+                  <History size={16} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 font-display">{selectedHistoryCustomer.name} - ক্রয়ের ইতিহাস</h3>
+                  <p className="text-[9px] text-muted-foreground mt-0.5">মোবাইল: {selectedHistoryCustomer.phone}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedHistoryCustomer(null)}
+                className="w-7 h-7 rounded-full bg-white hover:bg-slate-100 text-slate-500 border border-slate-200 flex items-center justify-center transition-colors cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Content List */}
+            <div className="flex-1 overflow-y-auto p-5">
+              <POSHistoryList phone={selectedHistoryCustomer.phone} />
+            </div>
+
+            {/* Footer */}
+            <div className="px-5 py-3 border-t border-slate-100 flex justify-end bg-slate-50">
+              <button
+                onClick={() => setSelectedHistoryCustomer(null)}
+                className="py-1.5 px-4 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-bold rounded-lg text-[10px] cursor-pointer"
+              >
+                বন্ধ করুন
+              </button>
+            </div>
           </div>
         </div>,
         document.body
