@@ -135,14 +135,15 @@ export default function CheckoutClient() {
     }
 
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    return newErrors;
   };
 
   const handlePlaceOrder = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validateForm()) {
+    const newErrors = validateForm();
+    if (Object.keys(newErrors).length > 0) {
       // Scroll to first error
-      const firstErrorKey = Object.keys(errors)[0];
+      const firstErrorKey = Object.keys(newErrors)[0];
       const errorEl = document.getElementById(firstErrorKey);
       if (errorEl) {
         errorEl.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -265,6 +266,8 @@ export default function CheckoutClient() {
             margin: 0 auto;
             position: relative;
             z-index: 1;
+            padding-left: 1.25rem;
+            padding-right: 1.25rem;
           }
 
           .checkout-header {
@@ -355,7 +358,7 @@ export default function CheckoutClient() {
             color: var(--fg);
             border-radius: var(--radius-sm);
             font-family: inherit;
-            font-size: 0.95rem;
+            font-size: 1rem; /* 16px to prevent iOS Safari auto-zoom */
             transition: all 0.2s ease;
           }
 
