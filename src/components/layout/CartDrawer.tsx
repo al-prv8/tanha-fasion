@@ -109,7 +109,7 @@ export default function CartDrawer({ showToast }: CartDrawerProps) {
                 <input
                   type="text"
                   placeholder="কুপন কোড (যেমন: TANHA20)"
-                  className="flex-1 py-2 px-3 border border-ink/15 bg-white rounded text-xs text-foreground focus:outline-none focus:border-primary"
+                  className="flex-1 py-2 px-3 border border-ink/15 bg-white rounded text-base sm:text-xs text-foreground focus:outline-none focus:border-primary"
                   value={couponInput}
                   onChange={(e) => setCouponInput(e.target.value)}
                 />

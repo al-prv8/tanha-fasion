@@ -213,7 +213,7 @@ function LoginContent() {
                       placeholder="example@mail.com"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="w-full pl-10 pr-4 py-3 border border-border bg-[#FCFAF7] rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-foreground font-semibold"
+                      className="w-full pl-10 pr-4 py-3 border border-border bg-[#FCFAF7] rounded-xl text-base sm:text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-foreground font-semibold"
                       required
                     />
                     <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -228,7 +228,7 @@ function LoginContent() {
                       placeholder="••••••••"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="w-full pl-10 pr-4 py-3 border border-border bg-[#FCFAF7] rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-foreground font-semibold"
+                      className="w-full pl-10 pr-4 py-3 border border-border bg-[#FCFAF7] rounded-xl text-base sm:text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-foreground font-semibold"
                       required
                     />
                     <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -255,7 +255,7 @@ function LoginContent() {
                       placeholder="যেমন: ফারহানা রহমান"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
-                      className="w-full pl-10 pr-4 py-3 border border-border bg-[#FCFAF7] rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-foreground font-semibold"
+                      className="w-full pl-10 pr-4 py-3 border border-border bg-[#FCFAF7] rounded-xl text-base sm:text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-foreground font-semibold"
                       required
                     />
                     <User size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -270,7 +270,7 @@ function LoginContent() {
                       placeholder="example@mail.com"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="w-full pl-10 pr-4 py-3 border border-border bg-[#FCFAF7] rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-foreground font-semibold"
+                      className="w-full pl-10 pr-4 py-3 border border-border bg-[#FCFAF7] rounded-xl text-base sm:text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-foreground font-semibold"
                       required
                     />
                     <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -285,7 +285,7 @@ function LoginContent() {
                       placeholder="যেমন: 017XXXXXXXX"
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
-                      className="w-full pl-10 pr-4 py-3 border border-border bg-[#FCFAF7] rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-foreground font-semibold"
+                      className="w-full pl-10 pr-4 py-3 border border-border bg-[#FCFAF7] rounded-xl text-base sm:text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-foreground font-semibold"
                     />
                     <Phone size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
                   </div>
@@ -299,7 +299,7 @@ function LoginContent() {
                       placeholder="কমপক্ষে ৬ অক্ষরের পাসওয়ার্ড"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="w-full pl-10 pr-4 py-3 border border-border bg-[#FCFAF7] rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-foreground font-semibold"
+                      className="w-full pl-10 pr-4 py-3 border border-border bg-[#FCFAF7] rounded-xl text-base sm:text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-foreground font-semibold"
                       required
                     />
                     <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />

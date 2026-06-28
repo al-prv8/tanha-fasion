@@ -1108,7 +1108,7 @@ export default function CheckoutClient() {
                     type="text"
                     placeholder="কুপন কোড লিখুন"
                     className="form-input"
-                    style={{ padding: "0.5rem 0.75rem", fontSize: "0.8rem" }}
+                    style={{ padding: "0.5rem 0.75rem" }}
                     value={couponInput}
                     onChange={(e) => setCouponInput(e.target.value)}
                   />

@@ -239,7 +239,7 @@ export default function ContactClient() {
                       placeholder="মোঃ আসিফ রহমান"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
-                      className="w-full bg-[#FCFAF7] border border-border py-3 px-4 rounded-xl text-xs outline-none text-foreground focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all font-semibold"
+                      className="w-full bg-[#FCFAF7] border border-border py-3 px-4 rounded-xl text-base sm:text-xs outline-none text-foreground focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all font-semibold"
                     />
                   </div>
 
@@ -252,7 +252,7 @@ export default function ContactClient() {
                         placeholder="০১৭০০-০০০০০০"
                         value={phone}
                         onChange={(e) => setPhone(e.target.value)}
-                        className="w-full bg-[#FCFAF7] border border-border py-3 px-4 rounded-xl text-xs outline-none text-foreground focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all font-semibold"
+                        className="w-full bg-[#FCFAF7] border border-border py-3 px-4 rounded-xl text-base sm:text-xs outline-none text-foreground focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all font-semibold"
                       />
                     </div>
 
@@ -263,7 +263,7 @@ export default function ContactClient() {
                         placeholder="asif@email.com"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        className="w-full bg-[#FCFAF7] border border-border py-3 px-4 rounded-xl text-xs outline-none text-foreground focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all font-semibold"
+                        className="w-full bg-[#FCFAF7] border border-border py-3 px-4 rounded-xl text-base sm:text-xs outline-none text-foreground focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all font-semibold"
                       />
                     </div>
                   </div>
@@ -276,7 +276,7 @@ export default function ContactClient() {
                       placeholder="বিস্তারিত এখানে লিখুন (যেমন: জামদানির স্টক আপডেট বা আবায়ার কালার অপশন)..."
                       value={message}
                       onChange={(e) => setMessage(e.target.value)}
-                      className="w-full bg-[#FCFAF7] border border-border py-3 px-4 rounded-xl text-xs outline-none text-foreground focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all leading-relaxed font-semibold"
+                      className="w-full bg-[#FCFAF7] border border-border py-3 px-4 rounded-xl text-base sm:text-xs outline-none text-foreground focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all leading-relaxed font-semibold"
                     />
                   </div>
 

@@ -28,27 +28,27 @@ export default function MobileMenuDrawer({
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data) && data.length > 0) {
-          setCategories(data.map((c, idx) => ({ label: c.name, index: idx + 2 })));
+          setCategories(data.map((c) => ({ label: c.name, href: `/categories?type=${encodeURIComponent(c.name)}` })));
         } else {
           setCategories([
-            { label: "সুতি থ্রি-পিস", index: 2 },
-            { label: "জর্জেট থ্রি-পিস", index: 3 },
-            { label: "লিলেন থ্রি-পিস", index: 4 },
-            { label: "ক্যাজুয়াল আবায়া", index: 5 },
-            { label: "উৎসবের বোরকা", index: 6 },
-            { label: "বিশেষ কম্বো", index: 7 },
+            { label: "সুতি থ্রি-পিস", href: `/categories?type=${encodeURIComponent("সুতি থ্রি-পিস")}` },
+            { label: "জর্জেট থ্রি-পিস", href: `/categories?type=${encodeURIComponent("জর্জেট থ্রি-পিস")}` },
+            { label: "লিলেন থ্রি-পিস", href: `/categories?type=${encodeURIComponent("লিলেন থ্রি-পিস")}` },
+            { label: "ক্যাজুয়াল আবায়া", href: `/categories?type=${encodeURIComponent("ক্যাজুয়াল আবায়া")}` },
+            { label: "উৎসবের বোরকা", href: `/categories?type=${encodeURIComponent("উৎসবের বোরকা")}` },
+            { label: "বিশেষ কম্বো", href: `/categories?type=${encodeURIComponent("বিশেষ কম্বো")}` },
           ]);
         }
       })
       .catch((err) => {
         console.error("Failed to load categories in MobileMenuDrawer, using fallback:", err);
         setCategories([
-          { label: "সুতি থ্রি-পিস", index: 2 },
-          { label: "জর্জেট থ্রি-পিস", index: 3 },
-          { label: "লিলেন থ্রি-পিস", index: 4 },
-          { label: "ক্যাজুয়াল আবায়া", index: 5 },
-          { label: "উৎসবের বোরকা", index: 6 },
-          { label: "বিশেষ কম্বো", index: 7 },
+          { label: "সুতি থ্রি-পিস", href: `/categories?type=${encodeURIComponent("সুতি থ্রি-পিস")}` },
+          { label: "জর্জেট থ্রি-পিস", href: `/categories?type=${encodeURIComponent("জর্জেট থ্রি-পিস")}` },
+          { label: "লিলেন থ্রি-পিস", href: `/categories?type=${encodeURIComponent("লিলেন থ্রি-পিস")}` },
+          { label: "ক্যাজুয়াল আবায়া", href: `/categories?type=${encodeURIComponent("ক্যাজুয়াল আবায়া")}` },
+          { label: "উৎসবের বোরকা", href: `/categories?type=${encodeURIComponent("উৎসবের বোরকা")}` },
+          { label: "বিশেষ কম্বো", href: `/categories?type=${encodeURIComponent("বিশেষ কম্বো")}` },
         ]);
       });
   }, []);

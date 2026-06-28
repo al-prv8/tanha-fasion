@@ -141,7 +141,7 @@ export default function Navbar({
             placeholder="পণ্য খুঁজুন..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 text-xs border border-border rounded-full bg-secondary/30 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all text-foreground"
+            className="w-full pl-9 pr-4 py-2 text-base md:text-xs border border-border rounded-full bg-secondary/30 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all text-foreground"
           />
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={14} />
         </div>
@@ -192,21 +192,13 @@ export default function Navbar({
 
             {categories.map((cat, idx) => (
               <li key={idx}>
-                <a
-                  href={`#category-${cat.sectionIndex}`}
+                <Link
+                  href={`/categories?type=${encodeURIComponent(cat.name)}`}
                   className="no-underline text-foreground hover:text-primary text-xs md:text-sm font-semibold transition-colors duration-300 relative pb-1 group cursor-pointer"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    if (pathname === "/") {
-                      scrollToSection(cat.sectionIndex);
-                    } else {
-                      router.push(`/?sec=${cat.sectionIndex}`);
-                    }
-                  }}
                 >
                   {cat.name}
                   <span className="absolute bottom-0 left-0 w-full h-[1.5px] bg-primary scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left" />
-                </a>
+                </Link>
               </li>
             ))}
           </ul>

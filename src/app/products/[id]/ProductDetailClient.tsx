@@ -719,7 +719,7 @@ export default function ProductDetailClient({ product }: { product: Product }) {
                   <input
                     type="text"
                     placeholder="আপনার নাম লিখুন *"
-                    className="w-full bg-background border border-border py-2 px-3 rounded text-xs outline-none text-foreground placeholder-muted-foreground focus:border-primary transition-all"
+                    className="w-full bg-background border border-border py-2 px-3 rounded text-base sm:text-xs outline-none text-foreground placeholder-muted-foreground focus:border-primary transition-all"
                     value={newReviewName}
                     onChange={(e) => setNewReviewName(e.target.value)}
                     required
@@ -730,7 +730,7 @@ export default function ProductDetailClient({ product }: { product: Product }) {
                   <textarea
                     placeholder="আপনার মন্তব্য লিখুন *"
                     rows={3}
-                    className="w-full bg-background border border-border py-2 px-3 rounded text-xs outline-none text-foreground placeholder-muted-foreground focus:border-primary transition-all resize-none"
+                    className="w-full bg-background border border-border py-2 px-3 rounded text-base sm:text-xs outline-none text-foreground placeholder-muted-foreground focus:border-primary transition-all resize-none"
                     value={newReviewComment}
                     onChange={(e) => setNewReviewComment(e.target.value)}
                     required

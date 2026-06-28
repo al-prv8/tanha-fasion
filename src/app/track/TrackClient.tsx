@@ -228,7 +228,7 @@ function TrackContent() {
                   placeholder="যেমন: TF-123456"
                   value={orderNumber}
                   onChange={(e) => setOrderNumber(e.target.value)}
-                  className="w-full px-4 py-3 border border-border bg-[#FCFAF7] rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-foreground font-mono font-bold"
+                  className="w-full px-4 py-3 border border-border bg-[#FCFAF7] rounded-xl text-base sm:text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-foreground font-mono font-bold"
                   required
                 />
               </div>
@@ -240,7 +240,7 @@ function TrackContent() {
                   placeholder="যেমন: 017XXXXXXXX বা mail@domain.com"
                   value={contact}
                   onChange={(e) => setContact(e.target.value)}
-                  className="w-full px-4 py-3 border border-border bg-[#FCFAF7] rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-foreground font-semibold"
+                  className="w-full px-4 py-3 border border-border bg-[#FCFAF7] rounded-xl text-base sm:text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-foreground font-semibold"
                   required
                 />
               </div>
