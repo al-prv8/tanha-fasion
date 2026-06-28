@@ -22,6 +22,8 @@ model Product {
   purchases         StockPurchase[]
   branchStocks      BranchStock[]
   createdAt         DateTime        @default(now())
+
+  @@index([category])
 }
 
 model Order {
@@ -50,6 +52,10 @@ model Order {
   courierTrackingCode  String?
   courierStatus        String?
   createdAt            DateTime    @default(now())
+
+  @@index([phone])
+  @@index([branchId])
+  @@index([createdAt])
 }
 
 model OrderItem {
@@ -141,6 +147,8 @@ model ActivityLog {
   action    String
   details   String
   createdAt DateTime @default(now())
+
+  @@index([createdAt])
 }
 
 model Supplier {
@@ -165,6 +173,9 @@ model StockPurchase {
   branchId    String?   // Target physical branch (null for online warehouse)
   branch      Branch?   @relation(fields: [branchId], references: [id])
   createdAt   DateTime  @default(now())
+
+  @@index([branchId])
+  @@index([createdAt])
 }
 
 model Expense {
@@ -176,6 +187,9 @@ model Expense {
   branch      Branch?  @relation(fields: [branchId], references: [id])
   date        DateTime @default(now())
   createdAt   DateTime @default(now())
+
+  @@index([branchId])
+  @@index([createdAt])
 }
 
 model Branch {

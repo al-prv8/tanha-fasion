@@ -9,10 +9,12 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import cookieParser from "cookie-parser";
 import rateLimit from "express-rate-limit";
+import compression from "compression";
 
 dotenv.config();
 
 const app = express();
+app.use(compression());
 const PORT = process.env.PORT || 5000;
 const JWT_SECRET = process.env.JWT_SECRET || (() => {
   if (process.env.NODE_ENV === "production") {
@@ -1105,7 +1107,7 @@ app.get("/api/products", async (req, res) => {
     const products = await prisma.product.findMany({
       include: {
         reviews: true,
-        branchStocks: branchId ? { where: { branchId } } : false
+        ...(branchId ? { branchStocks: { where: { branchId } } } : {})
       }
     });
 
