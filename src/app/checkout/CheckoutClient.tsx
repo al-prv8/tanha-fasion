@@ -336,7 +336,7 @@ export default function CheckoutClient() {
             gap: 1rem;
           }
 
-          @media (max-width: 576px) {
+          @media (max-width: 768px) {
             .checkout-card {
               padding: 1.25rem 1rem;
             }
@@ -752,7 +752,7 @@ export default function CheckoutClient() {
         </div>
 
         {!user && (
-          <div className="bg-secondary/30 border border-border/80 p-4 rounded-xl mb-6 text-xs font-semibold text-foreground flex items-center justify-between gap-4">
+          <div className="bg-secondary/30 border border-border/80 p-4 rounded-xl mb-6 text-xs font-semibold text-foreground flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <span>দ্রুত চেকআউট করতে চান? আপনার ইনফো দিয়ে অটো-ফিল করতে লগইন করুন।</span>
             <Link href="/login?redirect=/checkout" className="text-primary font-bold hover:underline no-underline whitespace-nowrap">
               লগইন করুন →
