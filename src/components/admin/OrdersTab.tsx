@@ -1054,7 +1054,7 @@ export default function OrdersTab({
                                   {/* Transaction ID */}
                                   {o.trxId && (
                                     <div className="bg-slate-50 border border-slate-200/80 p-2.5 rounded-lg text-[9px] font-bold text-slate-600 text-center font-mono">
-                                      লেনদেন আইডি (TrxID): <span className="text-slate-900 select-all font-black">{o.trxId}</span>
+                                      {o.trxId.toLowerCase().includes("নম্বর") || o.trxId.toLowerCase().includes("কার্ড") || o.trxId.toLowerCase().includes("holder") || o.trxId.toLowerCase().includes("trxid:") ? "পেমেন্ট বিবরণ" : "লেনদেন আইডি (TrxID)"}: <span className="text-slate-900 select-all font-black">{o.trxId}</span>
                                     </div>
                                   )}
 
@@ -1446,7 +1446,7 @@ export default function OrdersTab({
           {/* Transaction ID */}
           {activeOrderToPrint.trxId && (
             <div className="bg-slate-50 border border-slate-200/80 p-2.5 rounded-lg text-[9px] font-bold text-slate-600 text-center font-mono">
-              লেনদেন আইডি (TrxID): <span className="text-slate-900 select-all font-black">{activeOrderToPrint.trxId}</span>
+              {activeOrderToPrint.trxId.toLowerCase().includes("নম্বর") || activeOrderToPrint.trxId.toLowerCase().includes("কার্ড") || activeOrderToPrint.trxId.toLowerCase().includes("holder") || activeOrderToPrint.trxId.toLowerCase().includes("trxid:") ? "পেমেন্ট বিবরণ" : "লেনদেন আইডি (TrxID)"}: <span className="text-slate-900 select-all font-black">{activeOrderToPrint.trxId}</span>
             </div>
           )}
 
