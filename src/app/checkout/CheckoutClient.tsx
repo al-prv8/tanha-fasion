@@ -336,36 +336,6 @@ export default function CheckoutClient() {
             gap: 1rem;
           }
 
-          @media (max-width: 768px) {
-            .checkout-card {
-              padding: 1.25rem 1rem;
-            }
-            .form-row {
-              grid-template-columns: 1fr;
-            }
-            .shipping-methods {
-              grid-template-columns: 1fr;
-              gap: 0.75rem;
-            }
-            .payment-tabs {
-              display: grid;
-              grid-template-columns: 1fr 1fr;
-              gap: 0.5rem;
-              border-bottom: none;
-              padding-bottom: 0;
-            }
-            .payment-tab {
-              border: 1px solid var(--border);
-              border-radius: var(--radius-sm);
-              padding: 0.65rem 0.25rem;
-              font-size: 0.8rem;
-            }
-            .payment-tab.active {
-              border-color: var(--primary);
-              background: color-mix(in srgb, var(--primary) 5%, transparent);
-              border-bottom-color: var(--primary);
-            }
-          }
 
           label {
             display: block;
@@ -726,6 +696,37 @@ export default function CheckoutClient() {
           .btn-home:hover {
             background: var(--primary);
             color: #fff;
+          }
+
+          @media (max-width: 768px) {
+            .checkout-card {
+              padding: 1.25rem 1rem;
+            }
+            .form-row {
+              grid-template-columns: 1fr;
+            }
+            .shipping-methods {
+              grid-template-columns: 1fr;
+              gap: 0.75rem;
+            }
+            .payment-tabs {
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 0.5rem;
+              border-bottom: none;
+              padding-bottom: 0;
+            }
+            .payment-tab {
+              border: 1px solid var(--border);
+              border-radius: var(--radius-sm);
+              padding: 0.65rem 0.25rem;
+              font-size: 0.8rem;
+            }
+            .payment-tab.active {
+              border-color: var(--primary);
+              background: color-mix(in srgb, var(--primary) 5%, transparent);
+              border-bottom-color: var(--primary);
+            }
           }
 
           @keyframes fadeIn {
