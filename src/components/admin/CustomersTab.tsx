@@ -272,8 +272,8 @@ export default function CustomersTab({ orders = [], onRefresh, isLoading = false
                 <span>ক্রয়ের ইতিহাস (Purchase History)</span>
               </div>
 
-              <div className="border border-slate-100 rounded-2xl overflow-hidden">
-                <table className="w-full text-left border-collapse">
+              <div className="border border-slate-100 rounded-2xl overflow-x-auto">
+                <table className="w-full text-left border-collapse min-w-[600px]">
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-100 text-[10px] font-black text-muted-foreground uppercase">
                       <th className="py-2.5 px-4">অর্ডার নম্বর</th>

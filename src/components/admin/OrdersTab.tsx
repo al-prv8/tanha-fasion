@@ -125,6 +125,7 @@ export default function OrdersTab({
   const itemsPerPage = 10;
 
   const [isClient, setIsClient] = useState(false);
+
   useEffect(() => {
     setIsClient(true);
   }, []);
@@ -142,6 +143,21 @@ export default function OrdersTab({
   // Selection states for inline row expansion
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
+
+  const [shouldPrint, setShouldPrint] = useState(false);
+
+  useEffect(() => {
+    if (shouldPrint && expandedOrderId) {
+      const el = document.getElementById(`printable-invoice-sheet-${expandedOrderId}`);
+      if (el) {
+        setShouldPrint(false);
+        // Fire print on next tick to ensure styles are fully computed in the DOM
+        setTimeout(() => {
+          window.print();
+        }, 50);
+      }
+    }
+  }, [shouldPrint, expandedOrderId]);
 
   // Editing state for detailed client fields
   const [formName, setFormName] = useState("");
@@ -347,9 +363,7 @@ export default function OrdersTab({
 
   const handleDirectPrint = (o: any) => {
     setExpandedOrderId(o.id);
-    setTimeout(() => {
-      window.print();
-    }, 150);
+    setShouldPrint(true);
   };
 
   // Filter orders by text search, status tab, and channel selection
@@ -987,8 +1001,8 @@ export default function OrdersTab({
                                   </div>
 
                                   {/* Items List Table */}
-                                  <div className="border border-slate-200 rounded-lg overflow-hidden mb-6 text-[11px] bg-slate-50/50">
-                                    <table className="w-full text-left border-collapse">
+                                  <div className="border border-slate-200 rounded-lg overflow-x-auto mb-6 text-[11px] bg-slate-50/50">
+                                    <table className="w-full text-left border-collapse min-w-[450px]">
                                       <thead>
                                         <tr className="bg-slate-100 border-b border-slate-200 text-[9px] font-black text-slate-500 uppercase tracking-wider">
                                           <th className="py-2 px-3">আইটেম বিবরণ</th>
@@ -1379,8 +1393,8 @@ export default function OrdersTab({
             </div>
           </div>
 
-          <div className="border border-slate-200 rounded-lg overflow-hidden mb-6 text-[11px] bg-slate-50/50">
-            <table className="w-full text-left border-collapse">
+          <div className="border border-slate-200 rounded-lg overflow-x-auto mb-6 text-[11px] bg-slate-50/50">
+            <table className="w-full text-left border-collapse min-w-[450px]">
               <thead>
                 <tr className="bg-slate-100 border-b border-slate-200 text-[9px] font-black text-slate-500 uppercase tracking-wider">
                   <th className="py-2 px-3">আইটেম বিবরণ</th>
