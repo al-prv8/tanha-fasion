@@ -371,6 +371,20 @@ export const PRODUCTS: Product[] = [
   },
 ];
 
+// Add default originalPrice and sizePricesJson to all PRODUCTS
+PRODUCTS.forEach((p) => {
+  const discountPct = 15 + (p.numericId % 3) * 5; // 15%, 20%, or 25% discount
+  p.originalPrice = Math.round((p.price / (1 - (discountPct / 100))) / 10) * 10;
+  const isCheap = p.price < 2000;
+  const step = isCheap ? 50 : 100;
+  p.sizePricesJson = JSON.stringify({
+    S: p.price - step,
+    M: p.price,
+    L: p.price + step,
+    XL: p.price + (step * 2)
+  });
+});
+
 export function getProductById(id: string | number): Product | undefined {
   return PRODUCTS.find(
     (p) => p.id === id.toString() || p.numericId === Number(id)

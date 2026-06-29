@@ -1048,12 +1048,29 @@ app.post("/api/seed", async (req, res) => {
 
     const seeded = [];
     for (const p of mockProducts) {
+      // Calculate realistic originalPrice (price + ~20-25%)
+      const discountPct = 15 + (parseInt(p.id) % 3) * 5; // 15%, 20%, or 25% discount
+      const originalPrice = Math.round((p.price / (1 - (discountPct / 100))) / 10) * 10;
+
+      // Define size-specific prices centered around base price
+      const isCheap = p.price < 2000;
+      const step = isCheap ? 50 : 100;
+      const sizePricesObj = {
+        S: p.price - step,
+        M: p.price,
+        L: p.price + step,
+        XL: p.price + (step * 2)
+      };
+      const sizePricesJson = JSON.stringify(sizePricesObj);
+
       const created = await prisma.product.create({
         data: {
           id: p.id,
           sku: p.sku,
           name: p.name,
           price: p.price,
+          originalPrice: originalPrice,
+          sizePricesJson: sizePricesJson,
           category: p.category,
           imgUrl: p.imgUrl,
           sizesJson: '{"S":10,"M":15,"L":15,"XL":5}',
