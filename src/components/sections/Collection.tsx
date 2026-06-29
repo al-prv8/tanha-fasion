@@ -1,6 +1,6 @@
 import React from "react";
 import Image from "next/image";
-import { PRODUCTS, Product, toBanglaNumber, getProductPriceDisplayRange } from "@/lib/products";
+import { PRODUCTS, Product, toBanglaNumber, getProductPriceDisplayRange, formatBanglaPriceWithCommas } from "@/lib/products";
 
 interface CollectionProps {
   openSpotlight: (product: Product) => void;
@@ -55,11 +55,18 @@ export default function Collection({
               </div>
             </div>
             <div className="mt-4 md:mt-5 flex justify-between items-start gap-4">
-              <div>
+              <div className="min-w-0 flex-grow">
                 <div className="text-[10px] md:text-[11px] text-muted-foreground">{prod.id}</div>
-                <h3 className="mt-1 text-sm md:text-lg font-semibold text-foreground">{prod.name}</h3>
+                <h3 className="mt-1 text-sm md:text-lg font-semibold text-foreground truncate">{prod.name}</h3>
               </div>
-              <div className="text-sm md:text-lg font-semibold text-foreground">{getProductPriceDisplayRange(prod)}</div>
+              <div className="text-right flex-shrink-0">
+                <div className="text-sm md:text-lg font-semibold text-foreground">{getProductPriceDisplayRange(prod)}</div>
+                {prod.originalPrice && prod.originalPrice > prod.price && (
+                  <div className="text-[11px] md:text-xs text-muted-foreground line-through decoration-red-500 font-medium mt-0.5">
+                    {formatBanglaPriceWithCommas(prod.originalPrice)}
+                  </div>
+                )}
+              </div>
             </div>
           </article>
         ))}

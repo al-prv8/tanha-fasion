@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useWishlist } from "@/lib/wishlist-context";
 import Image from "next/image";
 import { Product, formatBanglaPriceWithCommas } from "@/lib/products";
 import { ShoppingBag, Eye } from "lucide-react";
@@ -32,6 +33,7 @@ export default function CategoryShowcase({
 }: CategoryShowcaseProps) {
   const [selectedSizes, setSelectedSizes] = useState<{ [productId: string]: string }>({});
   const router = useRouter();
+  const { toggleWishlist, isFavorite } = useWishlist();
 
   const handleSizeSelect = (productId: string, size: string) => {
     setSelectedSizes((prev) => ({ ...prev, [productId]: size }));
@@ -106,11 +108,18 @@ export default function CategoryShowcase({
 
                   {/* Wishlist Button */}
                   <button
-                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                    className="absolute top-2 right-2 z-10 w-7 h-7 rounded-full bg-white/90 flex items-center justify-center text-slate-400 hover:text-rose-500 transition-colors shadow-sm cursor-pointer border-none"
-                    title="পছন্দের তালিকায় যোগ করুন"
+                    onClick={(e) => { 
+                      e.preventDefault(); 
+                      e.stopPropagation(); 
+                      const added = toggleWishlist(prod.id);
+                      showToast(added ? `"${prod.name}" পছন্দের তালিকায় যোগ করা হয়েছে!` : `"${prod.name}" পছন্দের তালিকা থেকে বাদ দেওয়া হয়েছে!`);
+                    }}
+                    className={`absolute top-2 right-2 z-10 w-7 h-7 rounded-full flex items-center justify-center transition-colors shadow-sm cursor-pointer border-none ${
+                      isFavorite(prod.id) ? "bg-rose-50 text-rose-500" : "bg-white/90 text-slate-400 hover:text-rose-500"
+                    }`}
+                    title={isFavorite(prod.id) ? "পছন্দের তালিকা থেকে বাদ দিন" : "পছন্দের তালিকায় যোগ করুন"}
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z" /></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill={isFavorite(prod.id) ? "currentColor" : "none"} viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z" /></svg>
                   </button>
 
                   {/* Out-of-stock overlay */}
@@ -183,7 +192,25 @@ export default function CategoryShowcase({
                   {/* Price & Actions */}
                   <div className="flex flex-col gap-2 border-t border-border/40 pt-2.5 mt-1">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs sm:text-sm font-extrabold text-foreground">
+                      <div className="flex flex-wrap items-baseline gap-1.5">
+                        <span className="text-xs sm:text-sm font-extrabold text-foreground">
+                          {(() => {
+                            const size = selectedSizes[prod.id] || prod.sizes[0] || "M";
+                            let activePrice = prod.price;
+                            const p = prod as any;
+                            if (p.sizePricesJson) {
+                              try {
+                                const sizePrices = typeof p.sizePricesJson === 'string'
+                                  ? JSON.parse(p.sizePricesJson)
+                                  : p.sizePricesJson;
+                                if (sizePrices && sizePrices[size] !== undefined && sizePrices[size] !== null && Number(sizePrices[size]) > 0) {
+                                  activePrice = Number(sizePrices[size]);
+                                }
+                              } catch (e) {}
+                            }
+                            return formatBanglaPriceWithCommas(activePrice);
+                          })()}
+                        </span>
                         {(() => {
                           const size = selectedSizes[prod.id] || prod.sizes[0] || "M";
                           let activePrice = prod.price;
@@ -198,9 +225,17 @@ export default function CategoryShowcase({
                               }
                             } catch (e) {}
                           }
-                          return formatBanglaPriceWithCommas(activePrice);
+                          if (p.originalPrice && p.originalPrice > p.price) {
+                            const activeOriginalPrice = Math.round(activePrice * (p.originalPrice / p.price));
+                            return (
+                              <span className="text-[10px] sm:text-xs text-muted-foreground line-through decoration-red-500 font-medium">
+                                {formatBanglaPriceWithCommas(activeOriginalPrice)}
+                              </span>
+                            );
+                          }
+                          return null;
                         })()}
-                      </span>
+                      </div>
                       <Link
                         href={`/products/${prod.id}`}
                         className="text-[10px] sm:text-xs text-primary hover:underline font-semibold no-underline"

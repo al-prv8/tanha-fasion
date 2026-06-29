@@ -69,7 +69,24 @@ export default function SpotlightModal({
             <>
               <div className="flex justify-between items-center mt-5 mb-2">
                 <span className="text-sm font-semibold text-foreground">সাইজ নির্বাচন করুন:</span>
-                <span className="text-base font-extrabold text-primary">
+                <div className="flex flex-col items-end">
+                  <span className="text-base font-extrabold text-primary">
+                    {(() => {
+                      const prod = modalData.product as any;
+                      let activePrice = prod.price;
+                      if (prod.sizePricesJson) {
+                        try {
+                          const sizePrices = typeof prod.sizePricesJson === 'string' 
+                            ? JSON.parse(prod.sizePricesJson) 
+                            : prod.sizePricesJson;
+                          if (sizePrices && sizePrices[selectedSize] !== undefined && sizePrices[selectedSize] !== null && Number(sizePrices[selectedSize]) > 0) {
+                            activePrice = Number(sizePrices[selectedSize]);
+                          }
+                        } catch (e) {}
+                      }
+                      return formatBanglaPriceWithCommas(activePrice);
+                    })()}
+                  </span>
                   {(() => {
                     const prod = modalData.product as any;
                     let activePrice = prod.price;
@@ -83,9 +100,17 @@ export default function SpotlightModal({
                         }
                       } catch (e) {}
                     }
-                    return formatBanglaPriceWithCommas(activePrice);
+                    if (prod.originalPrice && prod.originalPrice > prod.price) {
+                      const activeOriginalPrice = Math.round(activePrice * (prod.originalPrice / prod.price));
+                      return (
+                        <span className="text-xs text-muted-foreground line-through decoration-red-500 font-medium">
+                          {formatBanglaPriceWithCommas(activeOriginalPrice)}
+                        </span>
+                      );
+                    }
+                    return null;
                   })()}
-                </span>
+                </div>
               </div>
               <div className="flex gap-2 mb-5">
                 {modalData.product.sizes.map((size) => (

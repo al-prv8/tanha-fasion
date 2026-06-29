@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter, usePathname } from "next/navigation";
 import { useCart } from "@/lib/cart-context";
+import { useWishlist } from "@/lib/wishlist-context";
 import { Product, PRODUCTS, toBanglaNumber, formatBanglaPriceWithCommas } from "@/lib/products";
 import { 
   ShoppingBag, 
@@ -67,7 +68,7 @@ export default function ProductDetailClient({ product }: { product: Product }) {
   const [toastMsg, setToastMsg] = useState("");
   const [menuDrawerOpen, setMenuDrawerOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [isFavorite, setIsFavorite] = useState(false);
+  const { toggleWishlist, isFavorite } = useWishlist();
   const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
   const [showStickyBar, setShowStickyBar] = useState(false);
 
@@ -95,8 +96,9 @@ export default function ProductDetailClient({ product }: { product: Product }) {
         id: p.id,
         name: p.name,
         price: p.price,
+        originalPrice: p.originalPrice,
         imgUrl: p.img?.src || p.img || '/assets/cotton_1.png',
-        category: p.loc || (p as any).category,
+        category: p.loc || (p as any).category || "",
       }));
   });
   const [newReviewName, setNewReviewName] = useState("");
@@ -156,6 +158,7 @@ export default function ProductDetailClient({ product }: { product: Product }) {
               id: p.id,
               name: p.name,
               price: p.price,
+              originalPrice: p.originalPrice,
               imgUrl: p.imgUrl,
               category: p.category,
             }));
@@ -312,9 +315,9 @@ export default function ProductDetailClient({ product }: { product: Product }) {
     ? Math.round((1 - (product.price / (product.originalPrice || 1))) * 100) 
     : 0;
 
-  // Scale the original price crossed-out display dynamically for selected size using the base discount percentage
+  // Scale the original price crossed-out display dynamically for selected size using the base price ratio
   const originalPrice = hasDiscount
-    ? Math.round(activePrice / (1 - (discountPercent / 100)))
+    ? Math.round(activePrice * ((product.originalPrice || 0) / product.price))
     : 0;
   const discountPercentStr = toBanglaNumber(discountPercent);
 
@@ -585,13 +588,13 @@ export default function ProductDetailClient({ product }: { product: Product }) {
               {/* Wishlist Icon */}
               <button 
                 onClick={() => {
-                  setIsFavorite(!isFavorite);
-                  showToast(isFavorite ? "প্রিয় তালিকা থেকে বাদ দেওয়া হয়েছে" : "প্রিয় তালিকায় যুক্ত করা হয়েছে");
+                  const added = toggleWishlist(product.id);
+                  showToast(added ? "প্রিয় তালিকায় যুক্ত করা হয়েছে" : "প্রিয় তালিকা থেকে বাদ দেওয়া হয়েছে");
                 }}
-                className={`p-4 border rounded-full flex items-center justify-center cursor-pointer transition-colors bg-background ${isFavorite ? "text-primary border-primary/40 bg-primary/5" : "text-muted-foreground border-border hover:border-primary/50"}`}
+                className={`p-4 border rounded-full flex items-center justify-center cursor-pointer transition-colors bg-background ${isFavorite(product.id) ? "text-primary border-primary/40 bg-primary/5" : "text-muted-foreground border-border hover:border-primary/50"}`}
                 aria-label="Add to wishlist"
               >
-                <Heart size={20} fill={isFavorite ? "currentColor" : "none"} />
+                <Heart size={20} fill={isFavorite(product.id) ? "currentColor" : "none"} />
               </button>
             </div>
 
@@ -1037,7 +1040,16 @@ export default function ProductDetailClient({ product }: { product: Product }) {
                 </div>
                 <div className="p-3">
                   <h3 className="text-xs font-bold text-foreground line-clamp-1 group-hover:text-primary transition-colors">{rp.name}</h3>
-                  <p className="text-xs font-extrabold text-foreground mt-1">৳ {rp.price?.toLocaleString('bn-BD')}</p>
+                  <div className="flex flex-wrap items-baseline gap-1.5 mt-1">
+                    <span className="text-xs font-extrabold text-foreground">
+                      ৳ {rp.price?.toLocaleString('bn-BD')}
+                    </span>
+                    {rp.originalPrice && rp.originalPrice > rp.price && (
+                      <span className="text-[10px] text-muted-foreground line-through decoration-red-500 font-medium">
+                        ৳ {rp.originalPrice?.toLocaleString('bn-BD')}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </Link>
             ))}

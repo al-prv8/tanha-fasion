@@ -572,7 +572,25 @@ function CategoriesContent() {
                         {/* Pricing and Action buttons */}
                         <div className="flex flex-col gap-2 border-t border-border/40 pt-2.5 mt-1">
                           <div className="flex items-center justify-between">
-                            <span className="text-xs sm:text-sm font-extrabold text-foreground">
+                            <div className="flex flex-wrap items-baseline gap-1.5">
+                              <span className="text-xs sm:text-sm font-extrabold text-foreground">
+                                {(() => {
+                                  const size = cardSizes[prod.id] || prod.sizes[0] || "M";
+                                  let activePrice = prod.price;
+                                  const p = prod as any;
+                                  if (p.sizePricesJson) {
+                                    try {
+                                      const sizePrices = typeof p.sizePricesJson === 'string' 
+                                        ? JSON.parse(p.sizePricesJson) 
+                                        : p.sizePricesJson;
+                                      if (sizePrices && sizePrices[size] !== undefined && sizePrices[size] !== null && Number(sizePrices[size]) > 0) {
+                                        activePrice = Number(sizePrices[size]);
+                                      }
+                                    } catch (e) {}
+                                  }
+                                  return formatBanglaPriceWithCommas(activePrice);
+                                })()}
+                              </span>
                               {(() => {
                                 const size = cardSizes[prod.id] || prod.sizes[0] || "M";
                                 let activePrice = prod.price;
@@ -587,9 +605,17 @@ function CategoriesContent() {
                                     }
                                   } catch (e) {}
                                 }
-                                return formatBanglaPriceWithCommas(activePrice);
+                                if (p.originalPrice && p.originalPrice > p.price) {
+                                  const activeOriginalPrice = Math.round(activePrice * (p.originalPrice / p.price));
+                                  return (
+                                    <span className="text-[10px] sm:text-xs text-muted-foreground line-through decoration-red-500 font-medium">
+                                      {formatBanglaPriceWithCommas(activeOriginalPrice)}
+                                    </span>
+                                  );
+                                }
+                                return null;
                               })()}
-                            </span>
+                            </div>
                             <Link
                               href={`/products/${prod.id}`}
                               className="text-[10px] sm:text-xs text-primary hover:underline font-semibold no-underline"
