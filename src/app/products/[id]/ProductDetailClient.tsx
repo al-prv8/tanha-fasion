@@ -1024,22 +1024,41 @@ export default function ProductDetailClient({ product }: { product: Product }) {
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
             {relatedProducts.map((rp) => (
-              <Link
+              <div
                 key={rp.id}
-                href={`/products/${rp.id}`}
                 className="group block bg-background border border-border/60 hover:border-primary/40 rounded overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 no-underline hover:-translate-y-1"
               >
                 <div className="relative aspect-[3/4] bg-secondary overflow-hidden">
-                  <Image
-                    src={rp.imgUrl || '/assets/cotton_1.png'}
-                    alt={rp.name}
-                    fill
-                    sizes="(max-width: 768px) 50vw, 25vw"
-                    className="object-cover transition-transform duration-500 group-hover:scale-105"
-                  />
+                  <Link href={`/products/${rp.id}`} className="relative block w-full h-full cursor-pointer">
+                    <Image
+                      src={rp.imgUrl || '/assets/cotton_1.png'}
+                      alt={rp.name}
+                      fill
+                      sizes="(max-width: 768px) 50vw, 25vw"
+                      className="object-cover transition-transform duration-500 group-hover:scale-105"
+                    />
+                  </Link>
+
+                  {/* Wishlist Button */}
+                  <button
+                    onClick={(e) => { 
+                      e.preventDefault(); 
+                      e.stopPropagation(); 
+                      const added = toggleWishlist(rp.id);
+                      showToast(added ? `"${rp.name}" পছন্দের তালিকায় যোগ করা হয়েছে!` : `"${rp.name}" পছন্দের তালিকা থেকে বাদ দেওয়া হয়েছে!`);
+                    }}
+                    className={`absolute top-2 right-2 z-10 w-7 h-7 rounded-full flex items-center justify-center transition-colors shadow-sm cursor-pointer border-none ${
+                      isFavorite(rp.id) ? "bg-rose-50 text-rose-500" : "bg-white/90 text-slate-400 hover:text-rose-500"
+                    }`}
+                    title={isFavorite(rp.id) ? "পছন্দের তালিকা থেকে বাদ দিন" : "পছন্দের তালিকায় যোগ করুন"}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" fill={isFavorite(rp.id) ? "currentColor" : "none"} viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z" /></svg>
+                  </button>
                 </div>
                 <div className="p-3">
-                  <h3 className="text-xs font-bold text-foreground line-clamp-1 group-hover:text-primary transition-colors">{rp.name}</h3>
+                  <Link href={`/products/${rp.id}`} className="no-underline">
+                    <h3 className="text-xs font-bold text-foreground line-clamp-1 group-hover:text-primary transition-colors">{rp.name}</h3>
+                  </Link>
                   <div className="flex flex-wrap items-baseline gap-1.5 mt-1">
                     <span className="text-xs font-extrabold text-foreground">
                       ৳ {rp.price?.toLocaleString('bn-BD')}
@@ -1051,7 +1070,7 @@ export default function ProductDetailClient({ product }: { product: Product }) {
                     )}
                   </div>
                 </div>
-              </Link>
+              </div>
             ))}
           </div>
         </section>

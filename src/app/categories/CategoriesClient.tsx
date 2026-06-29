@@ -3,6 +3,7 @@
 import React, { useState, useEffect, Suspense } from "react";
 import Image from "next/image";
 import { useCart } from "@/lib/cart-context";
+import { useWishlist } from "@/lib/wishlist-context";
 import { Product, PRODUCTS, toBanglaNumber, formatBanglaPriceWithCommas } from "@/lib/products";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
@@ -49,6 +50,7 @@ function CategoriesContent() {
 
   // Size Picker States for individual cards
   const [cardSizes, setCardSizes] = useState<{ [productId: string]: string }>({});
+  const { toggleWishlist, isFavorite } = useWishlist();
 
   // UI Drawer/Modal States
   const [menuDrawerOpen, setMenuDrawerOpen] = useState(false);
@@ -127,6 +129,7 @@ function CategoriesContent() {
               sku: p.sku,
               name: p.name,
               price: p.price,
+              originalPrice: p.originalPrice,
               priceDisplay: `৳${p.price}`,
               loc: p.category,
               img: { src: p.imgUrl },
@@ -521,21 +524,39 @@ function CategoriesContent() {
                       className="bg-card border border-border/60 hover:border-primary/50 rounded overflow-hidden flex flex-col justify-between group transition-all duration-300 shadow-sm hover:shadow-lg hover:-translate-y-1"
                     >
                       {/* Product Image Link */}
-                      <Link href={`/products/${prod.id}`} className="relative aspect-[3/4] bg-secondary overflow-hidden w-full block cursor-pointer">
-                        <Image
-                          src={prod.img?.src || prod.img}
-                          alt={prod.name}
-                          fill
-                          sizes="(max-width: 768px) 50vw, 33vw"
-                          className="object-cover transition-transform duration-500 group-hover:scale-105"
-                        />
+                      <div className="relative aspect-[3/4] bg-secondary overflow-hidden w-full block">
+                        <Link href={`/products/${prod.id}`} className="relative block w-full h-full cursor-pointer">
+                          <Image
+                            src={prod.img?.src || prod.img}
+                            alt={prod.name}
+                            fill
+                            sizes="(max-width: 768px) 50vw, 33vw"
+                            className="object-cover transition-transform duration-500 group-hover:scale-105"
+                          />
+                        </Link>
                         
+                        {/* Wishlist Button */}
+                        <button
+                          onClick={(e) => { 
+                            e.preventDefault(); 
+                            e.stopPropagation(); 
+                            const added = toggleWishlist(prod.id);
+                            showToast(added ? `"${prod.name}" পছন্দের তালিকায় যোগ করা হয়েছে!` : `"${prod.name}" পছন্দের তালিকা থেকে বাদ দেওয়া হয়েছে!`);
+                          }}
+                          className={`absolute top-2 right-2 z-10 w-7 h-7 rounded-full flex items-center justify-center transition-colors shadow-sm cursor-pointer border-none ${
+                            isFavorite(prod.id) ? "bg-rose-50 text-rose-500" : "bg-white/90 text-slate-400 hover:text-rose-500"
+                          }`}
+                          title={isFavorite(prod.id) ? "পছন্দের তালিকা থেকে বাদ দিন" : "পছন্দের তালিকায় যোগ করুন"}
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" fill={isFavorite(prod.id) ? "currentColor" : "none"} viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z" /></svg>
+                        </button>
+
                         {prod.tag && (
                           <span className="absolute top-3 left-3 bg-primary text-primary-foreground text-[9px] sm:text-[10px] font-bold py-1 px-2.5 rounded-full uppercase tracking-wider shadow-sm">
                             {prod.tag}
                           </span>
                         )}
-                      </Link>
+                      </div>
 
                       {/* Details & Actions */}
                       <div className="p-3 sm:p-4 flex flex-col gap-2.5">

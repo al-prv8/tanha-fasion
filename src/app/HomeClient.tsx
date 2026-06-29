@@ -100,6 +100,7 @@ export default function HomeClient() {
               sku: p.sku,
               name: p.name,
               price: p.price,
+              originalPrice: p.originalPrice,
               priceDisplay: `৳${p.price}`,
               loc: p.category,
               img: { src: p.imgUrl },
