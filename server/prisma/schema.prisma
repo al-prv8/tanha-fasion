@@ -114,6 +114,12 @@ model User {
   branchId       String?
   branch         Branch?  @relation(fields: [branchId], references: [id])
   allowedModules String?  @default("showroom_pos,showroom_stock,showroom_purchases,showroom_orders,showroom_expenses")
+  isVerified     Boolean  @default(false)
+  verificationToken String?
+  twoFactorEnabled   Boolean  @default(false)
+  twoFactorType      String   @default("NONE")
+  twoFactorSecret    String?
+  twoFactorTempCode  String?
   createdAt      DateTime @default(now())
 }
 

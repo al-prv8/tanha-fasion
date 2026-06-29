@@ -48,6 +48,7 @@ async function fetchProduct(id: string) {
           img: { src: dbProd.imgUrl },
           sizes: sizesKeys.length > 0 ? sizesKeys : (localProduct ? localProduct.sizes : ["S", "M", "L", "XL"]),
           sizesJson: dbProd.sizesJson,
+          sizePricesJson: dbProd.sizePricesJson,
           title: localProduct ? localProduct.title : `${dbProd.name} — তানহা ফ্যাশন`,
           desc: localProduct ? localProduct.desc : `${dbProd.name} - Premium Quality Collection.`,
           tag: totalStock === 0 ? "স্টক শেষ" : (localProduct ? localProduct.tag : "নতুন")

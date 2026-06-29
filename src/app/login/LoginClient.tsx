@@ -16,7 +16,7 @@ function LoginContent() {
   const searchParams = useSearchParams();
   const redirectPath = searchParams.get("redirect") || "/dashboard";
 
-  const { user, loading, login, register } = useAuth();
+  const { user, loading, login, register, refreshSession } = useAuth();
   const { cartCount, cartDrawerOpen, setCartDrawerOpen } = useCart();
 
   // Page layout states
@@ -36,6 +36,12 @@ function LoginContent() {
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // 2FA states
+  const [is2faRequired, setIs2faRequired] = useState(false);
+  const [twoFactorType, setTwoFactorType] = useState<"EMAIL" | "TOTP" | null>(null);
+  const [tempToken, setTempToken] = useState("");
+  const [twoFactorCode, setTwoFactorCode] = useState("");
 
   const showToast = (msg: string) => {
     setToastMsg(msg);
@@ -72,8 +78,48 @@ function LoginContent() {
     if (result.success) {
       setSuccessMsg("লগইন সফল হয়েছে! ড্যাশবোর্ডে নিয়ে যাওয়া হচ্ছে...");
       showToast("লগইন সফল হয়েছে!");
+    } else if (result.isTwoFactorRequired) {
+      setIs2faRequired(true);
+      setTwoFactorType(result.twoFactorType || null);
+      setTempToken(result.tempToken || "");
+      showToast("টু-ফ্যাক্টর অথেন্টিকেশন কোড প্রয়োজন।");
+    } else if (result.message === "email_unverified") {
+      showToast("দয়া করে ইমেল ভেরিফাই করুন");
+      router.push(`/verify-email?email=${encodeURIComponent(email)}`);
     } else {
       setErrorMsg(result.message || "ইমেইল অথবা পাসওয়ার্ড ভুল।");
+    }
+  };
+
+  const handle2faSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg("");
+    setSuccessMsg("");
+    setIsSubmitting(true);
+
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/auth/verify-2fa`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ tempToken, code: twoFactorCode.trim() })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "২এফএ ভেরিফিকেশন কোড ভুল।");
+      }
+
+      setSuccessMsg("২এফএ ভেরিফিকেশন সফল! ড্যাশবোর্ডে নিয়ে যাওয়া হচ্ছে...");
+      showToast("২এফএ সফল হয়েছে!");
+
+      // Update auth session context
+      await refreshSession();
+    } catch (err: any) {
+      setErrorMsg(err.message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -97,18 +143,11 @@ function LoginContent() {
     setIsSubmitting(false);
 
     if (result.success) {
-      setSuccessMsg("নিবন্ধন সফল হয়েছে! এখন লগইন করুন।");
+      setSuccessMsg("নিবন্ধন সফল হয়েছে! আপনার ইমেলে ওটিপি পাঠানো হয়েছে।");
       showToast("নিবন্ধন সফল হয়েছে!");
-      // Automatically log in the user after registration
-      const loginResult = await login(email, password);
-      if (loginResult.success) {
-        setTimeout(() => {
-          router.push(redirectPath);
-        }, 1000);
-      } else {
-        setActiveTab("login");
-        setPassword("");
-      }
+      setTimeout(() => {
+        router.push(`/verify-email?email=${encodeURIComponent(email)}`);
+      }, 1000);
     } else {
       setErrorMsg(result.message || "নিবন্ধন ব্যর্থ হয়েছে। আবার চেষ্টা করুন।");
     }
@@ -146,44 +185,52 @@ function LoginContent() {
         {/* Form Container */}
         <div className="bg-card border border-border/80 rounded-2xl shadow-xl overflow-hidden">
           {/* Tab Selector */}
-          <div className="flex border-b border-border">
-            <button
-              onClick={() => {
-                setActiveTab("login");
-                setErrorMsg("");
-                setSuccessMsg("");
-              }}
-              className={`flex-1 py-4 text-center text-sm font-bold transition-all ${
-                activeTab === "login"
-                  ? "text-primary border-b-2 border-primary bg-secondary/10"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              লগইন করুন
-            </button>
-            <button
-              onClick={() => {
-                setActiveTab("register");
-                setErrorMsg("");
-                setSuccessMsg("");
-              }}
-              className={`flex-1 py-4 text-center text-sm font-bold transition-all ${
-                activeTab === "register"
-                  ? "text-primary border-b-2 border-primary bg-secondary/10"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              নতুন অ্যাকাউন্ট
-            </button>
-          </div>
+          {!is2faRequired && (
+            <div className="flex border-b border-border">
+              <button
+                onClick={() => {
+                  setActiveTab("login");
+                  setErrorMsg("");
+                  setSuccessMsg("");
+                }}
+                className={`flex-1 py-4 text-center text-sm font-bold transition-all ${
+                  activeTab === "login"
+                    ? "text-primary border-b-2 border-primary bg-secondary/10"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                লগইন করুন
+              </button>
+              <button
+                onClick={() => {
+                  setActiveTab("register");
+                  setErrorMsg("");
+                  setSuccessMsg("");
+                }}
+                className={`flex-1 py-4 text-center text-sm font-bold transition-all ${
+                  activeTab === "register"
+                    ? "text-primary border-b-2 border-primary bg-secondary/10"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                নতুন অ্যাকাউন্ট
+              </button>
+            </div>
+          )}
 
           <div className="p-8">
             <div className="text-center mb-6">
               <h1 className="text-2xl font-extrabold font-display text-foreground leading-tight">
-                {activeTab === "login" ? "স্বাগতম!" : "হয়ে যান তানহা মেম্বার"}
+                {is2faRequired
+                  ? "টু-ফ্যাক্টর অথেন্টিকেশন"
+                  : activeTab === "login"
+                  ? "স্বাগতম!"
+                  : "হয়ে যান তানহা মেম্বার"}
               </h1>
               <p className="text-xs text-muted-foreground mt-1">
-                {activeTab === "login"
+                {is2faRequired
+                  ? "আপনার অ্যাকাউন্টটি সুরক্ষিত রাখতে টু-ফ্যাক্টর নিরাপত্তা কোডটি প্রদান করুন"
+                  : activeTab === "login"
                   ? "আপনার অ্যাকাউন্ট দিয়ে লগইন করুন এবং অর্ডার ট্র্যাক করুন"
                   : "অ্যাকাউন্ট তৈরি করে অর্ডার ইতিহাস এবং দ্রুত চেকআউট সুবিধা পান"}
               </p>
@@ -202,7 +249,52 @@ function LoginContent() {
               </div>
             )}
 
-            {activeTab === "login" ? (
+            {is2faRequired ? (
+              /* 2FA Verification Form */
+              <form onSubmit={handle2faSubmit} className="space-y-4">
+                <div>
+                  <label className="text-xs font-bold text-foreground mb-1 block">
+                    {twoFactorType === "EMAIL" ? "ইমেল ২এফএ ওটিপি কোড *" : "অথেন্টিকেটর অ্যাপ কোড *"}
+                  </label>
+                  <div className="relative">
+                    <input
+                      id="2fa-code-input"
+                      type="text"
+                      maxLength={6}
+                      placeholder="৬-ডিজিটের কোড"
+                      value={twoFactorCode}
+                      onChange={(e) => setTwoFactorCode(e.target.value.replace(/\D/g, ""))}
+                      className="w-full pl-10 pr-4 py-3 border border-border bg-[#FCFAF7] rounded-xl text-base sm:text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-foreground font-bold font-mono tracking-[0.2em] text-center"
+                      required
+                      autoFocus
+                    />
+                    <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isSubmitting || twoFactorCode.length !== 6}
+                  className="w-full bg-primary hover:bg-primary/95 text-white font-bold py-3.5 px-6 rounded-xl border-none cursor-pointer transition-colors shadow-xs flex items-center justify-center gap-2 disabled:opacity-70 mt-2"
+                >
+                  {isSubmitting ? "কোড যাচাই করা হচ্ছে..." : "যাচাই করুন"}
+                  {!isSubmitting && <ArrowRight size={16} />}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIs2faRequired(false);
+                    setTwoFactorCode("");
+                    setErrorMsg("");
+                    setSuccessMsg("");
+                  }}
+                  className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 px-6 rounded-xl border-none cursor-pointer transition-colors mt-2 text-xs"
+                >
+                  লগইন স্ক্রিনে ফিরে যান
+                </button>
+              </form>
+            ) : activeTab === "login" ? (
               /* LOGIN FORM */
               <form onSubmit={handleLoginSubmit} className="space-y-4">
                 <div>

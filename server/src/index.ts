@@ -10,11 +10,69 @@ import jwt from "jsonwebtoken";
 import cookieParser from "cookie-parser";
 import rateLimit from "express-rate-limit";
 import compression from "compression";
+import nodemailer from "nodemailer";
+import { generateSecret, generateURI, verifySync } from "otplib";
+import qrcode from "qrcode";
 
 dotenv.config();
 
 const app = express();
 app.use(compression());
+
+// Configure local SMTP transport (Postfix running on localhost:25)
+const mailTransport = nodemailer.createTransport({
+  host: "127.0.0.1",
+  port: 25,
+  secure: false,
+  tls: {
+    rejectUnauthorized: false
+  }
+});
+
+const sendOtpEmail = async (email: string, otp: string) => {
+  const mailOptions = {
+    from: '"Tanha Fashion" <noreply@tanhafashion.com>',
+    to: email,
+    subject: "তানহা ফ্যাশন - ইমেল ভেরিফিকেশন কোড",
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
+        <h2 style="color: #9f1239; text-align: center;">ইমেল ভেরিফিকেশন কোড</h2>
+        <p>তানহা ফ্যাশনে আপনাকে স্বাগতম! আপনার অ্যাকাউন্টটি সচল করতে নিচের ৬-ডিজিটের ওটিপি (OTP) কোডটি ব্যবহার করুন:</p>
+        <div style="background-color: #f8fafc; border: 1px dashed #cbd5e1; padding: 15px; text-align: center; font-size: 24px; font-weight: bold; letter-spacing: 5px; color: #0f172a; margin: 20px 0;">
+          ${otp}
+        </div>
+        <p style="color: #64748b; font-size: 12px; text-align: center; margin-top: 30px;">
+          কোডটির মেয়াদ ৫ মিনিট। আপনি যদি এই অনুরোধটি না করে থাকেন, তবে দয়া করে এই ইমেলটি উপেক্ষা করুন।
+        </p>
+      </div>
+    `
+  };
+
+  await mailTransport.sendMail(mailOptions);
+};
+
+const send2faEmail = async (email: string, otp: string) => {
+  const mailOptions = {
+    from: '"Tanha Fashion" <noreply@tanhafashion.com>',
+    to: email,
+    subject: "তানহা ফ্যাশন - টু-ফ্যাক্টর অথেন্টিকেশন (2FA) কোড",
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
+        <h2 style="color: #9f1239; text-align: center;">লগইন ভেরিফিকেশন কোড (2FA)</h2>
+        <p>আপনার তানহা ফ্যাশন অ্যাডমিন অ্যাকাউন্টে লগইন করতে নিচের ৬-ডিজিটের নিরাপত্তা কোডটি (OTP) ব্যবহার করুন:</p>
+        <div style="background-color: #f8fafc; border: 1px dashed #cbd5e1; padding: 15px; text-align: center; font-size: 24px; font-weight: bold; letter-spacing: 5px; color: #0f172a; margin: 20px 0;">
+          ${otp}
+        </div>
+        <p style="color: #64748b; font-size: 12px; text-align: center; margin-top: 30px;">
+          এই নিরাপত্তা কোডটির মেয়াদ ৫ মিনিট। আপনি যদি লগইন করার চেষ্টা না করে থাকেন, তবে অবিলম্বে আপনার পাসওয়ার্ড পরিবর্তন করুন।
+        </p>
+      </div>
+    `
+  };
+
+  await mailTransport.sendMail(mailOptions);
+};
+
 const PORT = process.env.PORT || 5000;
 const JWT_SECRET = process.env.JWT_SECRET || (() => {
   if (process.env.NODE_ENV === "production") {
@@ -192,6 +250,7 @@ app.post("/api/auth/register", async (req, res) => {
       return res.status(400).json({ error: "এই ইমেইল দিয়ে ইতিমধ্যে অ্যাকাউন্ট তৈরি করা আছে।" });
     }
 
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const hashedPassword = await bcrypt.hash(password, 10);
     const user = await prisma.user.create({
       data: {
@@ -199,12 +258,20 @@ app.post("/api/auth/register", async (req, res) => {
         password: hashedPassword,
         name: name.trim(),
         phone: phone ? phone.trim() : null,
-        role: "CUSTOMER"
+        role: "CUSTOMER",
+        isVerified: false,
+        verificationToken: otp
       }
     });
 
+    try {
+      await sendOtpEmail(user.email, otp);
+    } catch (mailErr: any) {
+      console.error("Failed to send registration verification email:", mailErr.message);
+    }
+
     res.status(201).json({
-      message: "অ্যাকাউন্ট সফলভাবে তৈরি হয়েছে।",
+      message: "অ্যাকাউন্ট সফলভাবে তৈরি হয়েছে। আপনার ইমেলে ওটিপি পাঠানো হয়েছে।",
       user: { id: user.id, email: user.email, name: user.name, role: user.role }
     });
   } catch (err: any) {
@@ -228,6 +295,39 @@ app.post("/api/auth/login", async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(400).json({ error: "ভুল ইমেইল বা পাসওয়ার্ড।" });
+    }
+
+    if (!user.isVerified) {
+      return res.status(403).json({ error: "email_unverified", message: "দয়া করে আপনার ইমেল ভেরিফাই করুন।" });
+    }
+
+    if (user.twoFactorEnabled) {
+      const tempToken = jwt.sign(
+        { id: user.id, isTemp: true },
+        JWT_SECRET,
+        { expiresIn: "5m" }
+      );
+
+      if (user.twoFactorType === "EMAIL") {
+        const code = Math.floor(100000 + Math.random() * 900000).toString();
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { twoFactorTempCode: code }
+        });
+
+        try {
+          await send2faEmail(user.email, code);
+        } catch (mailErr: any) {
+          console.error("Login 2FA Email send failed:", mailErr.message);
+          return res.status(500).json({ error: "2FA ইমেল পাঠাতে ব্যর্থ হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।" });
+        }
+      }
+
+      return res.json({
+        status: "two_factor_required",
+        twoFactorType: user.twoFactorType,
+        tempToken
+      });
     }
 
 
@@ -276,6 +376,305 @@ app.post("/api/auth/logout", (req, res) => {
   });
   res.json({ message: "লগআউট সফল হয়েছে।" });
 });
+
+// D. Verify Email OTP
+app.post("/api/auth/verify-email", async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    if (!email || !otp) {
+      return res.status(400).json({ error: "ইমেইল এবং ওটিপি (OTP) আবশ্যক।" });
+    }
+
+    const user = await prisma.user.findUnique({ where: { email: email.toLowerCase().trim() } });
+    if (!user) {
+      return res.status(400).json({ error: "কোনো ইউজার পাওয়া যায়নি।" });
+    }
+
+    if (user.isVerified) {
+      return res.status(200).json({ message: "অ্যাকাউন্ট ইতিমধ্যে ভেরিফাই করা আছে।" });
+    }
+
+    if (user.verificationToken !== otp.trim()) {
+      return res.status(400).json({ error: "ভুল ওটিপি কোড।" });
+    }
+
+    // Verify user
+    const updatedUser = await prisma.user.update({
+      where: { id: user.id },
+      data: { isVerified: true, verificationToken: null }
+    });
+
+    // Auto-login: Sign token
+    const token = jwt.sign(
+      { id: updatedUser.id, email: updatedUser.email, role: updatedUser.role, name: updatedUser.name, branchId: updatedUser.branchId, allowedModules: updatedUser.allowedModules },
+      JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    // Set cookie
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+    });
+
+    res.json({
+      message: "আপনার অ্যাকাউন্ট সফলভাবে ভেরিফাই করা হয়েছে এবং লগইন সম্পন্ন হয়েছে।",
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        name: updatedUser.name,
+        role: updatedUser.role,
+        branchId: updatedUser.branchId,
+        allowedModules: updatedUser.allowedModules,
+        phone: updatedUser.phone,
+        address: updatedUser.address,
+        city: updatedUser.city,
+        postcode: updatedUser.postcode
+      }
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: "ভেরিফিকেশন ব্যর্থ হয়েছে: " + err.message });
+  }
+});
+
+// E. Resend Verification OTP
+app.post("/api/auth/resend-verification", async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ error: "ইমেইল আবশ্যক।" });
+    }
+
+    const user = await prisma.user.findUnique({ where: { email: email.toLowerCase().trim() } });
+    if (!user) {
+      return res.status(400).json({ error: "কোনো ইউজার পাওয়া যায়নি।" });
+    }
+
+    if (user.isVerified) {
+      return res.status(400).json({ error: "অ্যাকাউন্ট ইতিমধ্যে ভেরিফাই করা আছে।" });
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { verificationToken: otp }
+    });
+
+    try {
+      await sendOtpEmail(user.email, otp);
+    } catch (mailErr: any) {
+      console.error("Failed to send verification email:", mailErr.message);
+      return res.status(500).json({ error: "ভেরিফিকেশন ইমেল পাঠাতে ব্যর্থ হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।" });
+    }
+
+    res.json({ message: "আপনার ইমেলে নতুন ওটিপি (OTP) পাঠানো হয়েছে।" });
+  } catch (err: any) {
+    res.status(500).json({ error: "ওটিপি পাঠাতে ব্যর্থ হয়েছে: " + err.message });
+  }
+});
+
+// F. Setup 2FA
+app.post("/api/auth/2fa/setup", authenticateToken, async (req: any, res: any) => {
+  try {
+    const { type } = req.body;
+    if (!type || (type !== "EMAIL" && type !== "TOTP")) {
+      return res.status(400).json({ error: "সঠিক টু-ফ্যাক্টর টাইপ দিন (EMAIL বা TOTP)।" });
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+    if (!user) {
+      return res.status(404).json({ error: "ইউজার পাওয়া যায়নি।" });
+    }
+
+    if (type === "TOTP") {
+      const secret = generateSecret();
+      const otpauthurl = generateURI({ secret, label: user.email, issuer: "Tanha Fashion" });
+      const qrImage = await qrcode.toDataURL(otpauthurl);
+
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { twoFactorSecret: secret, twoFactorType: "TOTP" }
+      });
+
+      return res.json({
+        type: "TOTP",
+        secret,
+        qrImage
+      });
+    } else {
+      const code = Math.floor(100000 + Math.random() * 900000).toString();
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { twoFactorTempCode: code, twoFactorType: "EMAIL" }
+      });
+
+      try {
+        await send2faEmail(user.email, code);
+      } catch (mailErr: any) {
+        console.error("2FA Setup email failed:", mailErr.message);
+        return res.status(500).json({ error: "ইমেইল পাঠাতে ব্যর্থ হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।" });
+      }
+
+      return res.json({
+        type: "EMAIL",
+        message: "আপনার ইমেলে একটি নিরাপত্তা কোড পাঠানো হয়েছে।"
+      });
+    }
+  } catch (err: any) {
+    res.status(500).json({ error: "2FA সেটাপ ব্যর্থ হয়েছে: " + err.message });
+  }
+});
+
+// G. Enable 2FA (Verifies test code and activates it)
+app.post("/api/auth/2fa/enable", authenticateToken, async (req: any, res: any) => {
+  try {
+    const { code } = req.body;
+    if (!code) {
+      return res.status(400).json({ error: "নিরাপত্তা কোড আবশ্যক।" });
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+    if (!user || !user.twoFactorType) {
+      return res.status(400).json({ error: "আগে ২এফএ সেটাপ প্রসেস সম্পন্ন করুন।" });
+    }
+
+    let isVerified = false;
+    if (user.twoFactorType === "TOTP") {
+      if (!user.twoFactorSecret) {
+        return res.status(400).json({ error: "কোনো সিক্রেট কি পাওয়া যায়নি।" });
+      }
+      isVerified = verifySync({
+        token: code.trim(),
+        secret: user.twoFactorSecret
+      }).valid;
+    } else if (user.twoFactorType === "EMAIL") {
+      isVerified = user.twoFactorTempCode === code.trim();
+    }
+
+    if (!isVerified) {
+      return res.status(400).json({ error: "ভুল নিরাপত্তা কোড। অনুগ্রহ করে আবার চেষ্টা করুন।" });
+    }
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        twoFactorEnabled: true,
+        twoFactorTempCode: null
+      }
+    });
+
+    res.json({ message: "টু-ফ্যাক্টর অথেন্টিকেশন (2FA) সফলভাবে চালু হয়েছে।" });
+  } catch (err: any) {
+    res.status(500).json({ error: "2FA ভেরিফিকেশন ব্যর্থ হয়েছে: " + err.message });
+  }
+});
+
+// H. Disable 2FA
+app.post("/api/auth/2fa/disable", authenticateToken, async (req: any, res: any) => {
+  try {
+    const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+    if (!user) {
+      return res.status(404).json({ error: "ইউজার পাওয়া যায়নি।" });
+    }
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        twoFactorEnabled: false,
+        twoFactorType: "NONE",
+        twoFactorSecret: null,
+        twoFactorTempCode: null
+      }
+    });
+
+    res.json({ message: "টু-ফ্যাক্টর অথেন্টিকেশন (2FA) সফলভাবে বন্ধ করা হয়েছে।" });
+  } catch (err: any) {
+    res.status(500).json({ error: "2FA বন্ধ করা ব্যর্থ হয়েছে: " + err.message });
+  }
+});
+
+// I. Verify 2FA (Handles login completion)
+app.post("/api/auth/verify-2fa", async (req, res) => {
+  try {
+    const { tempToken, code } = req.body;
+    if (!tempToken || !code) {
+      return res.status(400).json({ error: "টেম্পোরারি টোকেন এবং নিরাপত্তা কোড আবশ্যক।" });
+    }
+
+    let decoded: any;
+    try {
+      decoded = jwt.verify(tempToken, JWT_SECRET);
+    } catch (err) {
+      return res.status(401).json({ error: "সেশন শেষ হয়েছে, অনুগ্রহ করে আবার পাসওয়ার্ড দিয়ে লগইন করুন।" });
+    }
+
+    if (!decoded.isTemp) {
+      return res.status(400).json({ error: "ভুল বা অবৈধ অনুরোধ।" });
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: decoded.id } });
+    if (!user) {
+      return res.status(400).json({ error: "ইউজার পাওয়া যায়নি।" });
+    }
+
+    let isVerified = false;
+    if (user.twoFactorType === "TOTP") {
+      if (!user.twoFactorSecret) {
+        return res.status(400).json({ error: "কোনো ২এফএ সিক্রেট পাওয়া যায়নি।" });
+      }
+      isVerified = verifySync({
+        token: code.trim(),
+        secret: user.twoFactorSecret
+      }).valid;
+    } else if (user.twoFactorType === "EMAIL") {
+      isVerified = user.twoFactorTempCode === code.trim();
+    }
+
+    if (!isVerified) {
+      return res.status(400).json({ error: "ভুল নিরাপত্তা কোড।" });
+    }
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { twoFactorTempCode: null }
+    });
+
+    const token = jwt.sign(
+      { id: user.id, email: user.email, role: user.role, name: user.name, branchId: user.branchId, allowedModules: user.allowedModules },
+      JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+    });
+
+    res.json({
+      message: "২এফএ যাচাই সফল হয়েছে। লগইন সম্পন্ন হয়েছে।",
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        branchId: user.branchId,
+        allowedModules: user.allowedModules,
+        phone: user.phone,
+        address: user.address,
+        city: user.city,
+        postcode: user.postcode
+      }
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: "২এফএ ভেরিফিকেশন ব্যর্থ হয়েছে: " + err.message });
+  }
+});
+
+
 
 // D. Get Current User Session context
 app.get("/api/auth/me", async (req, res) => {

@@ -20,6 +20,7 @@ import ActivityLogsTab from "@/components/admin/ActivityLogsTab";
 import StaffTab from "@/components/admin/StaffTab";
 import ShowroomsTab from "@/components/admin/ShowroomsTab";
 import CustomersTab from "@/components/admin/CustomersTab";
+import SecurityTab from "@/components/admin/SecurityTab";
 import ToastNotification from "@/components/overlays/ToastNotification";
 
 const DEFAULT_CATEGORIES = [
@@ -42,7 +43,7 @@ export default function AdminPage() {
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
   // Navigation State
-  const [activeTab, setActiveTab] = useState<"dashboard" | "orders" | "products" | "reviews" | "categories" | "coupons" | "faqs" | "announcements" | "newsletters" | "activity-logs" | "staff" | "showrooms" | "customers">("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "orders" | "products" | "reviews" | "categories" | "coupons" | "faqs" | "announcements" | "newsletters" | "activity-logs" | "staff" | "showrooms" | "customers" | "security-2fa">("dashboard");
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   // Staff and Branch States
@@ -1079,6 +1080,10 @@ export default function AdminPage() {
               onRefresh={fetchData}
               isLoading={isLoading}
             />
+          )}
+
+          {activeTab === "security-2fa" && (
+            <SecurityTab showToast={showToast} />
           )}
           </main>
         </div>

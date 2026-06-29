@@ -12,12 +12,20 @@ export interface UserProfile {
   city?: string;
   postcode?: string;
   createdAt?: string;
+  twoFactorEnabled?: boolean;
+  twoFactorType?: string;
 }
 
 interface AuthContextType {
   user: UserProfile | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<{ success: boolean; message?: string }>;
+  login: (email: string, password: string) => Promise<{
+    success: boolean;
+    message?: string;
+    isTwoFactorRequired?: boolean;
+    twoFactorType?: "EMAIL" | "TOTP";
+    tempToken?: string;
+  }>;
   register: (name: string, email: string, phone: string, password: string) => Promise<{ success: boolean; message?: string }>;
   logout: () => Promise<void>;
   updateProfile: (profileData: Partial<UserProfile> & { currentPassword?: string; newPassword?: string }) => Promise<{ success: boolean; message?: string }>;
@@ -64,9 +72,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         credentials: "include"
       });
       const data = await res.json();
-      if (res.ok && data.user) {
-        setUser(data.user);
-        return { success: true, message: data.message };
+      if (res.ok) {
+        if (data.status === "two_factor_required") {
+          return {
+            success: false,
+            isTwoFactorRequired: true,
+            twoFactorType: data.twoFactorType,
+            tempToken: data.tempToken
+          };
+        }
+        if (data.user) {
+          setUser(data.user);
+          return { success: true, message: data.message };
+        }
       }
       return { success: false, message: data.error || "লগইন ব্যর্থ হয়েছে।" };
     } catch (e) {

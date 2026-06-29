@@ -21,8 +21,8 @@ import {
 import { toBanglaNumber } from "@/lib/products";
 
 interface SidebarProps {
-  activeTab: "dashboard" | "orders" | "products" | "reviews" | "categories" | "coupons" | "faqs" | "announcements" | "newsletters" | "activity-logs" | "staff" | "showrooms" | "customers";
-  setActiveTab: (tab: "dashboard" | "orders" | "products" | "reviews" | "categories" | "coupons" | "faqs" | "announcements" | "newsletters" | "activity-logs" | "staff" | "showrooms" | "customers") => void;
+  activeTab: "dashboard" | "orders" | "products" | "reviews" | "categories" | "coupons" | "faqs" | "announcements" | "newsletters" | "activity-logs" | "staff" | "showrooms" | "customers" | "security-2fa";
+  setActiveTab: (tab: "dashboard" | "orders" | "products" | "reviews" | "categories" | "coupons" | "faqs" | "announcements" | "newsletters" | "activity-logs" | "staff" | "showrooms" | "customers" | "security-2fa") => void;
   ordersCount: number;
   productsCount: number;
   reviewsCount: number;
@@ -102,6 +102,12 @@ export default function AdminSidebar({
         { id: "showrooms", label: "শোরুম আউটলেট সমূহ", icon: <Store size={16} /> },
         { id: "staff", label: "কর্মী ব্যবস্থাপনা", icon: <User size={16} /> },
         { id: "activity-logs", label: "অ্যাক্টিভিটি লগ", icon: <Activity size={16} /> },
+      ]
+    },
+    {
+      title: "সেটিংস ও নিরাপত্তা",
+      items: [
+        { id: "security-2fa", label: "২এফএ নিরাপত্তা সেটিংস", icon: <ShieldCheck size={16} /> }
       ]
     }
   ];
