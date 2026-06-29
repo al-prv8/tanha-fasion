@@ -52,7 +52,7 @@ async function fetchProduct(id: string) {
           sizePricesJson: dbProd.sizePricesJson,
           title: localProduct ? localProduct.title : `${dbProd.name} — তানহা ফ্যাশন`,
           desc: localProduct ? localProduct.desc : `${dbProd.name} - Premium Quality Collection.`,
-          tag: totalStock === 0 ? "স্টক শেষ" : (localProduct ? localProduct.tag : "নতুন")
+          tag: totalStock === 0 ? "স্টক শেষ" : (dbProd.tag || (localProduct ? localProduct.tag : "নতুন"))
         };
       }
     }

@@ -1052,6 +1052,14 @@ app.post("/api/seed", async (req, res) => {
       const discountPct = 15 + (parseInt(p.id) % 3) * 5; // 15%, 20%, or 25% discount
       const originalPrice = Math.round((p.price / (1 - (discountPct / 100))) / 10) * 10;
 
+      // Determine seed tag dynamically to make it realistic
+      let tag = "নতুন";
+      const idNum = parseInt(p.id);
+      if (idNum % 5 === 0) tag = "সীমিত স্টক";
+      else if (idNum % 4 === 0) tag = "জনপ্রিয়";
+      else if (idNum % 3 === 0) tag = "সেরা মূল্য";
+      else if (idNum % 2 === 0) tag = "হট ডিল";
+
       // Define size-specific prices centered around base price
       const isCheap = p.price < 2000;
       const step = isCheap ? 50 : 100;
@@ -1070,6 +1078,7 @@ app.post("/api/seed", async (req, res) => {
           name: p.name,
           price: p.price,
           originalPrice: originalPrice,
+          tag: tag,
           sizePricesJson: sizePricesJson,
           category: p.category,
           imgUrl: p.imgUrl,
@@ -2264,7 +2273,7 @@ app.put("/api/orders/:id", authenticateToken, requireRole(["ADMIN"]), async (req
 // 10. Create Product Route
 app.post("/api/products", authenticateToken, requireRole(["ADMIN"]), async (req, res) => {
   try {
-    const { sku, name, price, originalPrice, category, imgUrl, sizesJson, showroomSizesJson, sizePricesJson } = req.body;
+    const { sku, name, price, originalPrice, tag, category, imgUrl, sizesJson, showroomSizesJson, sizePricesJson } = req.body;
 
     if (!sku || !name || !price || !category || !imgUrl) {
       return res.status(400).json({ error: "Missing required product fields" });
@@ -2282,6 +2291,7 @@ app.post("/api/products", authenticateToken, requireRole(["ADMIN"]), async (req,
         name,
         price: Number(price),
         originalPrice: originalPrice ? Number(originalPrice) : null,
+        tag: tag || null,
         category,
         imgUrl,
         sizesJson: sizesJson || '{"S":10,"M":15,"L":15,"XL":5}',
@@ -2300,14 +2310,14 @@ app.post("/api/products", authenticateToken, requireRole(["ADMIN"]), async (req,
 app.put("/api/products/:id", authenticateToken, requireRole(["SUPER_ADMIN", "BRANCH_MANAGER"]), async (req: any, res: any) => {
   try {
     const { id } = req.params;
-    const { name, price, originalPrice, category, imgUrl, sizesJson, showroomSizesJson, sizePricesJson } = req.body;
+    const { name, price, originalPrice, tag, category, imgUrl, sizesJson, showroomSizesJson, sizePricesJson } = req.body;
     let branchId = req.body.branchId || null;
 
     const userRole = req.user.role === "ADMIN" ? "SUPER_ADMIN" : req.user.role;
 
     if (userRole === "BRANCH_MANAGER") {
       // Branch manager can ONLY update showroom stock (showroomSizesJson)
-      if (name || price || originalPrice !== undefined || category || imgUrl || sizesJson || sizePricesJson) {
+      if (name || price || originalPrice !== undefined || tag !== undefined || category || imgUrl || sizesJson || sizePricesJson) {
         return res.status(403).json({ error: "আপনার এই পণ্য তথ্য পরিবর্তন করার অনুমতি নেই।" });
       }
       if (!req.user.branchId) {
@@ -2353,6 +2363,7 @@ app.put("/api/products/:id", authenticateToken, requireRole(["SUPER_ADMIN", "BRA
         ...(name && { name }),
         ...(price && { price: Number(price) }),
         ...(originalPrice !== undefined && { originalPrice: originalPrice ? Number(originalPrice) : null }),
+        ...(tag !== undefined && { tag: tag || null }),
         ...(category && { category }),
         ...(imgUrl && { imgUrl }),
         ...(sizesJson && { sizesJson }),

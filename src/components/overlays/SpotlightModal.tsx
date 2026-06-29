@@ -100,11 +100,10 @@ export default function SpotlightModal({
                         }
                       } catch (e) {}
                     }
-                    if (prod.originalPrice && prod.originalPrice > prod.price) {
-                      const activeOriginalPrice = Math.round(activePrice * (prod.originalPrice / prod.price));
+                    if (prod.originalPrice && prod.originalPrice > activePrice) {
                       return (
                         <span className="text-xs text-muted-foreground line-through decoration-red-500 font-medium">
-                          {formatBanglaPriceWithCommas(activeOriginalPrice)}
+                          {formatBanglaPriceWithCommas(prod.originalPrice)}
                         </span>
                       );
                     }

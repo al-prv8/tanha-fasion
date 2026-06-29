@@ -108,7 +108,7 @@ export default function HomeClient() {
               sizesJson: p.sizesJson,
               sizePricesJson: p.sizePricesJson,
               desc: `${p.name} - Premium Quality Collection.`,
-              tag: totalStock === 0 ? "স্টক শেষ" : "নতুন"
+              tag: totalStock === 0 ? "স্টক শেষ" : (p.tag || "নতুন")
             };
           });
           setProductsList(mapped);

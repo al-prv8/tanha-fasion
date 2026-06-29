@@ -47,6 +47,7 @@ function CategoriesContent() {
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<"default" | "price-asc" | "price-desc">("default");
   const [inStockOnly, setInStockOnly] = useState(false);
+  const [discountOnly, setDiscountOnly] = useState(false);
 
   // Size Picker States for individual cards
   const [cardSizes, setCardSizes] = useState<{ [productId: string]: string }>({});
@@ -137,7 +138,7 @@ function CategoriesContent() {
               sizesJson: p.sizesJson,
               sizePricesJson: p.sizePricesJson,
               desc: `${p.name} - Premium Quality Collection.`,
-              tag: totalStock === 0 ? "স্টক শেষ" : "নতুন"
+              tag: totalStock === 0 ? "স্টক শেষ" : (p.tag || "নতুন")
             };
           });
           setProductsList(mapped);
@@ -221,7 +222,10 @@ function CategoriesContent() {
     // 4. In-stock filter
     const matchesStock = !inStockOnly || p.tag !== 'স্টক শেষ';
 
-    return matchesCategory && matchesSize && matchesSearch && matchesStock;
+    // 5. Discount filter
+    const matchesDiscount = !discountOnly || (!!p.originalPrice && p.originalPrice > p.price);
+
+    return matchesCategory && matchesSize && matchesSearch && matchesStock && matchesDiscount;
   });
 
   // Sort
@@ -357,6 +361,20 @@ function CategoriesContent() {
               </label>
             </div>
 
+            {/* Offer/Discount Only Toggle - Desktop */}
+            <div>
+              <h4 className="text-xs font-black uppercase tracking-wider text-primary border-b border-border/60 pb-2 mb-3">বিশেষ অফার</h4>
+              <label className="flex items-center justify-between cursor-pointer py-1.5">
+                <span className="text-xs font-bold text-foreground">শুধু ডিসকাউন্ট আছে</span>
+                <div className="relative">
+                  <input type="checkbox" className="sr-only" checked={discountOnly} onChange={(e) => setDiscountOnly(e.target.checked)} />
+                  <div className={`w-10 h-5 rounded-full transition-colors duration-300 ${discountOnly ? 'bg-primary' : 'bg-slate-200'}`}>
+                    <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-300 ${discountOnly ? 'translate-x-5' : 'translate-x-0'}`} />
+                  </div>
+                </div>
+              </label>
+            </div>
+
             {/* Sorting */}
             <div>
               <h4 className="text-xs font-black uppercase tracking-wider text-primary border-b border-border/60 pb-2 mb-3">মূল্য ক্রমানুসার</h4>
@@ -436,6 +454,20 @@ function CategoriesContent() {
                   </div>
                 </label>
               </div>
+
+              {/* Offer/Discount Only Toggle - Mobile */}
+              <div>
+                <span className="text-[10px] font-black uppercase tracking-wider text-primary block mb-2">বিশেষ অফার</span>
+                <label className="flex items-center justify-between cursor-pointer py-1.5">
+                  <span className="text-xs font-bold text-foreground">শুধু ডিসকাউন্ট আছে</span>
+                  <div className="relative">
+                    <input type="checkbox" className="sr-only" checked={discountOnly} onChange={(e) => setDiscountOnly(e.target.checked)} />
+                    <div className={`w-10 h-5 rounded-full transition-colors duration-300 ${discountOnly ? 'bg-primary' : 'bg-slate-200'}`}>
+                      <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-300 ${discountOnly ? 'translate-x-5' : 'translate-x-0'}`} />
+                    </div>
+                  </div>
+                </label>
+              </div>
             </div>
           )}
 
@@ -448,7 +480,7 @@ function CategoriesContent() {
                 <span className="font-black text-foreground text-sm">{toBanglaNumber(sortedProducts.length)}</span>টি পোশাক পাওয়া গেছে
                 {sortedProducts.length !== productsList.length && (
                   <button
-                    onClick={() => { setSelectedCategory('ALL'); setSelectedSize(null); setInStockOnly(false); setSortBy('default'); }}
+                    onClick={() => { setSelectedCategory('ALL'); setSelectedSize(null); setInStockOnly(false); setDiscountOnly(false); setSortBy('default'); }}
                     className="ml-3 text-primary hover:underline font-bold cursor-pointer"
                   >
                     সব দেখুন
@@ -473,6 +505,12 @@ function CategoriesContent() {
                   <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-black px-2.5 py-1 rounded-full">
                     স্টকে আছে
                     <button onClick={() => setInStockOnly(false)} className="ml-0.5 hover:text-emerald-600 cursor-pointer border-none bg-transparent p-0">×</button>
+                  </span>
+                )}
+                {discountOnly && (
+                  <span className="inline-flex items-center gap-1 bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-black px-2.5 py-1 rounded-full">
+                    ডিসকাউন্ট অফার
+                    <button onClick={() => setDiscountOnly(false)} className="ml-0.5 hover:text-rose-600 cursor-pointer border-none bg-transparent p-0">×</button>
                   </span>
                 )}
                 {sortBy !== 'default' && (
@@ -508,7 +546,7 @@ function CategoriesContent() {
                   <p className="text-xs text-muted-foreground mt-1 max-w-xs">আপনার ফিল্টার পরিবর্তন করুন অথবা সব পোশাক ব্রাউজ করুন।</p>
                 </div>
                 <button
-                  onClick={() => { setSelectedCategory('ALL'); setSelectedSize(null); setInStockOnly(false); setSortBy('default'); }}
+                  onClick={() => { setSelectedCategory('ALL'); setSelectedSize(null); setInStockOnly(false); setDiscountOnly(false); setSortBy('default'); }}
                   className="mt-2 py-2.5 px-6 bg-primary text-white text-xs font-bold rounded-full cursor-pointer border-none hover:bg-primary/90 transition-colors"
                 >
                   সব পোশাক দেখুন
@@ -626,11 +664,10 @@ function CategoriesContent() {
                                     }
                                   } catch (e) {}
                                 }
-                                if (p.originalPrice && p.originalPrice > p.price) {
-                                  const activeOriginalPrice = Math.round(activePrice * (p.originalPrice / p.price));
+                                if (p.originalPrice && p.originalPrice > activePrice) {
                                   return (
                                     <span className="text-[10px] sm:text-xs text-muted-foreground line-through decoration-red-500 font-medium">
-                                      {formatBanglaPriceWithCommas(activeOriginalPrice)}
+                                      {formatBanglaPriceWithCommas(p.originalPrice)}
                                     </span>
                                   );
                                 }

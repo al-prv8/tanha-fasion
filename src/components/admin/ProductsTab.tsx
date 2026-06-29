@@ -28,6 +28,7 @@ interface ProductsTabProps {
     name: string;
     price: string;
     originalPrice: string;
+    tag: string;
     category: string;
     imgUrl: string;
     sizesJson: string;
@@ -38,6 +39,7 @@ interface ProductsTabProps {
     name: string;
     price: string;
     originalPrice: string;
+    tag: string;
     category: string;
     imgUrl: string;
     sizesJson: string;
@@ -475,6 +477,7 @@ export default function ProductsTab({
                 name: "",
                 price: "",
                 originalPrice: "",
+                tag: "",
                 category: CATEGORIES[0] || "",
                 imgUrl: "/assets/cotton_1.png",
                 sizesJson: '{"S":10,"M":15,"L":15,"XL":5}',
@@ -547,6 +550,17 @@ export default function ProductsTab({
                     className="w-full px-3 py-2 border border-border bg-secondary/30 focus:bg-white rounded-lg text-foreground focus:outline-none focus:border-primary transition-all"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-muted-foreground mb-1">পণ্য ট্যাগ (যেমন: নতুন, জনপ্রিয়, হট ডিল - ঐচ্ছিক)</label>
+                <input 
+                  type="text" 
+                  placeholder="যেমন: নতুন"
+                  value={productForm.tag}
+                  onChange={(e) => setProductForm(prev => ({ ...prev, tag: e.target.value }))}
+                  className="w-full px-3 py-2 border border-border bg-secondary/30 focus:bg-white rounded-lg text-foreground focus:outline-none focus:border-primary transition-all"
+                />
               </div>
 
               <div>
@@ -1068,6 +1082,16 @@ export default function ProductsTab({
                                           className="w-full px-2.5 py-1.5 border border-border bg-slate-50 focus:bg-white rounded-lg text-foreground focus:outline-none focus:border-primary"
                                         />
                                       </div>
+                                    </div>
+
+                                    <div>
+                                      <label className="block text-muted-foreground mb-1">পণ্য ট্যাগ (যেমন: নতুন, জনপ্রিয়, হট ডিল - ঐচ্ছিক)</label>
+                                      <input 
+                                        type="text" 
+                                        value={productForm.tag}
+                                        onChange={(e) => setProductForm(prev => ({ ...prev, tag: e.target.value }))}
+                                        className="w-full px-2.5 py-1.5 border border-border bg-slate-50 focus:bg-white rounded-lg text-foreground focus:outline-none focus:border-primary"
+                                      />
                                     </div>
 
                                     <div>

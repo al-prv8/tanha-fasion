@@ -310,14 +310,10 @@ export default function ProductDetailClient({ product }: { product: Product }) {
   const activePriceDisplay = formatBanglaPriceWithCommas(activePrice);
 
   // Dynamic calculations for originalPrice and discountPercent
-  const hasDiscount = !!product.originalPrice && product.originalPrice > product.price;
+  const originalPrice = product.originalPrice || 0;
+  const hasDiscount = !!product.originalPrice && product.originalPrice > activePrice;
   const discountPercent = hasDiscount 
-    ? Math.round((1 - (product.price / (product.originalPrice || 1))) * 100) 
-    : 0;
-
-  // Scale the original price crossed-out display dynamically for selected size using the base price ratio
-  const originalPrice = hasDiscount
-    ? Math.round(activePrice * ((product.originalPrice || 0) / product.price))
+    ? Math.round((1 - (activePrice / originalPrice)) * 100) 
     : 0;
   const discountPercentStr = toBanglaNumber(discountPercent);
 
@@ -486,7 +482,6 @@ export default function ProductDetailClient({ product }: { product: Product }) {
                     </span>
                   )}
                 </div>
-                <p className="text-[10px] text-muted-foreground mt-0.5">ভ্যাট ও ট্যাক্স অন্তর্ভুক্ত</p>
               </div>
               {hasDiscount && (
                 <div className="bg-primary/10 border border-primary/20 text-primary py-1.5 px-4 rounded-full text-xs font-extrabold uppercase tracking-wide">

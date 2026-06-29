@@ -225,11 +225,10 @@ export default function CategoryShowcase({
                               }
                             } catch (e) {}
                           }
-                          if (p.originalPrice && p.originalPrice > p.price) {
-                            const activeOriginalPrice = Math.round(activePrice * (p.originalPrice / p.price));
+                          if (p.originalPrice && p.originalPrice > activePrice) {
                             return (
                               <span className="text-[10px] sm:text-xs text-muted-foreground line-through decoration-red-500 font-medium">
-                                {formatBanglaPriceWithCommas(activeOriginalPrice)}
+                                {formatBanglaPriceWithCommas(p.originalPrice)}
                               </span>
                             );
                           }
