@@ -43,6 +43,7 @@ async function fetchProduct(id: string) {
           sku: dbProd.sku,
           name: dbProd.name,
           price: dbProd.price,
+          originalPrice: dbProd.originalPrice,
           priceDisplay: `৳ ${formattedPrice}`,
           loc: dbProd.category,
           img: { src: dbProd.imgUrl },

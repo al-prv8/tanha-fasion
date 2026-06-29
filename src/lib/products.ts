@@ -42,6 +42,7 @@ export interface Product {
   sizes: string[];
   sizesJson?: string;
   sizePricesJson?: string;
+  originalPrice?: number | null;
 }
 
 export const PRODUCTS: Product[] = [

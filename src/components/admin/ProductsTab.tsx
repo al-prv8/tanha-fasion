@@ -27,6 +27,7 @@ interface ProductsTabProps {
     sku: string;
     name: string;
     price: string;
+    originalPrice: string;
     category: string;
     imgUrl: string;
     sizesJson: string;
@@ -36,6 +37,7 @@ interface ProductsTabProps {
     sku: string;
     name: string;
     price: string;
+    originalPrice: string;
     category: string;
     imgUrl: string;
     sizesJson: string;
@@ -472,6 +474,7 @@ export default function ProductsTab({
                 sku: "",
                 name: "",
                 price: "",
+                originalPrice: "",
                 category: CATEGORIES[0] || "",
                 imgUrl: "/assets/cotton_1.png",
                 sizesJson: '{"S":10,"M":15,"L":15,"XL":5}',
@@ -522,16 +525,28 @@ export default function ProductsTab({
                 />
               </div>
 
-              <div>
-                <label className="block text-muted-foreground mb-1">মূল্য (৳) *</label>
-                <input 
-                  type="number" 
-                  required
-                  placeholder="৳"
-                  value={productForm.price}
-                  onChange={(e) => setProductForm(prev => ({ ...prev, price: e.target.value }))}
-                  className="w-full px-3 py-2 border border-border bg-secondary/30 focus:bg-white rounded-lg text-foreground focus:outline-none focus:border-primary transition-all"
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-muted-foreground mb-1">বিক্রয় মূল্য (৳) *</label>
+                  <input 
+                    type="number" 
+                    required
+                    placeholder="৳"
+                    value={productForm.price}
+                    onChange={(e) => setProductForm(prev => ({ ...prev, price: e.target.value }))}
+                    className="w-full px-3 py-2 border border-border bg-secondary/30 focus:bg-white rounded-lg text-foreground focus:outline-none focus:border-primary transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-muted-foreground mb-1">নিয়মিত মূল্য (৳ - ঐচ্ছিক)</label>
+                  <input 
+                    type="number" 
+                    placeholder="৳"
+                    value={productForm.originalPrice}
+                    onChange={(e) => setProductForm(prev => ({ ...prev, originalPrice: e.target.value }))}
+                    className="w-full px-3 py-2 border border-border bg-secondary/30 focus:bg-white rounded-lg text-foreground focus:outline-none focus:border-primary transition-all"
+                  />
+                </div>
               </div>
 
               <div>
@@ -1033,15 +1048,26 @@ export default function ProductsTab({
                                       />
                                     </div>
 
-                                    <div>
-                                      <label className="block text-muted-foreground mb-1">মূল্য (৳) *</label>
-                                      <input 
-                                        type="number" 
-                                        required
-                                        value={productForm.price}
-                                        onChange={(e) => setProductForm(prev => ({ ...prev, price: e.target.value }))}
-                                        className="w-full px-2.5 py-1.5 border border-border bg-slate-50 focus:bg-white rounded-lg text-foreground focus:outline-none focus:border-primary"
-                                      />
+                                    <div className="grid grid-cols-2 gap-3">
+                                      <div>
+                                        <label className="block text-muted-foreground mb-1">বিক্রয় মূল্য (৳) *</label>
+                                        <input 
+                                          type="number" 
+                                          required
+                                          value={productForm.price}
+                                          onChange={(e) => setProductForm(prev => ({ ...prev, price: e.target.value }))}
+                                          className="w-full px-2.5 py-1.5 border border-border bg-slate-50 focus:bg-white rounded-lg text-foreground focus:outline-none focus:border-primary"
+                                        />
+                                      </div>
+                                      <div>
+                                        <label className="block text-muted-foreground mb-1">নিয়মিত মূল্য (৳)</label>
+                                        <input 
+                                          type="number" 
+                                          value={productForm.originalPrice}
+                                          onChange={(e) => setProductForm(prev => ({ ...prev, originalPrice: e.target.value }))}
+                                          className="w-full px-2.5 py-1.5 border border-border bg-slate-50 focus:bg-white rounded-lg text-foreground focus:outline-none focus:border-primary"
+                                        />
+                                      </div>
                                     </div>
 
                                     <div>

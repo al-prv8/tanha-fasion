@@ -305,8 +305,18 @@ export default function ProductDetailClient({ product }: { product: Product }) {
 
   const activePrice = getPriceForSize(selectedSize);
   const activePriceDisplay = formatBanglaPriceWithCommas(activePrice);
-  const originalPrice = Math.round(activePrice * 1.25);
-  const discountPercentStr = toBanglaNumber(20);
+
+  // Dynamic calculations for originalPrice and discountPercent
+  const hasDiscount = !!product.originalPrice && product.originalPrice > product.price;
+  const discountPercent = hasDiscount 
+    ? Math.round((1 - (product.price / (product.originalPrice || 1))) * 100) 
+    : 0;
+
+  // Scale the original price crossed-out display dynamically for selected size using the base discount percentage
+  const originalPrice = hasDiscount
+    ? Math.round(activePrice / (1 - (discountPercent / 100)))
+    : 0;
+  const discountPercentStr = toBanglaNumber(discountPercent);
 
 
 
@@ -467,15 +477,19 @@ export default function ProductDetailClient({ product }: { product: Product }) {
                   <span className="text-3xl sm:text-4xl font-extrabold text-primary font-display">
                     {activePriceDisplay}
                   </span>
-                  <span className="text-base sm:text-lg text-muted-foreground line-through decoration-red-500 font-medium">
-                    {formatBanglaPriceWithCommas(originalPrice)}
-                  </span>
+                  {hasDiscount && (
+                    <span className="text-base sm:text-lg text-muted-foreground line-through decoration-red-500 font-medium">
+                      {formatBanglaPriceWithCommas(originalPrice)}
+                    </span>
+                  )}
                 </div>
                 <p className="text-[10px] text-muted-foreground mt-0.5">ভ্যাট ও ট্যাক্স অন্তর্ভুক্ত</p>
               </div>
-              <div className="bg-primary/10 border border-primary/20 text-primary py-1.5 px-4 rounded-full text-xs font-extrabold uppercase tracking-wide">
-                সঞ্চয় {discountPercentStr}%
-              </div>
+              {hasDiscount && (
+                <div className="bg-primary/10 border border-primary/20 text-primary py-1.5 px-4 rounded-full text-xs font-extrabold uppercase tracking-wide">
+                  সঞ্চয় {discountPercentStr}%
+                </div>
+              )}
             </div>
 
             {/* Description */}
