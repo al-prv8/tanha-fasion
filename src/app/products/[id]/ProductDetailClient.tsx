@@ -63,6 +63,68 @@ export default function ProductDetailClient({ product }: { product: Product }) {
 
   // UI States
   const [selectedSize, setSelectedSize] = useState(getInitialSize);
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
+
+  // Parse multiple images gallery (up to 5 total)
+  const productImages = (() => {
+    const list: any[] = [product.img?.src || product.img];
+    if (product.imagesJson) {
+      try {
+        const parsed = typeof product.imagesJson === "string" 
+          ? JSON.parse(product.imagesJson) 
+          : product.imagesJson;
+        if (Array.isArray(parsed)) {
+          parsed.forEach((url: string) => {
+            if (url && typeof url === "string" && url.trim() !== "" && !list.includes(url)) {
+              list.push(url);
+            }
+          });
+        }
+      } catch (e) {}
+    }
+    return list.slice(0, 5); // Max 5 images
+  })();
+
+  // Parse videos from Facebook / TikTok
+  const productVideos = (() => {
+    const list: string[] = [];
+    if (product.videoUrlsJson) {
+      try {
+        const parsed = typeof product.videoUrlsJson === "string"
+          ? JSON.parse(product.videoUrlsJson)
+          : product.videoUrlsJson;
+        if (Array.isArray(parsed)) {
+          parsed.forEach((url: string) => {
+            if (url && typeof url === "string" && url.trim() !== "") {
+              list.push(url);
+            }
+          });
+        }
+      } catch (e) {}
+    }
+    return list;
+  })();
+
+  const getVideoEmbedUrl = (url: string) => {
+    const trimmed = url.trim();
+    
+    // Facebook Embed
+    if (trimmed.includes("facebook.com") || trimmed.includes("fb.watch") || trimmed.includes("fb.com")) {
+      return `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(trimmed)}&show_text=0&width=500`;
+    }
+    
+    // TikTok Embed
+    if (trimmed.includes("tiktok.com")) {
+      const regex = /\/video\/(\d+)/;
+      const match = trimmed.match(regex);
+      if (match && match[1]) {
+        return `https://www.tiktok.com/embed/v2/${match[1]}`;
+      }
+      return trimmed;
+    }
+    
+    return null;
+  };
   const [quantity, setQuantity] = useState(1);
   const [toastActive, setToastActive] = useState(false);
   const [toastMsg, setToastMsg] = useState("");
@@ -404,12 +466,13 @@ export default function ProductDetailClient({ product }: { product: Product }) {
           <div className="lg:col-span-5 flex flex-col gap-6">
             <div className="relative aspect-[3/4] w-full bg-secondary overflow-hidden rounded-lg border border-border shadow-sm group">
               <Image 
-                src={product.img?.src || product.img} 
+                src={productImages[activeImageIndex]} 
                 alt={product.name} 
                 fill
                 sizes="(max-width: 1024px) 100vw, 45vw"
                 className="object-cover transition-transform duration-500 hover:scale-108 cursor-zoom-in animate-fade-in"
                 priority
+                key={activeImageIndex}
               />
               {/* Product tag badge */}
               {product.tag && (
@@ -418,6 +481,32 @@ export default function ProductDetailClient({ product }: { product: Product }) {
                 </span>
               )}
             </div>
+
+            {/* Gallery thumbnails */}
+            {productImages.length > 1 && (
+              <div className="flex gap-2.5 overflow-x-auto pb-1 scrollbar-none">
+                {productImages.map((imgSrc, idx) => {
+                  const isActive = idx === activeImageIndex;
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => setActiveImageIndex(idx)}
+                      className={`relative w-16 h-20 rounded-md overflow-hidden bg-secondary border-2 transition-all flex-shrink-0 cursor-pointer p-0 ${
+                        isActive ? "border-primary shadow-xs scale-102" : "border-border/60 hover:border-slate-400"
+                      }`}
+                    >
+                      <Image
+                        src={imgSrc}
+                        alt={`${product.name} Preview ${idx + 1}`}
+                        fill
+                        sizes="64px"
+                        className="object-cover"
+                      />
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
             {/* Quick Share buttons */}
             <div className="flex items-center justify-between bg-card border border-border/80 p-4 rounded-xl shadow-xs">
@@ -787,6 +876,64 @@ export default function ProductDetailClient({ product }: { product: Product }) {
             </div>
           </div>
         </div>
+
+        {/* Section: Facebook & TikTok Video Review Embeds */}
+        {productVideos.length > 0 && (
+          <section className="mt-20 border-t border-border pt-12">
+            <div className="mb-8">
+              <span className="text-xs text-primary font-bold tracking-widest block uppercase mb-1">VIDEO SHOWCASE</span>
+              <h2 className="text-xl sm:text-2xl font-bold text-foreground font-display">পোশাকের ভিডিও রিভিউ ও ডেমো</h2>
+              <p className="text-xs sm:text-sm text-muted-foreground mt-1">ফেসবুক এবং টিকটকের অফিশিয়াল ভিডিও দেখে পোশাকের লাইভ লুক ও কাপড়ের কোয়ালিটি নিশ্চিত হোন।</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12">
+              {productVideos.map((videoUrl, idx) => {
+                const embedUrl = getVideoEmbedUrl(videoUrl);
+                if (!embedUrl) return null;
+                
+                const isTikTok = videoUrl.includes("tiktok.com");
+                
+                return (
+                  <div key={idx} className="bg-card border border-border/80 rounded-2xl overflow-hidden shadow-sm p-4 flex flex-col gap-4">
+                    <div className="relative w-full aspect-video rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-900 border border-border/40">
+                      {isTikTok ? (
+                        <iframe
+                          src={embedUrl}
+                          className="absolute inset-0 w-full h-full border-none"
+                          allowFullScreen
+                          scrolling="no"
+                          allow="autoplay; encrypted-media; picture-in-picture"
+                          title={`TikTok Video Review ${idx + 1}`}
+                        />
+                      ) : (
+                        <iframe
+                          src={embedUrl}
+                          className="absolute inset-0 w-full h-full border-none"
+                          scrolling="no"
+                          frameBorder="0"
+                          allowFullScreen={true}
+                          allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
+                          title={`Facebook Video Review ${idx + 1}`}
+                        />
+                      )}
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-bold text-muted-foreground">রিভিউ ভিডিও #{toBanglaNumber(idx + 1)}</span>
+                      <a
+                        href={videoUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline font-extrabold flex items-center gap-1"
+                      >
+                        মূল ভিডিও লিংক দেখুন →
+                      </a>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
 
         {/* Section: Related products */}
         {relatedProducts.length > 0 && (

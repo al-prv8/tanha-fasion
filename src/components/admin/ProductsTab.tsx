@@ -13,7 +13,8 @@ import {
   Save,
   Layers,
   Barcode,
-  RefreshCw
+  RefreshCw,
+  Upload
 } from "lucide-react";
 import { formatBanglaPriceWithCommas, toBanglaNumber, getProductTotalStock } from "@/lib/products";
 
@@ -31,6 +32,8 @@ interface ProductsTabProps {
     tag: string;
     category: string;
     imgUrl: string;
+    imagesJson: string;
+    videoUrlsJson: string;
     sizesJson: string;
     sizePricesJson: string;
   };
@@ -42,6 +45,8 @@ interface ProductsTabProps {
     tag: string;
     category: string;
     imgUrl: string;
+    imagesJson: string;
+    videoUrlsJson: string;
     sizesJson: string;
     sizePricesJson: string;
   }>>;
@@ -480,6 +485,8 @@ export default function ProductsTab({
                 tag: "",
                 category: CATEGORIES[0] || "",
                 imgUrl: "/assets/cotton_1.png",
+                imagesJson: "[]",
+                videoUrlsJson: "[]",
                 sizesJson: '{"S":10,"M":15,"L":15,"XL":5}',
                 sizePricesJson: '{}'
               });
@@ -561,6 +568,117 @@ export default function ProductsTab({
                   onChange={(e) => setProductForm(prev => ({ ...prev, tag: e.target.value }))}
                   className="w-full px-3 py-2 border border-border bg-secondary/30 focus:bg-white rounded-lg text-foreground focus:outline-none focus:border-primary transition-all"
                 />
+              </div>
+
+              {/* Additional Images (Slots 2 to 5) */}
+              <div className="bg-secondary/20 p-4 rounded-xl border border-border mt-3">
+                <span className="text-xs font-bold text-foreground block mb-3">অতিরিক্ত ছবিসমূহ (Additional Images - সর্বোচ্চ ৪টি)</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {[2, 3, 4, 5].map((num) => {
+                    const idx = num - 2;
+                    let currentImagesList: string[] = [];
+                    try {
+                      currentImagesList = JSON.parse(productForm.imagesJson || "[]");
+                    } catch (e) {}
+                    const val = currentImagesList[idx] || "";
+                    
+                    const handleSlotChange = (newVal: string) => {
+                      const updated = [...currentImagesList];
+                      updated[idx] = newVal;
+                      setProductForm(prev => ({ ...prev, imagesJson: JSON.stringify(updated.filter(u => u !== undefined && u !== null && u.trim() !== "")) }));
+                    };
+                    
+                    const handleSlotUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      
+                      const formData = new FormData();
+                      formData.append("file", file);
+                      
+                      try {
+                        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/upload`, {
+                          method: "POST",
+                          body: formData,
+                          credentials: "include"
+                        });
+                        if (res.ok) {
+                          const data = await res.json();
+                          if (data.url) {
+                            handleSlotChange(data.url);
+                          }
+                        }
+                      } catch (err) {
+                        console.error("Slot upload failed:", err);
+                      }
+                    };
+
+                    return (
+                      <div key={num} className="flex flex-col gap-1">
+                        <label className="text-[10px] font-bold text-muted-foreground">ছবি {toBanglaNumber(num)} (URL বা ফাইল আপলোড)</label>
+                        <div className="flex gap-2">
+                          <input 
+                            type="text" 
+                            placeholder={`ছবি ${num} এর URL`}
+                            value={val}
+                            onChange={(e) => handleSlotChange(e.target.value)}
+                            className="flex-1 px-2.5 py-1.5 border border-border bg-white rounded-lg text-xs font-mono"
+                          />
+                          <label className="py-1.5 px-3 bg-white hover:bg-slate-200 border border-border text-foreground text-xs font-bold rounded-lg cursor-pointer transition-colors flex items-center justify-center shrink-0">
+                            <Upload size={12} className="mr-1" /> আপলোড
+                            <input type="file" accept="image/*" className="hidden" onChange={handleSlotUpload} />
+                          </label>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Facebook & TikTok Videos */}
+              <div className="bg-secondary/20 p-4 rounded-xl border border-border mt-3">
+                <span className="text-xs font-bold text-foreground block mb-3">ভিডিও রিভিউ ও ডেমো লিংকসমূহ (Facebook / TikTok)</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {(() => {
+                    let currentVideosList: string[] = [];
+                    try {
+                      currentVideosList = JSON.parse(productForm.videoUrlsJson || "[]");
+                    } catch (e) {}
+                    
+                    const fbVal = currentVideosList[0] || "";
+                    const ttVal = currentVideosList[1] || "";
+                    
+                    const handleVideoChange = (idx: number, newVal: string) => {
+                      const updated = [...currentVideosList];
+                      updated[idx] = newVal;
+                      setProductForm(prev => ({ ...prev, videoUrlsJson: JSON.stringify(updated.filter(u => u !== undefined && u !== null && u.trim() !== "")) }));
+                    };
+
+                    return (
+                      <>
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[10px] font-bold text-muted-foreground">ফেসবুক ভিডিও লিংক</label>
+                          <input 
+                            type="text" 
+                            placeholder="যেমন: https://www.facebook.com/watch/?v=..."
+                            value={fbVal}
+                            onChange={(e) => handleVideoChange(0, e.target.value)}
+                            className="w-full px-2.5 py-1.5 border border-border bg-white rounded-lg text-xs"
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[10px] font-bold text-muted-foreground">টিকটক ভিডিও লিংক</label>
+                          <input 
+                            type="text" 
+                            placeholder="যেমন: https://www.tiktok.com/@username/video/..."
+                            value={ttVal}
+                            onChange={(e) => handleVideoChange(1, e.target.value)}
+                            className="w-full px-2.5 py-1.5 border border-border bg-white rounded-lg text-xs"
+                          />
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
               </div>
 
               <div>
@@ -1092,6 +1210,117 @@ export default function ProductsTab({
                                         onChange={(e) => setProductForm(prev => ({ ...prev, tag: e.target.value }))}
                                         className="w-full px-2.5 py-1.5 border border-border bg-slate-50 focus:bg-white rounded-lg text-foreground focus:outline-none focus:border-primary"
                                       />
+                                    </div>
+
+                                    {/* Additional Images (Slots 2 to 5) - Edit */}
+                                    <div className="bg-slate-50 p-4 rounded-xl border border-border mt-3">
+                                      <span className="text-xs font-bold text-foreground block mb-3">অতিরিক্ত ছবিসমূহ (Additional Images - সর্বোচ্চ ৪টি)</span>
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        {[2, 3, 4, 5].map((num) => {
+                                          const idx = num - 2;
+                                          let currentImagesList: string[] = [];
+                                          try {
+                                            currentImagesList = JSON.parse(productForm.imagesJson || "[]");
+                                          } catch (e) {}
+                                          const val = currentImagesList[idx] || "";
+                                          
+                                          const handleSlotChange = (newVal: string) => {
+                                            const updated = [...currentImagesList];
+                                            updated[idx] = newVal;
+                                            setProductForm(prev => ({ ...prev, imagesJson: JSON.stringify(updated.filter(u => u !== undefined && u !== null && u.trim() !== "")) }));
+                                          };
+                                          
+                                          const handleSlotUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+                                            const file = e.target.files?.[0];
+                                            if (!file) return;
+                                            
+                                            const formData = new FormData();
+                                            formData.append("file", file);
+                                            
+                                            try {
+                                              const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/upload`, {
+                                                method: "POST",
+                                                body: formData,
+                                                credentials: "include"
+                                              });
+                                              if (res.ok) {
+                                                const data = await res.json();
+                                                if (data.url) {
+                                                  handleSlotChange(data.url);
+                                                }
+                                              }
+                                            } catch (err) {
+                                              console.error("Slot upload failed:", err);
+                                            }
+                                          };
+
+                                          return (
+                                            <div key={num} className="flex flex-col gap-1">
+                                              <label className="text-[10px] font-bold text-muted-foreground">ছবি {toBanglaNumber(num)} (URL বা ফাইল আপলোড)</label>
+                                              <div className="flex gap-2">
+                                                <input 
+                                                  type="text" 
+                                                  placeholder={`ছবি ${num} এর URL`}
+                                                  value={val}
+                                                  onChange={(e) => handleSlotChange(e.target.value)}
+                                                  className="flex-1 px-2.5 py-1.5 border border-border bg-white rounded-lg text-xs font-mono"
+                                                />
+                                                <label className="py-1.5 px-3 bg-white hover:bg-slate-200 border border-border text-foreground text-xs font-bold rounded-lg cursor-pointer transition-colors flex items-center justify-center shrink-0">
+                                                  <Upload size={12} className="mr-1" /> আপলোড
+                                                  <input type="file" accept="image/*" className="hidden" onChange={handleSlotUpload} />
+                                                </label>
+                                              </div>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
+
+                                    {/* Facebook & TikTok Videos - Edit */}
+                                    <div className="bg-slate-50 p-4 rounded-xl border border-border mt-3">
+                                      <span className="text-xs font-bold text-foreground block mb-3">ভিডিও রিভিউ ও ডেমো লিংকসমূহ (Facebook / TikTok)</span>
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        {(() => {
+                                          let currentVideosList: string[] = [];
+                                          try {
+                                            currentVideosList = JSON.parse(productForm.videoUrlsJson || "[]");
+                                          } catch (e) {}
+                                          
+                                          const fbVal = currentVideosList[0] || "";
+                                          const ttVal = currentVideosList[1] || "";
+                                          
+                                          const handleVideoChange = (idx: number, newVal: string) => {
+                                            const updated = [...currentVideosList];
+                                            updated[idx] = newVal;
+                                            setProductForm(prev => ({ ...prev, videoUrlsJson: JSON.stringify(updated.filter(u => u !== undefined && u !== null && u.trim() !== "")) }));
+                                          };
+
+                                          return (
+                                            <>
+                                              <div className="flex flex-col gap-1">
+                                                <label className="text-[10px] font-bold text-muted-foreground">ফেসবুক ভিডিও লিংক</label>
+                                                <input 
+                                                  type="text" 
+                                                  placeholder="যেমন: https://www.facebook.com/watch/?v=..."
+                                                  value={fbVal}
+                                                  onChange={(e) => handleVideoChange(0, e.target.value)}
+                                                  className="w-full px-2.5 py-1.5 border border-border bg-white rounded-lg text-xs"
+                                                />
+                                              </div>
+                                              <div className="flex flex-col gap-1">
+                                                <label className="text-[10px] font-bold text-muted-foreground">টিকটক ভিডিও লিংক</label>
+                                                <input 
+                                                  type="text" 
+                                                  placeholder="যেমন: https://www.tiktok.com/@username/video/..."
+                                                  value={ttVal}
+                                                  onChange={(e) => handleVideoChange(1, e.target.value)}
+                                                  className="w-full px-2.5 py-1.5 border border-border bg-white rounded-lg text-xs"
+                                                />
+                                              </div>
+                                            </>
+                                          );
+                                        })()}
+                                      </div>
                                     </div>
 
                                     <div>

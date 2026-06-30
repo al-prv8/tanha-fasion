@@ -16,6 +16,8 @@ model Product {
   tag               String?
   category          String
   imgUrl            String
+  imagesJson        String          @default("[]")
+  videoUrlsJson     String          @default("[]")
   sizesJson         String          @default("{\"S\":10,\"M\":15,\"L\":15,\"XL\":5}")
   showroomSizesJson String          @default("{\"S\":10,\"M\":15,\"L\":15,\"XL\":5}")
   sizePricesJson    String          @default("{}")

@@ -94,6 +94,8 @@ export default function AdminPage() {
     tag: "",
     category: "",
     imgUrl: "/assets/cotton_1.png",
+    imagesJson: "[]",
+    videoUrlsJson: "[]",
     sizesJson: '{"S":10,"M":15,"L":15,"XL":5}',
     sizePricesJson: '{}'
   });
@@ -477,6 +479,8 @@ export default function AdminPage() {
           tag: "",
           category: activeCategoriesList[0] || "",
           imgUrl: "/assets/cotton_1.png",
+          imagesJson: "[]",
+          videoUrlsJson: "[]",
           sizesJson: '{"S":10,"M":15,"L":15,"XL":5}',
           sizePricesJson: '{}'
         });
@@ -521,6 +525,8 @@ export default function AdminPage() {
       tag: prod.tag || "",
       category: prod.category,
       imgUrl: prod.imgUrl,
+      imagesJson: prod.imagesJson || "[]",
+      videoUrlsJson: prod.videoUrlsJson || "[]",
       sizesJson: prod.sizesJson || '{"S":10,"M":15,"L":15,"XL":5}',
       sizePricesJson: prod.sizePricesJson || '{}'
     });

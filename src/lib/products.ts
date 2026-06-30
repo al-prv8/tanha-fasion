@@ -43,6 +43,8 @@ export interface Product {
   sizesJson?: string;
   sizePricesJson?: string;
   originalPrice?: number | null;
+  imagesJson?: string;
+  videoUrlsJson?: string;
 }
 
 export const PRODUCTS: Product[] = [

@@ -2273,7 +2273,7 @@ app.put("/api/orders/:id", authenticateToken, requireRole(["ADMIN"]), async (req
 // 10. Create Product Route
 app.post("/api/products", authenticateToken, requireRole(["ADMIN"]), async (req, res) => {
   try {
-    const { sku, name, price, originalPrice, tag, category, imgUrl, sizesJson, showroomSizesJson, sizePricesJson } = req.body;
+    const { sku, name, price, originalPrice, tag, category, imgUrl, imagesJson, videoUrlsJson, sizesJson, showroomSizesJson, sizePricesJson } = req.body;
 
     if (!sku || !name || !price || !category || !imgUrl) {
       return res.status(400).json({ error: "Missing required product fields" });
@@ -2294,6 +2294,8 @@ app.post("/api/products", authenticateToken, requireRole(["ADMIN"]), async (req,
         tag: tag || null,
         category,
         imgUrl,
+        imagesJson: imagesJson || "[]",
+        videoUrlsJson: videoUrlsJson || "[]",
         sizesJson: sizesJson || '{"S":10,"M":15,"L":15,"XL":5}',
         showroomSizesJson: showroomSizesJson || sizesJson || '{"S":10,"M":15,"L":15,"XL":5}',
         sizePricesJson: sizePricesJson || '{}'
@@ -2310,14 +2312,14 @@ app.post("/api/products", authenticateToken, requireRole(["ADMIN"]), async (req,
 app.put("/api/products/:id", authenticateToken, requireRole(["SUPER_ADMIN", "BRANCH_MANAGER"]), async (req: any, res: any) => {
   try {
     const { id } = req.params;
-    const { name, price, originalPrice, tag, category, imgUrl, sizesJson, showroomSizesJson, sizePricesJson } = req.body;
+    const { name, price, originalPrice, tag, category, imgUrl, imagesJson, videoUrlsJson, sizesJson, showroomSizesJson, sizePricesJson } = req.body;
     let branchId = req.body.branchId || null;
 
     const userRole = req.user.role === "ADMIN" ? "SUPER_ADMIN" : req.user.role;
 
     if (userRole === "BRANCH_MANAGER") {
       // Branch manager can ONLY update showroom stock (showroomSizesJson)
-      if (name || price || originalPrice !== undefined || tag !== undefined || category || imgUrl || sizesJson || sizePricesJson) {
+      if (name || price || originalPrice !== undefined || tag !== undefined || category || imgUrl || imagesJson !== undefined || videoUrlsJson !== undefined || sizesJson || sizePricesJson) {
         return res.status(403).json({ error: "আপনার এই পণ্য তথ্য পরিবর্তন করার অনুমতি নেই।" });
       }
       if (!req.user.branchId) {
@@ -2366,6 +2368,8 @@ app.put("/api/products/:id", authenticateToken, requireRole(["SUPER_ADMIN", "BRA
         ...(tag !== undefined && { tag: tag || null }),
         ...(category && { category }),
         ...(imgUrl && { imgUrl }),
+        ...(imagesJson !== undefined && { imagesJson: imagesJson || "[]" }),
+        ...(videoUrlsJson !== undefined && { videoUrlsJson: videoUrlsJson || "[]" }),
         ...(sizesJson && { sizesJson }),
         ...(showroomSizesJson && { showroomSizesJson }),
         ...(sizePricesJson && { sizePricesJson })

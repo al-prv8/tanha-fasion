@@ -29,10 +29,10 @@ Ensure all system packages are up to date:
 sudo apt update && sudo apt upgrade -y
 ```
 
-### 2. Install Git, Curl, & SQLite3
+### 2. Install Git, Curl, & PostgreSQL
 Install essential dependencies:
 ```bash
-sudo apt install -y git curl sqlite3 build-essential
+sudo apt install -y git curl postgresql postgresql-contrib build-essential
 ```
 
 ### 3. Install Node.js v20 LTS
@@ -74,7 +74,7 @@ Paste the following production configuration:
 ```env
 PORT=5000
 NODE_ENV=production
-DATABASE_URL="file:./dev.db"
+DATABASE_URL="postgresql://tanha_user:your_secure_password@localhost:5432/tanha_db"
 
 # Replace with a long random string
 JWT_SECRET="generate_a_secure_long_secret_here"
@@ -118,8 +118,19 @@ npm install
 npx prisma generate
 ```
 
-### 3. Initialize SQLite Database
-Push the database schema rules to the production SQLite file:
+### 3. Initialize PostgreSQL Database
+First, log in to PostgreSQL as superuser to set up the database and user:
+```bash
+sudo -i -u postgres psql
+```
+Run the SQL commands to create the database and configure permissions:
+```sql
+CREATE DATABASE tanha_db;
+CREATE USER tanha_user WITH PASSWORD 'your_secure_password';
+GRANT ALL PRIVILEGES ON DATABASE tanha_db TO tanha_user;
+\q
+```
+Then, push the database schema rules to the production PostgreSQL server:
 ```bash
 npx prisma db push
 ```
@@ -300,18 +311,18 @@ sudo certbot renew --dry-run
 
 ## Step 8: Database Backups & Maintenance
 
-Since you are using SQLite, backing up your database is as simple as copying the `dev.db` file. 
+Back up your PostgreSQL database using the `pg_dump` command.
 
 Create a shell script to run daily backups:
 ```bash
 mkdir -p ~/backups
 nano ~/backup_db.sh
 ```
-Paste this command (configured to use `/root` folders):
+Paste this command (configured to use your configured PostgreSQL credentials):
 ```bash
 #!/bin/bash
 BACKUP_NAME="db_backup_$(date +%F_%T).sql"
-sqlite3 /root/tanha-fasion/server/prisma/dev.db ".backup '/root/backups/$BACKUP_NAME'"
+PGPASSWORD="your_secure_password" pg_dump -U tanha_user -h localhost -d tanha_db -F p -f "/root/backups/$BACKUP_NAME"
 # Keep only the last 30 days of backups
 find /root/backups/ -type f -mtime +30 -name '*.sql' -exec rm -- {} \;
 ```
@@ -331,8 +342,6 @@ Add it to your crontab (`crontab -e`) to run at midnight every day:
 When you push new changes to GitHub and need to deploy them to your server:
 ```bash
 cd ~/tanha-fasion
-# Discard server runtime changes to SQLite database to avoid pull conflicts
-git checkout server/prisma/dev.db
 git pull
 npm install
 cd server && npm install && npx prisma db push && cd ..
