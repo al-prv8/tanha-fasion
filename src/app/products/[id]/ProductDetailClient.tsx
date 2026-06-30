@@ -1093,7 +1093,7 @@ export default function ProductDetailClient({ product }: { product: Product }) {
 
       {/* Sticky Bottom Actions Bar (Mobile Only, shown when scrolled past main buy buttons) */}
       <div 
-        className={`fixed bottom-[68px] left-0 right-0 z-[1400] bg-background/95 backdrop-blur-md border-t border-border flex items-center justify-between p-3 md:hidden shadow-[0_-4px_20px_rgba(0,0,0,0.1)] transition-transform duration-300 ${
+        className={`fixed bottom-[calc(4.125rem+env(safe-area-inset-bottom))] left-0 right-0 z-[1400] bg-background/95 backdrop-blur-md border-t border-border flex items-center justify-between p-3 md:hidden shadow-[0_-4px_20px_rgba(0,0,0,0.1)] transition-transform duration-300 ${
           showStickyBar ? "translate-y-0" : "translate-y-full"
         }`}
       >
