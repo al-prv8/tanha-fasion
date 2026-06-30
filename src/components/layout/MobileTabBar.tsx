@@ -28,7 +28,7 @@ export default function MobileTabBar({
   const { user } = useAuth();
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 h-17 bg-background/85 backdrop-blur-md border-t border-ink/10 flex justify-around items-center z-[9999] pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_20px_rgba(42,26,14,0.05)]" aria-label="Mobile Navigation">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 pt-1.5 pb-[calc(0.375rem+env(safe-area-inset-bottom))] bg-background/85 backdrop-blur-md border-t border-ink/10 flex justify-around items-center z-[9999] shadow-[0_-4px_20px_rgba(42,26,14,0.05)]" aria-label="Mobile Navigation">
       <button 
         className={`flex flex-col items-center justify-center gap-1 text-[11px] font-medium text-foreground cursor-pointer p-2 transition-colors duration-300 relative flex-1 bg-transparent border-none ${activeSection === 0 ? "text-primary" : ""}`}
         onClick={() => {
