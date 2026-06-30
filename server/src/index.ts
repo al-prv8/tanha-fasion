@@ -16,6 +16,17 @@ import qrcode from "qrcode";
 
 dotenv.config();
 
+// Memory Cache for public endpoints to prevent database connection overhead
+let cachedProducts: any = null;
+let cachedProductsByBranch: { [branchId: string]: any } = {};
+let cachedCategories: any = null;
+
+function clearCache() {
+  cachedProducts = null;
+  cachedProductsByBranch = {};
+  cachedCategories = null;
+}
+
 const app = express();
 app.use(compression());
 
@@ -1174,9 +1185,14 @@ app.post("/api/seed", async (req, res) => {
 // A. List Categories
 app.get("/api/categories", async (req, res) => {
   try {
+    if (cachedCategories) {
+      return res.json(cachedCategories);
+    }
+
     const categories = await prisma.category.findMany({
       orderBy: { order: "asc" }
     });
+    cachedCategories = categories;
     res.json(categories);
   } catch (error: any) {
     res.status(500).json({ error: "Failed to load categories: " + error.message });
@@ -1208,6 +1224,7 @@ app.post("/api/categories", authenticateToken, requireRole(["ADMIN"]), async (re
       }
     });
     logAdminActivity(req, "CATEGORY_CREATE", `Created new category: ${cleanName}`);
+    clearCache();
     res.status(201).json(category);
   } catch (error: any) {
     res.status(500).json({ error: "Failed to create category: " + error.message });
@@ -1265,6 +1282,7 @@ app.put("/api/categories/:id", authenticateToken, requireRole(["ADMIN"]), async 
     }
 
     logAdminActivity(req, "CATEGORY_UPDATE", `Updated category: ${oldName} (New Name: ${nextName}, Order: ${updated.order})`);
+    clearCache();
     res.json(updated);
   } catch (error: any) {
     res.status(500).json({ error: "Failed to update category: " + error.message });
@@ -1290,6 +1308,7 @@ app.delete("/api/categories/:id", authenticateToken, requireRole(["ADMIN"]), asy
     }
     await prisma.category.delete({ where: { id } });
     logAdminActivity(req, "CATEGORY_DELETE", `Deleted category: ${category.name}`);
+    clearCache();
     res.json({ message: "Category deleted successfully" });
   } catch (error: any) {
     res.status(500).json({ error: "Failed to delete category: " + error.message });
@@ -1529,6 +1548,16 @@ app.get("/api/products", async (req, res) => {
   try {
     const branchId = req.query.branchId as string;
 
+    // Return cached list of products by branch if available
+    if (branchId && cachedProductsByBranch[branchId]) {
+      return res.json(cachedProductsByBranch[branchId]);
+    }
+
+    // Return general cached list of products if available
+    if (!branchId && cachedProducts) {
+      return res.json(cachedProducts);
+    }
+
     const products = await prisma.product.findMany({
       include: {
         reviews: true,
@@ -1545,9 +1574,11 @@ app.get("/api/products", async (req, res) => {
           branchStocks: undefined
         };
       });
+      cachedProductsByBranch[branchId] = mapped;
       return res.json(mapped);
     }
 
+    cachedProducts = products;
     res.json(products);
   } catch (error: any) {
     res.status(500).json({ error: "Failed to load products: " + error.message });
@@ -1905,6 +1936,7 @@ app.post("/api/orders", async (req, res) => {
       }
     }
 
+    clearCache();
     res.status(201).json(order);
   } catch (error: any) {
     console.error("Order Creation Error:", error);
@@ -2034,6 +2066,7 @@ app.post("/api/reviews", async (req, res) => {
       }
     });
 
+    clearCache();
     res.status(201).json(review);
   } catch (error: any) {
     res.status(500).json({ error: "Failed to save review: " + error.message });
@@ -2262,7 +2295,7 @@ app.put("/api/orders/:id", authenticateToken, requireRole(["ADMIN"]), async (req
       logDetails += ` Modified shipping/payment fields.`;
     }
     logAdminActivity(req, "ORDER_UPDATE", logDetails);
-
+    clearCache();
     res.json(updatedOrder);
   } catch (error: any) {
     console.error("Order update error:", error);
@@ -2302,6 +2335,7 @@ app.post("/api/products", authenticateToken, requireRole(["ADMIN"]), async (req,
       }
     });
     logAdminActivity(req, "PRODUCT_CREATE", `Created new product: ${name} (SKU: ${sku}, Price: ৳${price})`);
+    clearCache();
     res.status(201).json(product);
   } catch (error: any) {
     res.status(500).json({ error: "Failed to create product: " + error.message });
@@ -2376,6 +2410,7 @@ app.put("/api/products/:id", authenticateToken, requireRole(["SUPER_ADMIN", "BRA
       }
     });
     logAdminActivity(req, "PRODUCT_UPDATE", `Updated product: ${updatedProduct.name} (SKU: ${updatedProduct.sku}, Price: ৳${updatedProduct.price})`);
+    clearCache();
     res.json(updatedProduct);
   } catch (error: any) {
     res.status(500).json({ error: "Failed to update product: " + error.message });
@@ -2396,6 +2431,7 @@ app.delete("/api/products/:id", authenticateToken, requireRole(["ADMIN"]), async
       where: { id }
     });
     logAdminActivity(req, "PRODUCT_DELETE", `Deleted product: ${product.name} (SKU: ${product.sku})`);
+    clearCache();
     res.json({ message: "Product deleted successfully" });
   } catch (error: any) {
     res.status(500).json({ error: "Failed to delete product: " + error.message });
@@ -2414,6 +2450,7 @@ app.delete("/api/reviews/:id", authenticateToken, requireRole(["ADMIN"]), async 
       where: { id }
     });
     logAdminActivity(req, "REVIEW_DELETE", `Deleted review by ${review.name} on product: ${review.product?.name}`);
+    clearCache();
     res.json({ message: "Review deleted successfully" });
   } catch (error: any) {
     res.status(500).json({ error: "Failed to delete review: " + error.message });
@@ -2446,6 +2483,7 @@ app.delete("/api/orders/:id", authenticateToken, requireRole(["ADMIN"]), async (
     });
     
     logAdminActivity(req, "ORDER_DELETE", `Deleted order: ${order.orderNumber} (Grand Total: ৳${order.grandTotal})`);
+    clearCache();
     res.json({ message: "Order deleted successfully" });
   } catch (error: any) {
     res.status(500).json({ error: "Failed to delete order: " + error.message });
@@ -2935,6 +2973,7 @@ app.post("/api/purchases", authenticateToken, requireRole(["SUPER_ADMIN", "BRANC
     });
 
     logAdminActivity(req, "STOCK_PURCHASE", `পাইকারি ক্রয় নথিভুক্ত করেছেন (SKU: ${product.sku}, সাইজ: ${size}, পরিমাণ: ${qty}, মূল্য: ৳${price}, টার্গেট: ${isShowroom ? "শোরুম" : "অনলাইন"})`);
+    clearCache();
     res.json(result);
   } catch (error: any) {
     res.status(500).json({ error: "Failed to record purchase: " + error.message });
