@@ -72,7 +72,7 @@ export default function CheckoutClient() {
   const grandTotal = subtotal - discount + shippingCost;
 
   // Payment Method
-  const [paymentMethod, setPaymentMethod] = useState<"bkash" | "nagad" | "cod" | "card">("bkash");
+  const [paymentMethod, setPaymentMethod] = useState<"bkash" | "nagad" | "cod" | "card">("cod");
   
   // Payment fields
   const [bkashNumber, setBkashNumber] = useState("");
@@ -893,31 +893,10 @@ export default function CheckoutClient() {
               <div className="payment-tabs">
                 <button 
                   type="button"
-                  className={`payment-tab ${paymentMethod === "bkash" ? "active" : ""}`}
-                  onClick={() => setPaymentMethod("bkash")}
-                >
-                  বিকাশ (bKash)
-                </button>
-                <button 
-                  type="button"
-                  className={`payment-tab ${paymentMethod === "nagad" ? "active" : ""}`}
-                  onClick={() => setPaymentMethod("nagad")}
-                >
-                  নগদ (Nagad)
-                </button>
-                <button 
-                  type="button"
-                  className={`payment-tab ${paymentMethod === "cod" ? "active" : ""}`}
-                  onClick={() => setPaymentMethod("cod")}
+                  className="payment-tab active"
+                  style={{ width: "100%", cursor: "default" }}
                 >
                   ক্যাশ অন ডেলিভারি (COD)
-                </button>
-                <button 
-                  type="button"
-                  className={`payment-tab ${paymentMethod === "card" ? "active" : ""}`}
-                  onClick={() => setPaymentMethod("card")}
-                >
-                  কার্ড পেমেন্ট (Card)
                 </button>
               </div>
 
