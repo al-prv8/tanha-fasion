@@ -695,10 +695,10 @@ export default function ProductDetailClient({ product }: { product: Product }) {
                 </div>
               </div>
               <a 
-                href="tel:09612345678" 
+                href="tel:01863694027" 
                 className="no-underline py-2.5 px-5 bg-foreground hover:bg-primary text-background hover:text-white rounded-full text-xs font-bold transition-all text-center cursor-pointer"
               >
-                কল করুন: ০৯৬১২-৩৪৫৬৭৮
+                কল করুন: ০১৮৬৩-৬৯৪০২৭
               </a>
             </div>
 

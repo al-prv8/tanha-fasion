@@ -269,8 +269,8 @@ export default function Cta({ scrollToSection }: CtaProps) {
                 </div>
                 <div className="flex flex-col">
                   <div className="text-[9px] text-muted-foreground uppercase font-bold tracking-wider">অফিসিয়াল ইমেইল</div>
-                  <a href="mailto:info@tanhafashion.com" className="text-foreground hover:text-primary text-xs transition-colors no-underline block mt-1">
-                    info@tanhafashion.com
+                  <a href="mailto:tanhafashionltd@gmail.com" className="text-foreground hover:text-primary text-xs transition-colors no-underline block mt-1">
+                    tanhafashionltd@gmail.com
                   </a>
                 </div>
               </li>

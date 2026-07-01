@@ -155,8 +155,8 @@ export default function ContactClient() {
                     </div>
                     <div className="flex flex-col">
                       <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">অফিসিয়াল ইমেইল</span>
-                      <a href="mailto:info@tanhafashion.com" className="text-foreground hover:text-primary text-xs font-semibold transition-colors no-underline block mt-1">
-                        info@tanhafashion.com
+                      <a href="mailto:tanhafashionltd@gmail.com" className="text-foreground hover:text-primary text-xs font-semibold transition-colors no-underline block mt-1">
+                        tanhafashionltd@gmail.com
                       </a>
                       <span className="text-[10px] text-muted-foreground/80 mt-0.5">যেকোনো মতামত বা বিজনেজ অফার পাঠাতে পারেন</span>
                     </div>
