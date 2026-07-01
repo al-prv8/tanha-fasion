@@ -100,7 +100,7 @@ export default function Hero({ scrollToSection }: HeroProps) {
                       {slide.btnText}
                     </button>
                     <a
-                      href="tel:+8801700000000"
+                      href="tel:+8801863694027"
                       className="inline-flex items-center gap-2 border border-white/40 hover:border-white hover:bg-white/10 py-3 px-6 rounded-full text-xs md:text-sm font-semibold text-white no-underline transition-all duration-300 cursor-pointer"
                     >
                       <Phone size={14} />

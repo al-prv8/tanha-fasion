@@ -1170,7 +1170,7 @@ export default function ShowroomAdminPage() {
             ) : (
               <>
                 <p style={{ margin: '0', fontSize: '9px', color: '#555' }}>বসুন্ধরা সিটি শোরুম, ঢাকা</p>
-                <p style={{ margin: '3px 0', fontSize: '9px', color: '#555' }}>মোবাইল: 01700000000</p>
+                <p style={{ margin: '3px 0', fontSize: '9px', color: '#555' }}>মোবাইল: 01863694027</p>
               </>
             )}
             <div style={{ borderBottom: '1px dashed #bbb', margin: '8px 0' }}></div>

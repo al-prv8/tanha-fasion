@@ -17,6 +17,7 @@ import {
   ChevronRight
 } from "lucide-react";
 import Link from "next/link";
+import { WhatsAppIcon } from "@/components/ui/whatsapp-icon";
 import Navbar from "@/components/layout/Navbar";
 import MobileMenuDrawer from "@/components/layout/MobileMenuDrawer";
 import CartDrawer from "@/components/layout/CartDrawer";
@@ -160,7 +161,7 @@ function TrackContent() {
 
   const handleWhatsAppHelp = (orderNo: string) => {
     const text = `আসসালামু আলাইকুম তানহা ফ্যাশন। আমি আমার অর্ডার (${orderNo}) সম্পর্কে জানতে চাই।`;
-    window.open(`https://wa.me/8801700000000?text=${encodeURIComponent(text)}`, "_blank");
+    window.open(`https://wa.me/8801863694027?text=${encodeURIComponent(text)}`, "_blank");
   };
 
   const mapPaymentMethod = (method: string) => {
@@ -313,7 +314,7 @@ function TrackContent() {
                 onClick={() => handleWhatsAppHelp(queriedOrder.orderNumber)}
                 className="w-full bg-[#25D366] hover:bg-[#20ba5a] text-white font-bold py-3 px-6 rounded-xl border-none cursor-pointer transition-colors flex items-center justify-center gap-2 shadow-xs text-xs"
               >
-                <MessageCircle size={16} />
+                <WhatsAppIcon size={16} className="fill-current" />
                 <span>এই অর্ডার সংক্রান্ত সাহায্যের জন্য হোয়াটসঅ্যাপে যোগাযোগ করুন</span>
               </button>
             </div>

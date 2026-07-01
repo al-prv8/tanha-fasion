@@ -555,7 +555,7 @@ export default function POSTab({ embedded = false, activeBranchId }: POSTabProps
 
       const payload = {
         name: customerName.trim() || "শোরুম কাস্টমার",
-        phone: customerPhone.trim() || "01700000000",
+        phone: customerPhone.trim() || "01863694027",
         address: "বসুন্ধরা সিটি শোরুম",
         city: "Dhaka",
         postcode: "1215",
@@ -1200,6 +1200,21 @@ export default function POSTab({ embedded = false, activeBranchId }: POSTabProps
                 </div>
               </div>
             )}
+
+            {/* Flat Discount Section */}
+            <div className="mb-3">
+              <span className="text-[10px] font-extrabold text-slate-500 uppercase block mb-1">ডিসকাউন্ট (Discount)</span>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">৳</span>
+                <input
+                  type="number"
+                  placeholder="ডিসকাউন্ট টাকার পরিমাণ..."
+                  value={flatDiscount || ""}
+                  onChange={(e) => setFlatDiscount(Math.max(0, Number(e.target.value)))}
+                  className="w-full pl-6 pr-3 py-1.5 border border-border bg-white rounded-lg text-xs font-bold focus:outline-none focus:border-primary font-sans"
+                />
+              </div>
+            </div>
 
             {/* Calculations Breakdown */}
             <div className="bg-slate-50 border border-border p-2.5 rounded-xl flex flex-col gap-1.5 mb-3">

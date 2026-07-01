@@ -33,6 +33,7 @@ import MobileTabBar from "@/components/layout/MobileTabBar";
 import CartDrawer from "@/components/layout/CartDrawer";
 import Cta from "@/components/sections/Cta";
 import ToastNotification from "@/components/overlays/ToastNotification";
+import { WhatsAppIcon } from "@/components/ui/whatsapp-icon";
 
 export default function ProductDetailClient({ product }: { product: Product }) {
   const router = useRouter();
@@ -276,7 +277,7 @@ export default function ProductDetailClient({ product }: { product: Product }) {
   const handleWhatsAppOrder = () => {
     const text = `আসসালামু আলাইকুম তানহা ফ্যাশন। আমি "${product.name}" (সাইজ: ${selectedSize}, পরিমাণ: ${quantity}) অর্ডার করতে চাই। পণ্যের মূল্য: ${activePriceDisplay}। লিঙ্ক: ${window.location.href}`;
     const encodedText = encodeURIComponent(text);
-    window.open(`https://wa.me/8801700000000?text=${encodedText}`, "_blank");
+    window.open(`https://wa.me/8801863694027?text=${encodedText}`, "_blank");
   };
 
   // Helper to convert date to Bangla representation
@@ -525,7 +526,7 @@ export default function ProductDetailClient({ product }: { product: Product }) {
                   onClick={handleWhatsAppOrder} 
                   className="flex items-center gap-1.5 text-[11px] font-bold bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-full border-none cursor-pointer transition-colors"
                 >
-                  <MessageCircle size={12} /> হোয়াটসঅ্যাপ
+                  <WhatsAppIcon size={12} className="w-3.5 h-3.5 fill-current" /> হোয়াটসঅ্যাপ
                 </button>
               </div>
             </div>

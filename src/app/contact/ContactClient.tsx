@@ -142,8 +142,8 @@ export default function ContactClient() {
                     </div>
                     <div className="flex flex-col">
                       <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">২৪/৭ কাস্টমার কেয়ার</span>
-                      <a href="tel:+8801700000000" className="text-foreground hover:text-primary text-sm font-extrabold transition-colors no-underline block mt-0.5">
-                        +৮৮০ ১৭০০ ০০০০০০
+                      <a href="tel:+8801863694027" className="text-foreground hover:text-primary text-sm font-extrabold transition-colors no-underline block mt-0.5">
+                        +৮৮০ ১৮৬৩ ৬৯৪০২৭
                       </a>
                       <span className="text-[10px] text-muted-foreground/80 mt-0.5">প্রতিদিন (সকাল ১০:০০ - রাত ০৮:০০)</span>
                     </div>
@@ -169,7 +169,7 @@ export default function ContactClient() {
                     <div className="flex flex-col">
                       <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">ফ্ল্যাগশিপ শোরুম</span>
                       <p className="text-muted-foreground/90 text-xs leading-relaxed mt-1 mb-0">
-                        লেভেল ৪, ব্লক সি, শপ নং ৪৫, বসুন্ধরা সিটি শপিং কমপ্লেক্স, পান্থপথ, ঢাকা-১২১৫।
+                        বক্তাবলী বাজার, গলি নং ২, শপ নং ৮৯/৯০, ফতুল্লা, নারায়ণগঞ্জ।
                       </p>
                     </div>
                   </li>

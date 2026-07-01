@@ -27,6 +27,7 @@ import {
   PhoneCall
 } from "lucide-react";
 import Navbar from "@/components/layout/Navbar";
+import { WhatsAppIcon } from "@/components/ui/whatsapp-icon";
 import MobileMenuDrawer from "@/components/layout/MobileMenuDrawer";
 import CartDrawer from "@/components/layout/CartDrawer";
 import { useCart } from "@/lib/cart-context";
@@ -777,11 +778,11 @@ export default function CustomerDashboardPage() {
                                   <button
                                     onClick={() => {
                                       const text = `আসসালামু আলাইকুম তানহা ফ্যাশন। আমি আমার অর্ডার (${order.orderNumber}) সম্পর্কে জানতে চাই।`;
-                                      window.open(`https://wa.me/8801700000000?text=${encodeURIComponent(text)}`, "_blank");
+                                      window.open(`https://wa.me/8801863694027?text=${encodeURIComponent(text)}`, "_blank");
                                     }}
                                     className="bg-[#25D366]/5 hover:bg-[#25D366]/10 text-[#20ba5a] border border-[#25D366]/20 text-[10px] font-bold py-2.5 px-5 rounded-xl cursor-pointer transition-all flex items-center gap-1.5 active:scale-95"
                                   >
-                                    <MessageCircle size={14} />
+                                    <WhatsAppIcon size={14} className="fill-current" />
                                     <span>হোয়াটসঅ্যাপে সাপোর্ট</span>
                                   </button>
                                 </div>
