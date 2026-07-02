@@ -365,7 +365,7 @@ export default function ShowroomStockTab({
           </style>
         </head>
         <body>
-          \${labelsHtml}
+          ${labelsHtml}
           <script>
             window.onload = function() {
               setTimeout(function() {
