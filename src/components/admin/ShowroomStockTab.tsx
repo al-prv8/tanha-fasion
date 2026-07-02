@@ -319,6 +319,9 @@ export default function ShowroomStockTab({
               align-items: center;
               justify-content: center;
             }
+            .label-page:last-child {
+              page-break-after: avoid;
+            }
             .label-container {
               width: 46mm;
               height: 26mm;
