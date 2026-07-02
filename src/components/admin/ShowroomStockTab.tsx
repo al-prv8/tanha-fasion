@@ -311,16 +311,17 @@ export default function ShowroomStockTab({
             }
             .label-page {
               width: 50mm;
-              height: 30mm;
-              padding: 2mm;
+              height: 29.5mm;
+              padding: 1.8mm;
               box-sizing: border-box;
+              page-break-inside: avoid;
               page-break-after: always;
               display: flex;
               align-items: center;
               justify-content: center;
             }
             .label-page:last-child {
-              page-break-after: avoid;
+              page-break-after: avoid !important;
             }
             .label-container {
               width: 46mm;
@@ -385,9 +386,6 @@ export default function ShowroomStockTab({
               font-family: Arial, sans-serif;
             }
           </style>
-        </head>
-        <body>
-          ${labelsHtml}
           <script>
             window.onload = function() {
               setTimeout(function() {
@@ -396,7 +394,8 @@ export default function ShowroomStockTab({
               }, 400);
             };
           </script>
-        </body>
+        </head>
+        <body>${labelsHtml.trim()}</body>
       </html>
     `);
     printWindow.document.close();
