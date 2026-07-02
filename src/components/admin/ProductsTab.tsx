@@ -121,8 +121,24 @@ export default function ProductsTab({
     }
   };
 
+  const getProductNumericId = (prod: any) => {
+    if (prod.numericId !== undefined && prod.numericId !== null) {
+      return prod.numericId;
+    }
+    if (prod.id) {
+      const englishDigits = prod.id.split("").map((c: string) => {
+        const idx = ["০", "১", "২", "৩", "৪", "৫", "৬", "৭", "৮", "৯"].indexOf(c);
+        return idx !== -1 ? idx : c;
+      }).join("");
+      const parsed = parseInt(englishDigits, 10);
+      return !isNaN(parsed) ? parsed : 999;
+    }
+    return 999;
+  };
+
   const handlePrintBarcode = (prod: any, size: string) => {
-    const sku = `TF-${prod.numericId}-${size}`;
+    const numId = getProductNumericId(prod);
+    const sku = `TF-${numId}-${size}`;
     // Uses the open-source, free bwip-js API to render Code 128 barcodes as high-quality PNGs
     const barcodeUrl = `https://api-bwipjs.metafloor.com/?bcid=code128&text=${sku}&scale=2&height=10`;
 
@@ -222,7 +238,7 @@ export default function ProductsTab({
             <div class="title">TANHA FASHION (তানহা ফ্যাশন)</div>
             <div class="name">${prod.name}</div>
             <div class="meta-row">
-              <span>কোড: ${prod.numericId}</span>
+              <span>কোড: ${numId}</span>
               <span>SKU: ${prod.sku || ""}</span>
               <span>সাইজ: ${size}</span>
             </div>

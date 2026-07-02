@@ -84,6 +84,23 @@ export default function ShowroomStockTab({
     }
   });
 
+  const getProductNumericId = (prod: any) => {
+    if (!prod) return 999;
+    if (prod.numericId !== undefined && prod.numericId !== null) {
+      return prod.numericId;
+    }
+    if (prod.id) {
+      const englishDigits = prod.id.split("").map((c: string) => {
+        const idx = ["০", "১", "২", "৩", "৪", "৫", "৬", "৭", "৮", "৯"].indexOf(c);
+        return idx !== -1 ? idx : c;
+      }).join("");
+      const parsed = parseInt(englishDigits, 10);
+      return !isNaN(parsed) ? parsed : 999;
+    }
+    return 999;
+  };
+
+
   const handleStartEdit = (prod: any) => {
     try {
       setEditingSizes(JSON.parse(prod.showroomSizesJson || "{}"));
@@ -107,7 +124,8 @@ export default function ShowroomStockTab({
   };
 
   const handlePrintBarcode = (prod: any, size: string) => {
-    const sku = `TF-${prod.numericId}-${size}`;
+    const numId = getProductNumericId(prod);
+    const sku = `TF-${numId}-${size}`;
     const barcodeUrl = `https://api-bwipjs.metafloor.com/?bcid=code128&text=${sku}&scale=2&height=10`;
 
     const printWindow = window.open("", "_blank", "width=600,height=400");
@@ -194,7 +212,7 @@ export default function ShowroomStockTab({
             <div class="title">TANHA FASHION (তানহা ফ্যাশন)</div>
             <div class="name">${prod.name}</div>
             <div class="meta-row">
-              <span>কোড: ${prod.numericId}</span>
+              <span>কোড: ${numId}</span>
               <span>SKU: ${prod.sku || ""}</span>
               <span>সাইজ: ${size}</span>
             </div>
@@ -237,7 +255,8 @@ export default function ShowroomStockTab({
         const numQty = Number(qty);
         if (numQty <= 0) continue;
 
-        const sku = `TF-${prod.numericId}-${size}`;
+        const numId = getProductNumericId(prod);
+        const sku = `TF-${numId}-${size}`;
         const barcodeUrl = `https://api-bwipjs.metafloor.com/?bcid=code128&text=${sku}&scale=2&height=10`;
 
         for (let i = 0; i < numQty; i++) {
@@ -247,7 +266,7 @@ export default function ShowroomStockTab({
                 <div class="title">TANHA FASHION (তানহা ফ্যাশন)</div>
                 <div class="name">${prod.name}</div>
                 <div class="meta-row">
-                  <span>কোড: ${prod.numericId}</span>
+                  <span>কোড: ${numId}</span>
                   <span>SKU: ${prod.sku || ""}</span>
                   <span>সাইজ: ${size}</span>
                 </div>
@@ -934,7 +953,7 @@ export default function ShowroomStockTab({
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <span className="text-muted-foreground block mb-0.5">পণ্য কোড:</span>
-                  <span className="font-mono font-bold text-slate-800">{barcodeProduct.numericId}</span>
+                  <span className="font-mono font-bold text-slate-800">{getProductNumericId(barcodeProduct)}</span>
                 </div>
                 <div>
                   <span className="text-muted-foreground block mb-0.5">খুচরা মূল্য:</span>
@@ -969,18 +988,18 @@ export default function ShowroomStockTab({
                   <div className="text-[9px] font-black text-center border-b pb-0.5">TANHA FASHION</div>
                   <div className="text-[8px] font-bold truncate">{barcodeProduct.name}</div>
                   <div className="flex justify-between text-[7px] font-bold">
-                    <span>কোড: {barcodeProduct.numericId}</span>
+                    <span>কোড: {getProductNumericId(barcodeProduct)}</span>
                     <span>SKU: {barcodeProduct.sku || ""}</span>
                     <span>সাইজ: {barcodeSize}</span>
                   </div>
                   <div className="flex items-center justify-between mt-1">
                     <div className="flex flex-col items-center">
                       <img 
-                        src={`https://api-bwipjs.metafloor.com/?bcid=code128&text=TF-${barcodeProduct.numericId}-${barcodeSize}&scale=2&height=10`}
+                        src={`https://api-bwipjs.metafloor.com/?bcid=code128&text=TF-${getProductNumericId(barcodeProduct)}-${barcodeSize}&scale=2&height=10`}
                         alt="Barcode"
                         className="h-6 w-24 object-contain"
                       />
-                      <span className="text-[5.5px] font-mono font-bold mt-0.5">TF-{barcodeProduct.numericId}-{barcodeSize}</span>
+                      <span className="text-[5.5px] font-mono font-bold mt-0.5">TF-{getProductNumericId(barcodeProduct)}-{barcodeSize}</span>
                     </div>
                     <div className="text-right">
                       <div className="text-[6px] text-zinc-500">মূল্য:</div>
