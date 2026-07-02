@@ -1743,7 +1743,7 @@ app.post("/api/orders", async (req, res) => {
 
       // Default fields for showroom/walkin POS checkouts to save cashier time
       if (!name) name = "শোরুম কাস্টমার";
-      if (!phone) phone = "01700000000";
+      if (!phone) phone = "01863694027";
       if (!address) address = "বসুন্ধরা সিটি শোরুম";
       if (!city) city = "Dhaka";
       if (!postcode) postcode = "1215";
@@ -1944,6 +1944,168 @@ app.post("/api/orders", async (req, res) => {
   }
 });
 
+// 4.5. Exchange Order Route (POS/Showroom Return & Exchange Handler)
+app.post("/api/orders/exchange", authenticateToken, requireRole(["SUPER_ADMIN", "BRANCH_MANAGER"]), requireModule("showroom_pos"), async (req: any, res: any) => {
+  try {
+    const { 
+      orderNumber, 
+      returnedItems, 
+      exchangedItems, 
+      cashDifference, 
+      paymentMethod 
+    } = req.body;
+
+    if (!orderNumber || !returnedItems || !exchangedItems) {
+      return res.status(400).json({ error: "অর্ডার নম্বর, ফেরত ও এক্সচেঞ্জের পোশাকের তালিকা আবশ্যক।" });
+    }
+
+    const branchId = req.user.branchId || null;
+
+    // Fetch original order to verify existence
+    const originalOrder = await prisma.order.findFirst({
+      where: { orderNumber },
+      include: { items: true }
+    });
+
+    if (!originalOrder) {
+      return res.status(404).json({ error: `অর্ডারটি পাওয়া যায়নি (অর্ডার নম্বর: ${orderNumber})` });
+    }
+
+    // Execute atomic transaction to update stock and save log
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. Process Returned Items (Increment Stock)
+      for (const item of returnedItems) {
+        const prod = await tx.product.findUnique({ where: { id: item.productId } });
+        if (!prod) throw new Error(`ফেরত দেওয়া পোশাকটি সিস্টেমে পাওয়া যায়নি (কোড/আইডি: ${item.productId})`);
+        
+        if (branchId) {
+          // Increment branch-specific stock
+          const bStock = await tx.branchStock.findUnique({
+            where: { productId_branchId: { productId: item.productId, branchId } }
+          });
+          const sizes = JSON.parse(bStock?.sizesJson || "{}");
+          sizes[item.size] = Number(sizes[item.size] || 0) + Number(item.quantity);
+          await tx.branchStock.upsert({
+            where: { productId_branchId: { productId: item.productId, branchId } },
+            update: { sizesJson: JSON.stringify(sizes) },
+            create: { productId: item.productId, branchId, sizesJson: JSON.stringify(sizes) }
+          });
+        } else {
+          // Increment global showroomSizesJson fallback
+          const sizes = JSON.parse(prod.showroomSizesJson || "{}");
+          sizes[item.size] = Number(sizes[item.size] || 0) + Number(item.quantity);
+          await tx.product.update({
+            where: { id: item.productId },
+            data: { showroomSizesJson: JSON.stringify(sizes) }
+          });
+        }
+      }
+
+      // 2. Process Exchanged Items (Validate and Decrement Stock)
+      for (const item of exchangedItems) {
+        const prod = await tx.product.findUnique({ where: { id: item.productId } });
+        if (!prod) throw new Error(`এক্সচেঞ্জ দেওয়া পোশাকটি সিস্টেমে পাওয়া যায়নি (কোড/আইডি: ${item.productId})`);
+
+        let currentStock = 0;
+        if (branchId) {
+          const bStock = await tx.branchStock.findUnique({
+            where: { productId_branchId: { productId: item.productId, branchId } }
+          });
+          const sizes = JSON.parse(bStock?.sizesJson || "{}");
+          currentStock = Number(sizes[item.size] || 0);
+        } else {
+          const sizes = JSON.parse(prod.showroomSizesJson || "{}");
+          currentStock = Number(sizes[item.size] || 0);
+        }
+
+        if (currentStock < Number(item.quantity)) {
+          throw new Error(`দুঃখিত, "${prod.name}" (সাইজ: ${item.size}) এর পর্যাপ্ত স্টক নেই। এক্সচেঞ্জ করা সম্ভব নয়।`);
+        }
+
+        // Decrement stock
+        if (branchId) {
+          const bStock = await tx.branchStock.findUnique({
+            where: { productId_branchId: { productId: item.productId, branchId } }
+          });
+          const sizes = JSON.parse(bStock?.sizesJson || "{}");
+          sizes[item.size] = Math.max(0, currentStock - Number(item.quantity));
+          await tx.branchStock.update({
+            where: { productId_branchId: { productId: item.productId, branchId } },
+            data: { sizesJson: JSON.stringify(sizes) }
+          });
+        } else {
+          const sizes = JSON.parse(prod.showroomSizesJson || "{}");
+          sizes[item.size] = Math.max(0, currentStock - Number(item.quantity));
+          await tx.product.update({
+            where: { id: item.productId },
+            data: { showroomSizesJson: JSON.stringify(sizes) }
+          });
+        }
+      }
+
+      // 3. Create a unique exchange transaction number and save as an order log entry
+      const exchangeOrderNumber = "EX-" + Math.floor(100000 + Math.random() * 900000);
+      
+      // Calculate subtotals
+      const returnedSubtotal = returnedItems.reduce((sum: number, i: any) => sum + (Number(i.price) * Number(i.quantity)), 0);
+      const exchangedSubtotal = exchangedItems.reduce((sum: number, i: any) => sum + (Number(i.price) * Number(i.quantity)), 0);
+
+      const exchangeOrder = await tx.order.create({
+        data: {
+          orderNumber: exchangeOrderNumber,
+          name: originalOrder.name,
+          phone: originalOrder.phone,
+          address: originalOrder.address,
+          city: originalOrder.city,
+          postcode: originalOrder.postcode,
+          shippingCost: 0,
+          subtotal: exchangedSubtotal - returnedSubtotal,
+          discount: 0,
+          grandTotal: Number(cashDifference || 0),
+          paymentMethod: paymentMethod || "cash",
+          paymentStatus: Number(cashDifference || 0) <= 0 ? "PAID" : "UNPAID",
+          orderStatus: "DELIVERED",
+          stockAdjusted: true,
+          isShowroom: true,
+          branchId,
+          trxId: `EXCHANGE_REF_${originalOrder.orderNumber}`,
+          items: {
+            create: exchangedItems.map((i: any) => ({
+              productId: i.productId,
+              size: i.size,
+              quantity: Number(i.quantity),
+              price: Number(i.price)
+            }))
+          }
+        },
+        include: {
+          items: {
+            include: {
+              product: true
+            }
+          }
+        }
+      });
+
+      return { exchangeOrder, returnedSubtotal, exchangedSubtotal };
+    });
+
+    // Log activity
+    await logActivity(
+      req.user.email,
+      req.user.name || "ক্যাশিয়ার",
+      "POS_EXCHANGE",
+      `শোরুম থেকে এক্সচেঞ্জ সম্পন্ন করা হয়েছে (মূল অর্ডার: ${orderNumber}, এক্সচেঞ্জ ট্রানজেকশন: ${result.exchangeOrder.orderNumber}, নগদ পার্থক্য: ৳${cashDifference})`
+    );
+
+    clearCache();
+    res.status(201).json(result);
+  } catch (error: any) {
+    console.error("Exchange API Error:", error);
+    res.status(500).json({ error: "Failed to process exchange: " + error.message });
+  }
+});
+
 // 5. List Orders Route
 app.get("/api/orders", authenticateToken, requireRole(["SUPER_ADMIN", "BRANCH_MANAGER"]), async (req: any, res: any) => {
   try {
@@ -1967,6 +2129,17 @@ app.get("/api/orders", authenticateToken, requireRole(["SUPER_ADMIN", "BRANCH_MA
       if (branchIdQuery) {
         whereClause = { branchId: branchIdQuery };
       }
+    }
+
+    const searchQueryParam = req.query.search as string;
+    if (searchQueryParam) {
+      whereClause = {
+        ...whereClause,
+        OR: [
+          { orderNumber: { contains: searchQueryParam } },
+          { phone: { contains: searchQueryParam } }
+        ]
+      };
     }
 
     const orders = await prisma.order.findMany({

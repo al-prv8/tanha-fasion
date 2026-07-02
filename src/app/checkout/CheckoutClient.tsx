@@ -202,6 +202,7 @@ export default function CheckoutClient() {
         setOrderNumber(createdOrder.orderNumber);
         setIsSubmitting(false);
         setOrderSuccess(true);
+        clearCart();
       })
       .catch((err) => {
         console.error("Order placement API error:", err);

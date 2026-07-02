@@ -32,6 +32,11 @@ export default function ShowroomStockTab({
   const [productSearch, setProductSearch] = useState("");
   const [activeCategoryFilter, setActiveCategoryFilter] = useState("ALL");
 
+  // Batch Barcode print states
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
+  const [barcodeQueue, setBarcodeQueue] = useState<{ [productId: string]: { [size: string]: number } }>({});
+  const [isQueueConfigOpen, setIsQueueConfigOpen] = useState(false);
+
   // Selection states for modal/editing
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [editingSizes, setEditingSizes] = useState<{ [size: string]: number }>({});
@@ -218,6 +223,163 @@ export default function ShowroomStockTab({
     printWindow.document.close();
   };
 
+  const handlePrintBatchBarcodes = (config: typeof barcodeQueue) => {
+    const printWindow = window.open("", "_blank", "width=800,height=600");
+    if (!printWindow) return;
+
+    let labelsHtml = "";
+    
+    for (const [prodId, sizesObj] of Object.entries(config)) {
+      const prod = products.find(p => p.id === prodId);
+      if (!prod) continue;
+
+      for (const [size, qty] of Object.entries(sizesObj)) {
+        const numQty = Number(qty);
+        if (numQty <= 0) continue;
+
+        const sku = `TF-${prod.numericId}-${size}`;
+        const barcodeUrl = `https://api-bwipjs.metafloor.com/?bcid=code128&text=${sku}&scale=2&height=10`;
+
+        for (let i = 0; i < numQty; i++) {
+          labelsHtml += `
+            <div class="label-page">
+              <div class="label-container">
+                <div class="title">TANHA FASHION (তানহা ফ্যাশন)</div>
+                <div class="name">${prod.name}</div>
+                <div class="meta-row">
+                  <span>কোড: ${prod.numericId}</span>
+                  <span>SKU: ${prod.sku || ""}</span>
+                  <span>সাইজ: ${size}</span>
+                </div>
+                <div class="barcode-area">
+                  <div style="display: flex; flex-direction: column; align-items: center;">
+                    <img class="barcode-img" src="${barcodeUrl}" alt="${sku}" />
+                    <span style="font-size: 5.5pt; font-family: monospace; font-weight: bold; margin-top: 1px; letter-spacing: 0.5px;">${sku}</span>
+                  </div>
+                  <div class="price-block">
+                    <span class="price-label">মূল্য:</span>
+                    <div class="price-val">${formatBanglaPriceWithCommas(prod.price)}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          `;
+        }
+      }
+    }
+
+    if (!labelsHtml) {
+      alert("প্রিন্ট করার জন্য কোনো পোশাকের পরিমাণ পাওয়া যায়নি!");
+      printWindow.close();
+      return;
+    }
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>ব্যাচ বারকোড প্রিন্ট</title>
+          <style>
+            @page {
+              size: 50mm 30mm;
+              margin: 0;
+            }
+            body {
+              margin: 0;
+              padding: 0;
+              background: white;
+              color: black;
+              -webkit-print-color-adjust: exact;
+            }
+            .label-page {
+              width: 50mm;
+              height: 30mm;
+              padding: 2mm;
+              box-sizing: border-box;
+              page-break-after: always;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+            }
+            .label-container {
+              width: 46mm;
+              height: 26mm;
+              display: flex;
+              flex-direction: column;
+              justify-content: space-between;
+              box-sizing: border-box;
+            }
+            .title {
+              font-size: 8pt;
+              font-weight: bold;
+              text-align: center;
+              border-bottom: 0.5px solid black;
+              padding-bottom: 2px;
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+              font-family: Arial, sans-serif;
+            }
+            .name {
+              font-size: 7pt;
+              font-weight: bold;
+              margin-top: 2px;
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+              font-family: Arial, sans-serif;
+            }
+            .meta-row {
+              display: flex;
+              justify-content: space-between;
+              font-size: 6pt;
+              margin-top: 1px;
+              font-weight: bold;
+              font-family: Arial, sans-serif;
+            }
+            .barcode-area {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              margin-top: 2px;
+            }
+            .barcode-img {
+              height: 7mm;
+              max-width: 28mm;
+              object-fit: contain;
+            }
+            .price-block {
+              text-align: right;
+            }
+            .price-label {
+              font-size: 5pt;
+              color: #555;
+              display: block;
+              font-family: Arial, sans-serif;
+            }
+            .price-val {
+              font-size: 9pt;
+              font-weight: 900;
+              white-space: nowrap;
+              font-family: Arial, sans-serif;
+            }
+          </style>
+        </head>
+        <body>
+          \${labelsHtml}
+          <script>
+            window.onload = function() {
+              setTimeout(function() {
+                window.print();
+                window.close();
+              }, 400);
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
   const filteredProducts = products.filter((p) => {
     const matchesSearch = 
       p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
@@ -351,6 +513,39 @@ export default function ShowroomStockTab({
               <table className="w-full border-collapse text-left text-xs text-slate-700">
                 <thead>
                   <tr className="border-b border-slate-200/80 bg-slate-50/60 text-slate-400 font-black text-[9px] uppercase tracking-wider">
+                    <th className="py-3 px-3 w-10 text-center">
+                      <input 
+                        type="checkbox" 
+                        checked={paginatedProducts.length > 0 && paginatedProducts.every(p => selectedProductIds.includes(p.id))}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            const newIds = paginatedProducts.map(p => p.id).filter(id => !selectedProductIds.includes(id));
+                            setSelectedProductIds(prev => [...prev, ...newIds]);
+                            setBarcodeQueue(prev => {
+                              const updated = { ...prev };
+                              newIds.forEach(id => {
+                                const prod = products.find(p => p.id === id);
+                                const sizesList = getProductSizes(prod);
+                                const sizesObj: { [s: string]: number } = {};
+                                sizesList.forEach(s => { sizesObj[s] = 0; });
+                                if (sizesObj["M"] !== undefined) sizesObj["M"] = 1;
+                                updated[id] = sizesObj;
+                              });
+                              return updated;
+                            });
+                          } else {
+                            const pageIds = paginatedProducts.map(p => p.id);
+                            setSelectedProductIds(prev => prev.filter(id => !pageIds.includes(id)));
+                            setBarcodeQueue(prev => {
+                              const updated = { ...prev };
+                              pageIds.forEach(id => { delete updated[id]; });
+                              return updated;
+                            });
+                          }
+                        }}
+                        className="w-3.5 h-3.5 border-slate-200 rounded accent-slate-900 cursor-pointer"
+                      />
+                    </th>
                     <th className="py-3 px-3 w-12 text-center">ছবি</th>
                     <th className="py-3 px-3">পোশাক ও ক্যাটাগরি</th>
                     <th className="py-3 px-3">SKU কোড</th>
@@ -365,6 +560,34 @@ export default function ShowroomStockTab({
                     const totalStock = getProductTotalShowroomStock(p);
                     return (
                       <tr key={p.id} className="hover:bg-slate-50/40 transition-colors">
+                        {/* Select Checkbox */}
+                        <td className="py-2.5 px-3 text-center">
+                          <input 
+                            type="checkbox"
+                            checked={selectedProductIds.includes(p.id)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedProductIds(prev => [...prev, p.id]);
+                                setBarcodeQueue(prev => {
+                                  const sizesList = getProductSizes(p);
+                                  const sizesObj: { [s: string]: number } = {};
+                                  sizesList.forEach(s => { sizesObj[s] = 0; });
+                                  if (sizesObj["M"] !== undefined) sizesObj["M"] = 1;
+                                  return { ...prev, [p.id]: sizesObj };
+                                });
+                              } else {
+                                setSelectedProductIds(prev => prev.filter(id => id !== p.id));
+                                setBarcodeQueue(prev => {
+                                  const updated = { ...prev };
+                                  delete updated[p.id];
+                                  return updated;
+                                });
+                              }
+                            }}
+                            className="w-3.5 h-3.5 border-slate-200 rounded accent-slate-900 cursor-pointer"
+                          />
+                        </td>
+
                         {/* Image */}
                         <td className="py-2.5 px-3 text-center">
                           <Image 
@@ -497,6 +720,130 @@ export default function ShowroomStockTab({
           </>
         )}
       </div>
+
+      {/* Sticky Bottom Bar for Barcode Print Queue */}
+      {selectedProductIds.length > 0 && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 bg-slate-900 text-white rounded-2xl px-5 py-3.5 shadow-2xl flex items-center justify-between gap-5 z-40 animate-in fade-in slide-in-from-bottom-5 duration-200 w-full max-w-lg border border-white/10">
+          <div className="flex items-center gap-2">
+            <Barcode size={18} className="text-primary animate-pulse" />
+            <div>
+              <div className="text-xs font-black">{toBanglaNumber(selectedProductIds.length)} টি পোশাক সিলেক্ট করা হয়েছে</div>
+              <div className="text-[9px] text-slate-400 font-semibold mt-0.5">ব্যাচ বারকোড প্রিন্ট কিউ</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsQueueConfigOpen(true)}
+              className="bg-primary hover:bg-primary/95 text-white font-extrabold px-4 py-2 rounded-xl text-xs border-none cursor-pointer transition-all shadow-md active:scale-[0.98]"
+            >
+              প্রিন্ট সেটিংস
+            </button>
+            <button
+              onClick={() => {
+                setSelectedProductIds([]);
+                setBarcodeQueue({});
+              }}
+              className="bg-white/10 hover:bg-white/20 text-white font-bold px-3 py-2 rounded-xl text-xs border-none cursor-pointer transition-all"
+            >
+              বাতিল
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Batch Barcode Queue Configuration Modal */}
+      {isQueueConfigOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-border overflow-hidden flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-200 font-sans">
+            {/* Modal Header */}
+            <div className="p-4 border-b border-border bg-[#FCFAF7]/40 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Barcode size={18} className="text-primary" />
+                <h3 className="font-bold text-sm text-slate-800">বারকোড প্রিন্ট সেটিংস (Batch Print Configuration)</h3>
+              </div>
+              <button 
+                onClick={() => setIsQueueConfigOpen(false)}
+                className="p-1 hover:bg-slate-100 rounded-full text-slate-455 border-none cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-4 overflow-y-auto flex-grow flex flex-col gap-3.5 bg-slate-50/50">
+              {selectedProductIds.map((prodId) => {
+                const prod = products.find(p => p.id === prodId);
+                if (!prod) return null;
+                const sizesList = getProductSizes(prod);
+
+                return (
+                  <div key={prodId} className="bg-white border border-border rounded-xl p-3.5 shadow-3xs flex items-center gap-4">
+                    <Image 
+                      src={prod.imgUrl || "/assets/cotton_1.png"} 
+                      alt={prod.name} 
+                      width={40}
+                      height={54}
+                      className="w-10 h-14 object-cover bg-secondary border border-border/80 rounded-lg flex-shrink-0"
+                    />
+                    <div className="flex-grow min-w-0 text-left">
+                      <div className="text-xs font-extrabold text-slate-800 truncate" title={prod.name}>{prod.name}</div>
+                      <div className="text-[10px] text-slate-400 font-bold font-sans mt-0.5">SKU: {prod.sku}</div>
+                      
+                      <div className="flex flex-wrap items-center gap-3 mt-2.5">
+                        {sizesList.map((size) => {
+                          const val = barcodeQueue[prodId]?.[size] ?? 0;
+                          return (
+                            <div key={size} className="flex items-center gap-1 bg-slate-50 border border-slate-200/80 rounded-lg px-2 py-1">
+                              <span className="text-[10px] font-black text-slate-500 w-4">{size}:</span>
+                              <input 
+                                type="number" 
+                                min={0}
+                                max={50}
+                                value={val || ""}
+                                onChange={(e) => {
+                                  const qtyVal = Math.max(0, parseInt(e.target.value) || 0);
+                                  setBarcodeQueue(prev => ({
+                                    ...prev,
+                                    [prodId]: {
+                                      ...prev[prodId],
+                                      [size]: qtyVal
+                                    }
+                                  }));
+                                }}
+                                className="w-10 border-none bg-transparent text-xs font-black font-sans text-slate-800 focus:outline-none p-0"
+                                placeholder="0"
+                              />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 border-t border-border bg-[#FCFAF7]/40 flex items-center justify-end gap-2">
+              <button 
+                onClick={() => setIsQueueConfigOpen(false)}
+                className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-bold px-4 py-2 rounded-xl text-xs cursor-pointer transition-all"
+              >
+                বন্ধ করুন
+              </button>
+              <button 
+                onClick={() => {
+                  handlePrintBatchBarcodes(barcodeQueue);
+                  setIsQueueConfigOpen(false);
+                }}
+                className="bg-green-600 hover:bg-green-700 text-white font-extrabold px-5 py-2 rounded-xl text-xs border-none cursor-pointer transition-all shadow-md"
+              >
+                প্রিন্ট করুন
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 3. SHOWROOM STOCK EDIT MODAL */}
       {editingProductId && (

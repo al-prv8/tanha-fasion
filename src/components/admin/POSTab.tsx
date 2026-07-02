@@ -95,6 +95,14 @@ export default function POSTab({ embedded = false, activeBranchId }: POSTabProps
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [receivedCash, setReceivedCash] = useState<number>(0);
+
+  // Return & Exchange Mode States
+  const [posMode, setPosMode] = useState<"sale" | "exchange">("sale");
+  const [exchangeSearchQuery, setExchangeSearchQuery] = useState("");
+  const [exchangedOrder, setExchangedOrder] = useState<any>(null);
+  const [returnedItems, setReturnedItems] = useState<any[]>([]);
+  const [isSearchingOrder, setIsSearchingOrder] = useState(false);
+  const [exchangeReceipt, setExchangeReceipt] = useState<any>(null);
   
   // Customer details
   const [customerName, setCustomerName] = useState("");
@@ -141,6 +149,16 @@ export default function POSTab({ embedded = false, activeBranchId }: POSTabProps
       return () => clearTimeout(timer);
     }
   }, [receiptOrder]);
+
+  useEffect(() => {
+    if (exchangeReceipt) {
+      const timer = setTimeout(() => {
+        window.print();
+        setExchangeReceipt(null);
+      }, 150);
+      return () => clearTimeout(timer);
+    }
+  }, [exchangeReceipt]);
 
   // Authenticate admin
   useEffect(() => {
@@ -459,11 +477,19 @@ export default function POSTab({ embedded = false, activeBranchId }: POSTabProps
     return Math.max(0, subtotal - flatDiscount);
   }, [subtotal, flatDiscount]);
 
+  const returnedSubtotal = useMemo(() => {
+    return returnedItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  }, [returnedItems]);
+
+  const exchangeDifference = useMemo(() => {
+    return subtotal - returnedSubtotal;
+  }, [subtotal, returnedSubtotal]);
+
   const changeDue = useMemo(() => {
-    const targetAmount = isSplitPayment ? splitCash : grandTotal;
+    const targetAmount = posMode === "exchange" ? exchangeDifference : (isSplitPayment ? splitCash : grandTotal);
     if (receivedCash <= 0 || receivedCash < targetAmount) return 0;
     return receivedCash - targetAmount;
-  }, [receivedCash, grandTotal, isSplitPayment, splitCash]);
+  }, [receivedCash, grandTotal, isSplitPayment, splitCash, posMode, exchangeDifference]);
 
   // Auto-initialize split cash when grandTotal changes or split payment is toggled
   useEffect(() => {
@@ -614,6 +640,126 @@ export default function POSTab({ embedded = false, activeBranchId }: POSTabProps
     } finally {
       setIsSubmitting(false);
       focusBarcodeField();
+    }
+  };
+
+  const handleSearchOrderForExchange = async () => {
+    if (!exchangeSearchQuery.trim()) return;
+    setIsSearchingOrder(true);
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/orders?search=${encodeURIComponent(exchangeSearchQuery.trim())}`, {
+        credentials: "include"
+      });
+      if (!res.ok) throw new Error("অর্ডারটি খুঁজে পাওয়া যায়নি।");
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) {
+        // Find exact matching order number
+        const match = data.find((o: any) => o.orderNumber.toUpperCase() === exchangeSearchQuery.trim().toUpperCase());
+        if (match) {
+          setExchangedOrder(match);
+        } else {
+          setExchangedOrder(data[0]); // fallback to first matched
+        }
+      } else {
+        toast.error("অর্ডারটি পাওয়া যায়নি। সঠিক আইডি দিন।");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "অনুসন্ধান ব্যর্থ হয়েছে।");
+    } finally {
+      setIsSearchingOrder(false);
+    }
+  };
+
+  const handleUpdateReturnQty = (item: any, delta: number) => {
+    setReturnedItems(prev => {
+      const idx = prev.findIndex(r => r.productId === item.productId && r.size === item.size);
+      if (idx > -1) {
+        const updated = [...prev];
+        const newQty = updated[idx].quantity + delta;
+        if (newQty <= 0) {
+          updated.splice(idx, 1);
+        } else {
+          updated[idx].quantity = Math.min(newQty, item.quantity);
+        }
+        return updated;
+      } else if (delta > 0) {
+        return [...prev, {
+          productId: item.productId,
+          size: item.size,
+          quantity: 1,
+          price: item.price,
+          name: item.product?.name || "পোশাক"
+        }];
+      }
+      return prev;
+    });
+  };
+
+  const handleExchangeCheckout = async () => {
+    if (!exchangedOrder) {
+      toast.error("অর্ডার নম্বর দিয়ে অনুসন্ধান করে পোশাক ফেরত দিন!");
+      return;
+    }
+    if (returnedItems.length === 0) {
+      toast.error("ফেরত দেওয়ার জন্য কমপক্ষে ১টি পোশাক সিলেক্ট করুন!");
+      return;
+    }
+    if (cart.length === 0) {
+      toast.error("বিনিময়ে দেওয়ার জন্য বাম ক্যাটালগ থেকে প্রোডাক্ট এড করুন!");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const payload = {
+        orderNumber: exchangedOrder.orderNumber,
+        returnedItems: returnedItems.map(r => ({
+          productId: r.productId,
+          size: r.size,
+          quantity: r.quantity,
+          price: r.price
+        })),
+        exchangedItems: cart.map(c => ({
+          productId: c.id,
+          size: c.size,
+          quantity: c.quantity,
+          price: c.price
+        })),
+        cashDifference: exchangeDifference,
+        paymentMethod: paymentMethod
+      };
+
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/orders/exchange`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        credentials: "include"
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "এক্সচেঞ্জ প্রসেস করতে ব্যর্থ হয়েছে।");
+      }
+
+      const data = await res.json();
+      
+      // Setup printable exchange invoice
+      setExchangeReceipt(data);
+      toast.success("এক্সচেঞ্জ সফলভাবে সম্পন্ন হয়েছে!");
+      
+      // Reset POS States
+      setCart([]);
+      setReturnedItems([]);
+      setExchangedOrder(null);
+      setExchangeSearchQuery("");
+      setReceivedCash(0);
+      setFlatDiscount(0);
+      loadPOSData(); // Reload inventory counts
+      focusBarcodeField();
+    } catch (err: any) {
+      toast.error(err.message || "এক্সচেঞ্জ প্রসেসিং ত্রুটি।");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -848,6 +994,122 @@ export default function POSTab({ embedded = false, activeBranchId }: POSTabProps
         {/* Right Screen: Cart & Checkout Panel */}
         <div className="w-[40%] flex flex-col bg-white shadow-lg border-l border-border/40 min-h-0">
           
+          {/* Sale/Exchange Mode Selector */}
+          <div className="flex border-b border-border bg-slate-50 flex-shrink-0">
+            <button 
+              type="button"
+              onClick={() => {
+                setPosMode("sale");
+                setExchangedOrder(null);
+                setReturnedItems([]);
+                setCart([]);
+              }}
+              className={`flex-1 py-2.5 text-center text-xs font-bold transition-all cursor-pointer border-none ${
+                posMode === "sale" 
+                  ? "bg-white border-b-2 border-b-primary text-primary" 
+                  : "bg-slate-50 text-slate-500 hover:text-slate-700"
+              }`}
+            >
+              বিক্রয় (Sale Mode)
+            </button>
+            <button 
+              type="button"
+              onClick={() => {
+                setPosMode("exchange");
+                setCart([]);
+                clearLinkedCustomer();
+              }}
+              className={`flex-1 py-2.5 text-center text-xs font-bold transition-all cursor-pointer border-none ${
+                posMode === "exchange" 
+                  ? "bg-white border-b-2 border-b-primary text-primary" 
+                  : "bg-slate-50 text-slate-500 hover:text-slate-700"
+              }`}
+            >
+              বিনিময় (Exchange Mode)
+            </button>
+          </div>
+
+          {/* Exchange & Return Search & Selection panel */}
+          {posMode === "exchange" && (
+            <div className="border-b border-border/80 bg-slate-50/50 flex-shrink-0">
+              {!exchangedOrder ? (
+                <div className="p-4 flex flex-col gap-2">
+                  <span className="text-[10px] font-black text-slate-500 uppercase">১. মূল কাস্টমার অর্ডার খুঁজুন (Search Order)</span>
+                  <div className="flex gap-2">
+                    <input 
+                      type="text" 
+                      placeholder="অর্ডার আইডি দিন (যেমন: TF-123456)..." 
+                      value={exchangeSearchQuery}
+                      onChange={(e) => setExchangeSearchQuery(e.target.value)}
+                      className="flex-grow px-3.5 py-2 border border-border rounded-xl text-xs font-bold bg-white text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
+                    />
+                    <button 
+                      type="button" 
+                      disabled={isSearchingOrder}
+                      onClick={handleSearchOrderForExchange}
+                      className="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-4 py-2 rounded-xl cursor-pointer border-none disabled:opacity-50 transition-colors flex items-center justify-center"
+                    >
+                      {isSearchingOrder ? <Loader2 size={13} className="animate-spin" /> : "খুঁজুন"}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-4 flex flex-col gap-3">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <span className="text-[9px] font-black text-primary uppercase block">অরিজিনাল অর্ডার</span>
+                      <h4 className="text-xs font-black text-slate-800 m-0">#{exchangedOrder.orderNumber}</h4>
+                    </div>
+                    <button 
+                      type="button" 
+                      onClick={() => { setExchangedOrder(null); setReturnedItems([]); }}
+                      className="text-[9px] font-bold bg-white hover:bg-rose-50 text-slate-600 hover:text-rose-600 border border-slate-200 hover:border-rose-200 px-2.5 py-1.5 rounded-lg cursor-pointer transition-all"
+                    >
+                      অর্ডার পরিবর্তন
+                    </button>
+                  </div>
+                  
+                  <div className="bg-white border border-border/80 rounded-xl p-3 flex flex-col gap-1 text-[10px] text-slate-500 font-semibold shadow-3xs">
+                    <div>ক্রেতা: <span className="text-slate-800 font-bold">{exchangedOrder.name}</span> | ফোন: <span className="text-slate-800 font-bold">{exchangedOrder.phone}</span></div>
+                    <div>তারিখ: {new Date(exchangedOrder.createdAt).toLocaleDateString("en-GB")}</div>
+                  </div>
+                  
+                  <div className="flex flex-col gap-2 max-h-48 overflow-y-auto pr-1">
+                    <span className="text-[10px] font-black text-slate-400 uppercase">২. ফেরতকৃত পোশাক সিলেক্ট করুন (Return Items)</span>
+                    <div className="flex flex-col gap-1.5">
+                      {exchangedOrder.items.map((item: any) => {
+                        const retCount = returnedItems.find(r => r.productId === item.productId && r.size === item.size)?.quantity || 0;
+                        return (
+                          <div key={item.id} className="bg-white border border-border/80 rounded-xl p-2.5 flex items-center justify-between gap-3 shadow-3xs">
+                            <div className="flex-grow min-w-0">
+                              <div className="text-[11px] font-bold text-slate-800 truncate">{item.product?.name || "পোশাক"}</div>
+                              <div className="text-[9px] text-slate-500 font-sans font-semibold mt-0.5">সাইজ: {item.size} | মূল্য: ৳{item.price} (Qty: {item.quantity})</div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <button 
+                                type="button" 
+                                disabled={retCount <= 0}
+                                onClick={() => handleUpdateReturnQty(item, -1)}
+                                className="w-5.5 h-5.5 rounded-lg bg-slate-100 hover:bg-slate-200 border-none cursor-pointer flex items-center justify-center font-bold text-xs"
+                              >-</button>
+                              <span className="text-xs font-black font-sans">{retCount}</span>
+                              <button 
+                                type="button" 
+                                disabled={retCount >= item.quantity}
+                                onClick={() => handleUpdateReturnQty(item, 1)}
+                                className="w-5.5 h-5.5 rounded-lg bg-slate-100 hover:bg-slate-200 border-none cursor-pointer flex items-center justify-center font-bold text-xs"
+                              >+</button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Cart Header */}
           <div className="p-4 border-b border-border/80 bg-slate-900 text-white flex-shrink-0 flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -930,109 +1192,111 @@ export default function POSTab({ embedded = false, activeBranchId }: POSTabProps
           <div className="border-t border-border bg-white p-4 flex-shrink-0 shadow-xl">
             
             {/* Customer linked selector */}
-            <div className="mb-3">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-[10px] font-extrabold text-slate-500 uppercase flex items-center gap-1.5">
-                  <User size={12} className="text-primary" />
-                  গ্রাহক লিঙ্ক (Customer Profile)
-                </span>
-                {!selectedCustomer && !isNewCustomerForm && (
-                  <button 
-                    onClick={() => setIsNewCustomerForm(true)}
-                    className="text-[9px] text-primary hover:text-primary/90 font-bold border-none bg-transparent cursor-pointer flex items-center gap-0.5"
-                  >
-                    <UserPlus size={12} />
-                    <span>নতুন গ্রাহক</span>
-                  </button>
-                )}
-                {(selectedCustomer || isNewCustomerForm) && (
-                  <button 
-                    onClick={() => {
-                      clearLinkedCustomer();
-                      setIsNewCustomerForm(false);
-                    }}
-                    className="text-[9px] text-rose-500 hover:text-rose-650 font-bold border-none bg-transparent cursor-pointer"
-                  >
-                    লিঙ্ক বাতিল
-                  </button>
-                )}
-              </div>
-
-              {isNewCustomerForm ? (
-                /* Quick Add Customer Form */
-                <div className="bg-slate-50 border border-border p-3 rounded-xl flex flex-col gap-2">
-                  <div className="grid grid-cols-2 gap-2">
-                    <input 
-                      type="text" 
-                      placeholder="নাম" 
-                      value={customerName}
-                      onChange={(e) => setCustomerName(e.target.value)}
-                      className="w-full px-3 py-1.5 border border-border bg-white rounded-lg text-xs font-semibold focus:outline-none"
-                    />
-                    <input 
-                      type="text" 
-                      placeholder="মোবাইল নম্বর" 
-                      value={customerPhone}
-                      onChange={(e) => setCustomerPhone(e.target.value)}
-                      className="w-full px-3 py-1.5 border border-border bg-white rounded-lg text-xs font-semibold focus:outline-none"
-                    />
-                  </div>
-                </div>
-              ) : selectedCustomer ? (
-                /* Customer Link Active View */
-                <div className="bg-primary/5 border border-primary/20 p-2 rounded-xl flex items-center justify-between">
-                  <div className="min-w-0">
-                    <div className="text-xs font-bold text-slate-800">{selectedCustomer.name}</div>
-                    <div className="text-[10px] text-muted-foreground mt-0.5 font-sans">{selectedCustomer.phone}</div>
-                  </div>
-                  <div className="w-5 h-5 bg-primary/10 border border-primary/20 text-primary rounded-full flex items-center justify-center">
-                    <Check size={12} />
-                  </div>
-                </div>
-              ) : (
-                /* Customer Fast Lookup Field */
-                <div className="relative">
-                  <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                  <input 
-                    type="text" 
-                    placeholder="নম্বর বা নাম দিয়ে কাস্টমার খুঁজুন..."
-                    value={customerSearchQuery}
-                    onChange={async (e) => {
-                      const val = e.target.value;
-                      setCustomerSearchQuery(val);
-                      if (val.trim().length >= 2) {
-                        try {
-                          const oRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/customers?query=${encodeURIComponent(val.trim())}`, { credentials: "include" });
-                          if (oRes.ok) {
-                            const oData = await oRes.json();
-                            setCustomers(oData);
-                          }
-                        } catch (e) {
-                          console.error(e);
-                        }
-                      } else {
-                        setCustomers([]);
-                      }
-                    }}
-                    className="w-full pl-8 pr-3 py-1.5 border border-border bg-slate-50 rounded-xl text-xs font-semibold focus:outline-none"
-                  />
-                  {customerSearchQuery.length >= 3 && customers.length > 0 && (
-                    <div className="absolute left-0 right-0 bottom-full mb-1 bg-white border border-border shadow-lg rounded-xl z-20 max-h-40 overflow-y-auto">
-                      {customers.map((c) => (
-                        <button
-                          key={c.phone}
-                          onClick={() => handleSelectCustomer(c)}
-                          className="w-full text-left p-2 hover:bg-slate-50 border-none bg-transparent cursor-pointer flex items-center justify-between text-xs border-b border-border/40 last:border-none font-semibold text-slate-800"
-                        >
-                          <span>{c.name} ({c.phone})</span>
-                          <span className="text-[10px] text-muted-foreground truncate max-w-[150px]">{c.city}</span>
-                        </button>
-                      ))}
-                    </div>
+            {posMode === "sale" && (
+              <div className="mb-3">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[10px] font-extrabold text-slate-500 uppercase flex items-center gap-1.5">
+                    <User size={12} className="text-primary" />
+                    গ্রাহক লিঙ্ক (Customer Profile)
+                  </span>
+                  {!selectedCustomer && !isNewCustomerForm && (
+                    <button 
+                      onClick={() => setIsNewCustomerForm(true)}
+                      className="text-[9px] text-primary hover:text-primary/90 font-bold border-none bg-transparent cursor-pointer flex items-center gap-0.5"
+                    >
+                      <UserPlus size={12} />
+                      <span>নতুন গ্রাহক</span>
+                    </button>
+                  )}
+                  {(selectedCustomer || isNewCustomerForm) && (
+                    <button 
+                      onClick={() => {
+                        clearLinkedCustomer();
+                        setIsNewCustomerForm(false);
+                      }}
+                      className="text-[9px] text-rose-500 hover:text-rose-650 font-bold border-none bg-transparent cursor-pointer"
+                    >
+                      লিঙ্ক বাতিল
+                    </button>
                   )}
                 </div>
-              )}
-            </div>
+
+                {isNewCustomerForm ? (
+                  /* Quick Add Customer Form */
+                  <div className="bg-slate-50 border border-border p-3 rounded-xl flex flex-col gap-2">
+                    <div className="grid grid-cols-2 gap-2">
+                      <input 
+                        type="text" 
+                        placeholder="নাম" 
+                        value={customerName}
+                        onChange={(e) => setCustomerName(e.target.value)}
+                        className="w-full px-3 py-1.5 border border-border bg-white rounded-lg text-xs font-semibold focus:outline-none"
+                      />
+                      <input 
+                        type="text" 
+                        placeholder="মোবাইল নম্বর" 
+                        value={customerPhone}
+                        onChange={(e) => setCustomerPhone(e.target.value)}
+                        className="w-full px-3 py-1.5 border border-border bg-white rounded-lg text-xs font-semibold focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                ) : selectedCustomer ? (
+                  /* Customer Link Active View */
+                  <div className="bg-primary/5 border border-primary/20 p-2 rounded-xl flex items-center justify-between">
+                    <div className="min-w-0">
+                      <div className="text-xs font-bold text-slate-800">{selectedCustomer.name}</div>
+                      <div className="text-[10px] text-muted-foreground mt-0.5 font-sans">{selectedCustomer.phone}</div>
+                    </div>
+                    <div className="w-5 h-5 bg-primary/10 border border-primary/20 text-primary rounded-full flex items-center justify-center">
+                      <Check size={12} />
+                    </div>
+                  </div>
+                ) : (
+                  /* Customer Fast Lookup Field */
+                  <div className="relative">
+                    <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                    <input 
+                      type="text" 
+                      placeholder="নম্বর বা নাম দিয়ে কাস্টমার খুঁজুন..."
+                      value={customerSearchQuery}
+                      onChange={async (e) => {
+                        const val = e.target.value;
+                        setCustomerSearchQuery(val);
+                        if (val.trim().length >= 2) {
+                          try {
+                            const oRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/customers?query=${encodeURIComponent(val.trim())}`, { credentials: "include" });
+                            if (oRes.ok) {
+                              const oData = await oRes.json();
+                              setCustomers(oData);
+                            }
+                          } catch (e) {
+                            console.error(e);
+                          }
+                        } else {
+                          setCustomers([]);
+                        }
+                      }}
+                      className="w-full pl-8 pr-3 py-1.5 border border-border bg-slate-50 rounded-xl text-xs font-semibold focus:outline-none"
+                    />
+                    {customerSearchQuery.length >= 3 && customers.length > 0 && (
+                      <div className="absolute left-0 right-0 bottom-full mb-1 bg-white border border-border shadow-lg rounded-xl z-20 max-h-40 overflow-y-auto">
+                        {customers.map((c) => (
+                          <button
+                            key={c.phone}
+                            onClick={() => handleSelectCustomer(c)}
+                            className="w-full text-left p-2 hover:bg-slate-50 border-none bg-transparent cursor-pointer flex items-center justify-between text-xs border-b border-border/40 last:border-none font-semibold text-slate-800"
+                          >
+                            <span>{c.name} ({c.phone})</span>
+                            <span className="text-[10px] text-muted-foreground truncate max-w-[150px]">{c.city}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Split Payment Toggle */}
             <div className="mb-3 flex items-center justify-between bg-slate-50 border border-border p-2 rounded-xl">
@@ -1217,39 +1481,59 @@ export default function POSTab({ embedded = false, activeBranchId }: POSTabProps
             </div>
 
             {/* Calculations Breakdown */}
-            <div className="bg-slate-50 border border-border p-2.5 rounded-xl flex flex-col gap-1.5 mb-3">
-              <div className="flex justify-between text-xs text-slate-600 font-semibold">
-                <span>উপ-মোট (Subtotal):</span>
-                <span className="font-sans">৳{subtotal}</span>
-              </div>
-              {flatDiscount > 0 && (
-                <div className="flex justify-between text-xs text-rose-600 font-semibold">
-                  <span>ডিসকাউন্ট (Discount):</span>
-                  <span className="font-sans">-৳{flatDiscount}</span>
+            {posMode === "exchange" ? (
+              <div className="bg-slate-50 border border-border p-2.5 rounded-xl flex flex-col gap-1.5 mb-3">
+                <div className="flex justify-between text-xs text-slate-600 font-semibold">
+                  <span>এক্সচেঞ্জ উপ-মোট (Issue):</span>
+                  <span className="font-sans">৳{subtotal}</span>
                 </div>
-              )}
-              <div className="h-px bg-border/60 my-0.5"></div>
-              <div className="flex justify-between text-sm font-black text-slate-900">
-                <span>সর্বমোট টাকা (Grand Total):</span>
-                <span className="font-sans text-primary text-md">৳{grandTotal}</span>
+                <div className="flex justify-between text-xs text-rose-600 font-semibold">
+                  <span>ফেরত উপ-মোট (Return):</span>
+                  <span className="font-sans">-৳{returnedSubtotal}</span>
+                </div>
+                <div className="h-px bg-border/60 my-0.5"></div>
+                <div className="flex justify-between text-sm font-black text-slate-900">
+                  <span>পার্থক্য (Net Difference):</span>
+                  <span className={`font-sans text-md ${exchangeDifference >= 0 ? "text-primary" : "text-green-600"}`}>
+                    {exchangeDifference >= 0 ? `৳${exchangeDifference}` : `-৳${Math.abs(exchangeDifference)}`}
+                  </span>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="bg-slate-50 border border-border p-2.5 rounded-xl flex flex-col gap-1.5 mb-3">
+                <div className="flex justify-between text-xs text-slate-600 font-semibold">
+                  <span>উপ-মোট (Subtotal):</span>
+                  <span className="font-sans">৳{subtotal}</span>
+                </div>
+                {flatDiscount > 0 && (
+                  <div className="flex justify-between text-xs text-rose-600 font-semibold">
+                    <span>ডিসকাউন্ট (Discount):</span>
+                    <span className="font-sans">-৳{flatDiscount}</span>
+                  </div>
+                )}
+                <div className="h-px bg-border/60 my-0.5"></div>
+                <div className="flex justify-between text-sm font-black text-slate-900">
+                  <span>সর্বমোট টাকা (Grand Total):</span>
+                  <span className="font-sans text-primary text-md">৳{grandTotal}</span>
+                </div>
+              </div>
+            )}
 
             {/* Place Order CTA Button */}
             <button
-              onClick={handlePOSCheckout}
+              onClick={posMode === "exchange" ? handleExchangeCheckout : handlePOSCheckout}
               disabled={isSubmitting}
               className="w-full bg-green-600 hover:bg-green-700 text-white font-extrabold py-3 px-6 rounded-xl border-none cursor-pointer text-xs transition-all shadow-md flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-[1.01] active:scale-[0.99]"
             >
               {isSubmitting ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>অর্ডার প্রসেস হচ্ছে...</span>
+                  <span>{posMode === "exchange" ? "এক্সচেঞ্জ প্রসেস হচ্ছে..." : "অর্ডার প্রসেস হচ্ছে..."}</span>
                 </>
               ) : (
                 <>
                   <Printer size={16} />
-                  <span>অর্ডার সম্পন্ন ও রশিদ প্রিন্ট করুন</span>
+                  <span>{posMode === "exchange" ? "এক্সচেঞ্জ সম্পন্ন ও মেমো প্রিন্ট করুন" : "অর্ডার সম্পন্ন ও রশিদ প্রিন্ট করুন"}</span>
                 </>
               )}
             </button>
@@ -1502,6 +1786,112 @@ export default function POSTab({ embedded = false, activeBranchId }: POSTabProps
           <div className="receipt-center" style={{ fontSize: "8px", marginTop: "10px", lineHeight: "1.4" }}>
             <div className="receipt-bold">ধন্যবাদ! আবার আসবেন।</div>
             <div>ক্রয়কৃত পণ্য পরিবর্তনের জন্য ৩ দিনের মধ্যে শোরুমে রশিদসহ যোগাযোগ করুন। (অনুগ্রহ করে ধোয়া বা ব্যবহৃত কাপড় পরিবর্তনযোগ্য নয়)।</div>
+            <div style={{ marginTop: "5px", fontSize: "7px", color: "#666" }}>Powered by Tanha Fashion Cloud POS v1.1</div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* POS Exchange Receipt Area (Hidden on screen, formatted for thermal print) */}
+      {isClient && exchangeReceipt && createPortal(
+        <div id="pos-receipt-print-area">
+          <div className="receipt-center">
+            <h2 className="receipt-bold" style={{ fontSize: "14px", margin: "0 0 2px 0" }}>তানহা ফ্যাশন</h2>
+            <div style={{ fontSize: "10px", fontWeight: "bold" }}>শোরুম এক্সচেঞ্জ মেমো</div>
+            <div style={{ fontSize: "9px" }}>বসুন্ধরা সিটি শোরুম, লেভেল-৩, ঢাকা</div>
+            <div style={{ fontSize: "9px" }}>হটলাইন: ০১৮৬৩৬৯৪০২৭</div>
+            <div className="receipt-divider"></div>
+            <div className="receipt-bold" style={{ fontSize: "10px" }}>বিনিময় রশিদ (EXCHANGE RECEIPT)</div>
+          </div>
+
+          <div style={{ margin: "8px 0 5px 0", fontSize: "9px" }}>
+            <div>বিনিময় নং: <span className="receipt-bold">{exchangeReceipt.exchangeOrder.orderNumber}</span></div>
+            <div>মূল অর্ডার নং: #{exchangeSearchQuery}</div>
+            <div>তারিখ: {new Date().toLocaleDateString("en-GB")}</div>
+            <div>ক্যাশিয়ার: {adminUser?.name || "শোরুম ক্যাশিয়ার"}</div>
+            <div className="receipt-divider"></div>
+            <div>ক্রেতার নাম: {exchangeReceipt.exchangeOrder.name}</div>
+            <div>মোবাইল নং: {exchangeReceipt.exchangeOrder.phone}</div>
+          </div>
+
+          <div className="receipt-divider"></div>
+
+          <table className="receipt-table">
+            <thead>
+              <tr>
+                <th style={{ width: "50%" }}>আইটেম (এক্সচেঞ্জ / Issue)</th>
+                <th className="receipt-center" style={{ width: "15%" }}>সাইজ</th>
+                <th className="receipt-center" style={{ width: "15%" }}>পরিমাণ</th>
+                <th className="receipt-right" style={{ width: "20%" }}>মূল্য</th>
+              </tr>
+            </thead>
+            <tbody>
+              {exchangeReceipt.exchangeOrder.items && exchangeReceipt.exchangeOrder.items.map((item: any, idx: number) => (
+                <tr key={idx}>
+                  <td>{item.product?.name || item.name}</td>
+                  <td className="receipt-center">{item.size}</td>
+                  <td className="receipt-center">{toBanglaNumber(item.quantity)}</td>
+                  <td className="receipt-right">৳{item.price * item.quantity}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          <div style={{ margin: "8px 0", fontWeight: "bold", fontSize: "9px" }}>[ফেরতকৃত পোশাক (Returned Items)]</div>
+          <table className="receipt-table">
+            <thead>
+              <tr>
+                <th style={{ width: "50%" }}>আইটেম (ফেরত / Return)</th>
+                <th className="receipt-center" style={{ width: "15%" }}>সাইজ</th>
+                <th className="receipt-center" style={{ width: "15%" }}>পরিমাণ</th>
+                <th className="receipt-right" style={{ width: "20%" }}>মূল্য</th>
+              </tr>
+            </thead>
+            <tbody>
+              {returnedItems.map((item: any, idx: number) => (
+                <tr key={idx}>
+                  <td>{item.name}</td>
+                  <td className="receipt-center">{item.size}</td>
+                  <td className="receipt-center">{toBanglaNumber(item.quantity)}</td>
+                  <td className="receipt-right">-৳{item.price * item.quantity}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          <div className="receipt-divider"></div>
+
+          <div style={{ fontSize: "9px", paddingLeft: "30%", width: "70%" }}>
+            <div style={{ display: "flex", justifyContent: "between", padding: "1px 0" }}>
+              <span style={{ width: "60%" }}>নতুন বিল:</span>
+              <span className="receipt-bold receipt-right font-sans" style={{ width: "40%" }}>৳{exchangeReceipt.exchangedSubtotal}</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "between", padding: "1px 0" }}>
+              <span style={{ width: "60%" }}>ফেরত সমন্বয়:</span>
+              <span className="receipt-bold receipt-right font-sans" style={{ width: "40%" }}>-৳{exchangeReceipt.returnedSubtotal}</span>
+            </div>
+            <div className="receipt-divider"></div>
+            <div style={{ display: "flex", justifyContent: "between", padding: "2px 0", fontSize: "10px" }}>
+              <span className="receipt-bold" style={{ width: "60%" }}>পার্থক্য বিল:</span>
+              <span className="receipt-bold receipt-right font-sans" style={{ width: "40%", fontSize: "11px" }}>৳{exchangeReceipt.exchangedSubtotal - exchangeReceipt.returnedSubtotal}</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "between", padding: "2.5px 0", fontSize: "10.5px", fontWeight: "black" }}>
+              <span style={{ width: "60%" }}>পরিশোধিত/ফেরত:</span>
+              <span className="receipt-bold receipt-right font-sans text-primary" style={{ width: "40%" }}>৳{exchangeReceipt.exchangeOrder.grandTotal}</span>
+            </div>
+          </div>
+
+          <div className="receipt-double-divider"></div>
+
+          <div style={{ fontSize: "9px", margin: "5px 0" }}>
+            <div>পেমেন্ট মেথড: <span className="receipt-bold uppercase">{exchangeReceipt.exchangeOrder.paymentMethod}</span></div>
+            <div>পেমেন্ট স্ট্যাটাস: <span className="receipt-bold">{exchangeReceipt.exchangeOrder.paymentStatus === "PAID" ? "পরিশোধিত" : "বকেয়া"}</span></div>
+          </div>
+
+          <div className="receipt-divider"></div>
+
+          <div className="receipt-center" style={{ fontSize: "8px", marginTop: "10px", lineHeight: "1.4" }}>
+            <div className="receipt-bold">ধন্যবাদ! আবার আসবেন।</div>
             <div style={{ marginTop: "5px", fontSize: "7px", color: "#666" }}>Powered by Tanha Fashion Cloud POS v1.1</div>
           </div>
         </div>,
