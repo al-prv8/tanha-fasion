@@ -632,7 +632,7 @@ export default function ProductsTab({
           
           <form onSubmit={handleFormSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-6 text-xs font-semibold">
             {/* Left section of inputs */}
-            <div className="lg:col-span-8 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="lg:col-span-12 grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-muted-foreground mb-1">পণ্য কোড (SKU) *</label>
                 <input 
@@ -774,6 +774,36 @@ export default function ProductsTab({
                     </div>
                   );
                 })()}
+
+                {/* Custom URL or Preset inputs as fallbacks */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4 pt-3 border-t border-border/40">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] font-bold text-muted-foreground">কাস্টম ছবি লিংক (Custom Image URL - ঐচ্ছিক)</label>
+                    <input
+                      type="text"
+                      placeholder="যেমন: https://example.com/image.jpg"
+                      value={productForm.imgUrl && !productForm.imgUrl.startsWith("/assets/cotton_") && !productForm.imgUrl.includes("/uploads/") ? productForm.imgUrl : ""}
+                      onChange={(e) => {
+                        const url = e.target.value.trim();
+                        setProductForm(prev => ({ ...prev, imgUrl: url }));
+                      }}
+                      className="px-2.5 py-1.5 border border-border bg-white rounded-lg text-[10px] font-mono focus:outline-none"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] font-bold text-muted-foreground">স্টক ইমেজ প্রিসেট (Stock Image Presets - ঐচ্ছিক)</label>
+                    <select
+                      value={STATIC_PRODUCT_ASSETS.some(a => a.value === productForm.imgUrl) ? productForm.imgUrl : ""}
+                      onChange={(e) => handlePresetSelect(e.target.value)}
+                      className="px-2.5 py-1.5 border border-border bg-white rounded-lg text-[10px] font-bold focus:outline-none"
+                    >
+                      <option value="">নির্বাচন করুন</option>
+                      {STATIC_PRODUCT_ASSETS.map((asset) => (
+                        <option key={asset.value} value={asset.value}>{asset.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
               </div>
 
               {/* Facebook & TikTok Videos */}
@@ -912,99 +942,6 @@ export default function ProductsTab({
                   >
                     যোগ করুন
                   </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Right section: Media presets & uploads */}
-            <div className="lg:col-span-4 border border-border/60 bg-secondary/20 p-3.5 rounded-xl flex flex-col justify-between gap-3">
-              <div>
-                <span className="block text-[10px] text-primary font-black uppercase tracking-wider mb-2">মিডিয়া ও ছবি সংযোজন</span>
-                <div className="flex gap-1.5 mb-2">
-                  <button
-                    type="button"
-                    onClick={() => setImageMode("preset")}
-                    className={`flex-1 py-1 rounded text-[10px] font-bold border transition-colors cursor-pointer ${imageMode === "preset" ? "bg-primary border-primary text-white" : "bg-white border-border text-muted-foreground"}`}
-                  >
-                    স্টক ইমেজ
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setImageMode("upload")}
-                    className={`flex-1 py-1 rounded text-[10px] font-bold border transition-colors cursor-pointer ${imageMode === "upload" ? "bg-primary border-primary text-white" : "bg-white border-border text-muted-foreground"}`}
-                  >
-                    আপলোড করুন
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setImageMode("custom")}
-                    className={`flex-1 py-1 rounded text-[10px] font-bold border transition-colors cursor-pointer ${imageMode === "custom" ? "bg-primary border-primary text-white" : "bg-white border-border text-muted-foreground"}`}
-                  >
-                    কাস্টম লিঙ্ক
-                  </button>
-                </div>
-
-                {imageMode === "preset" ? (
-                  <select 
-                    value={productForm.imgUrl}
-                    onChange={(e) => handlePresetSelect(e.target.value)}
-                    className="w-full px-2.5 py-2 border border-border bg-white rounded-lg text-foreground font-bold focus:outline-none focus:border-primary"
-                  >
-                    {STATIC_PRODUCT_ASSETS.map((asset) => (
-                      <option key={asset.value} value={asset.value}>{asset.label}</option>
-                    ))}
-                  </select>
-                ) : imageMode === "upload" ? (
-                  <div className="flex flex-col gap-2">
-                    <label className="flex flex-col items-center justify-center border-2 border-dashed border-slate-200 hover:border-primary/60 bg-white rounded-xl p-4 cursor-pointer transition-all duration-200 text-center relative group min-h-[90px]">
-                      <input 
-                        type="file" 
-                        accept="image/*" 
-                        onChange={handleFileUpload} 
-                        className="hidden" 
-                        disabled={isUploading}
-                      />
-                      {isUploading ? (
-                        <div className="flex flex-col items-center gap-2">
-                          <div className="w-5 h-5 border-2 border-primary/30 border-t-primary rounded-full animate-spin"></div>
-                          <span className="text-[10px] text-muted-foreground font-semibold">ছবি আপলোড হচ্ছে...</span>
-                        </div>
-                      ) : (
-                        <div className="flex flex-col items-center gap-1.5">
-                          <ImageIcon size={18} className="text-slate-400 group-hover:text-primary transition-colors duration-200" />
-                          <span className="text-[10px] text-slate-700 font-bold">এখানে ক্লিক করে ছবি সিলেক্ট করুন</span>
-                          <span className="text-[9px] text-slate-400">JPG, PNG, WEBP (সর্বোচ্চ ৫ মেগাবাইট)</span>
-                        </div>
-                      )}
-                    </label>
-                    {uploadError && (
-                      <span className="text-[9px] text-rose-500 font-bold block mt-1">{uploadError}</span>
-                    )}
-                  </div>
-                ) : (
-                  <input 
-                    type="text" 
-                    required
-                    placeholder="কাস্টম ইমেজ URL"
-                    value={productForm.imgUrl}
-                    onChange={(e) => setProductForm(prev => ({ ...prev, imgUrl: e.target.value }))}
-                    className="w-full px-3 py-2 border border-border bg-white rounded-lg text-foreground font-mono focus:outline-none"
-                  />
-                )}
-              </div>
-
-              {/* Preview */}
-              <div className="flex gap-3 items-center bg-white border border-border/80 p-2.5 rounded-lg">
-                <div className="w-10 h-13 bg-secondary rounded overflow-hidden flex-shrink-0 flex items-center justify-center text-muted-foreground/60 border border-border">
-                  {productForm.imgUrl ? (
-                    <Image src={productForm.imgUrl || "/assets/cotton_1.png"} alt="Preview" width={40} height={52} className="w-full h-full object-cover" />
-                  ) : (
-                    <ImageIcon size={16} />
-                  )}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="text-[10px] font-bold text-foreground">ছবির লাইভ প্রিভিউ</div>
-                  <div className="text-[9px] text-muted-foreground truncate font-mono mt-0.5">{productForm.imgUrl || "সিলেক্ট করা হয়নি"}</div>
                 </div>
               </div>
             </div>
@@ -1436,6 +1373,36 @@ export default function ProductsTab({
                                           </div>
                                         );
                                       })()}
+
+                                      {/* Custom URL or Preset inputs as fallbacks - Edit */}
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4 pt-3 border-t border-border/40">
+                                        <div className="flex flex-col gap-1">
+                                          <label className="text-[10px] font-bold text-muted-foreground">কাস্টম ছবি লিংক (Custom Image URL - ঐচ্ছিক)</label>
+                                          <input
+                                            type="text"
+                                            placeholder="যেমন: https://example.com/image.jpg"
+                                            value={productForm.imgUrl && !productForm.imgUrl.startsWith("/assets/cotton_") && !productForm.imgUrl.includes("/uploads/") ? productForm.imgUrl : ""}
+                                            onChange={(e) => {
+                                              const url = e.target.value.trim();
+                                              setProductForm(prev => ({ ...prev, imgUrl: url }));
+                                            }}
+                                            className="px-2.5 py-1.5 border border-border bg-white rounded-lg text-[10px] font-mono focus:outline-none"
+                                          />
+                                        </div>
+                                        <div className="flex flex-col gap-1">
+                                          <label className="text-[10px] font-bold text-muted-foreground">স্টক ইমেজ প্রিসেট (Stock Image Presets - ঐচ্ছিক)</label>
+                                          <select
+                                            value={STATIC_PRODUCT_ASSETS.some(a => a.value === productForm.imgUrl) ? productForm.imgUrl : ""}
+                                            onChange={(e) => handlePresetSelect(e.target.value)}
+                                            className="px-2.5 py-1.5 border border-border bg-white rounded-lg text-[10px] font-bold focus:outline-none"
+                                          >
+                                            <option value="">নির্বাচন করুন</option>
+                                            {STATIC_PRODUCT_ASSETS.map((asset) => (
+                                              <option key={asset.value} value={asset.value}>{asset.label}</option>
+                                            ))}
+                                          </select>
+                                        </div>
+                                      </div>
                                     </div>
 
                                     {/* Facebook & TikTok Videos - Edit */}
@@ -1496,82 +1463,6 @@ export default function ProductsTab({
                                           <option key={idx} value={cat}>{cat}</option>
                                         ))}
                                       </select>
-                                    </div>
-
-                                    {/* Image Selector & Upload */}
-                                    <div className="col-span-2 border border-border/60 bg-secondary/10 p-3.5 rounded-xl">
-                                      <span className="block text-[10px] text-primary font-black uppercase tracking-wider mb-2">ছবি পরিবর্তন</span>
-                                      
-                                      <div className="flex gap-1.5 mb-2">
-                                        <button
-                                          type="button"
-                                          onClick={() => setImageMode("preset")}
-                                          className={`flex-1 py-1 rounded text-[10px] font-bold border transition-colors cursor-pointer ${imageMode === "preset" ? "bg-primary border-primary text-white" : "bg-white border-border text-muted-foreground"}`}
-                                        >
-                                          স্টক গ্যালারি
-                                        </button>
-                                        <button
-                                          type="button"
-                                          onClick={() => setImageMode("upload")}
-                                          className={`flex-1 py-1 rounded text-[10px] font-bold border transition-colors cursor-pointer ${imageMode === "upload" ? "bg-primary border-primary text-white" : "bg-white border-border text-muted-foreground"}`}
-                                        >
-                                          আপলোড করুন
-                                        </button>
-                                        <button
-                                          type="button"
-                                          onClick={() => setImageMode("custom")}
-                                          className={`flex-1 py-1 rounded text-[10px] font-bold border transition-colors cursor-pointer ${imageMode === "custom" ? "bg-primary border-primary text-white" : "bg-white border-border text-muted-foreground"}`}
-                                        >
-                                          কাস্টম লিঙ্ক
-                                        </button>
-                                      </div>
-
-                                      {imageMode === "preset" ? (
-                                        <select 
-                                          value={productForm.imgUrl}
-                                          onChange={(e) => handlePresetSelect(e.target.value)}
-                                          className="w-full px-2.5 py-1.5 border border-border bg-white rounded-lg text-foreground font-bold focus:outline-none"
-                                        >
-                                          {STATIC_PRODUCT_ASSETS.map((asset) => (
-                                            <option key={asset.value} value={asset.value}>{asset.label}</option>
-                                          ))}
-                                        </select>
-                                      ) : imageMode === "upload" ? (
-                                        <div className="flex flex-col gap-2">
-                                          <label className="flex flex-col items-center justify-center border-2 border-dashed border-slate-200 hover:border-primary/60 bg-white rounded-xl p-3.5 cursor-pointer transition-all duration-200 text-center relative group min-h-[90px]">
-                                            <input 
-                                              type="file" 
-                                              accept="image/*" 
-                                              onChange={handleFileUpload} 
-                                              className="hidden" 
-                                              disabled={isUploading}
-                                            />
-                                            {isUploading ? (
-                                              <div className="flex flex-col items-center gap-2">
-                                                <div className="w-5 h-5 border-2 border-primary/30 border-t-primary rounded-full animate-spin"></div>
-                                                <span className="text-[10px] text-muted-foreground font-semibold">ছবি আপলোড হচ্ছে...</span>
-                                              </div>
-                                            ) : (
-                                              <div className="flex flex-col items-center gap-1.5">
-                                                <ImageIcon size={18} className="text-slate-400 group-hover:text-primary transition-colors duration-200" />
-                                                <span className="text-[10px] text-slate-700 font-bold">এখানে ক্লিক করে ছবি সিলেক্ট করুন</span>
-                                                <span className="text-[9px] text-slate-400">JPG, PNG, WEBP (সর্বোচ্চ ৫ মেগাবাইট)</span>
-                                              </div>
-                                            )}
-                                          </label>
-                                          {uploadError && (
-                                            <span className="text-[9px] text-rose-500 font-bold block mt-1">{uploadError}</span>
-                                          )}
-                                        </div>
-                                      ) : (
-                                        <input 
-                                          type="text" 
-                                          required
-                                          value={productForm.imgUrl}
-                                          onChange={(e) => setProductForm(prev => ({ ...prev, imgUrl: e.target.value }))}
-                                          className="w-full px-2.5 py-1.5 border border-border bg-white rounded-lg text-foreground font-mono focus:outline-none"
-                                        />
-                                      )}
                                     </div>
 
                                     {/* Sizes */}
