@@ -167,7 +167,11 @@ app.use("/uploads", express.static(UPLOADS_DIR));
 
 // Authentication Middlewares
 const authenticateToken = (req: any, res: any, next: any) => {
-  const token = req.cookies.token;
+  let token = req.cookies.token;
+  if (!token && req.headers.authorization && req.headers.authorization.startsWith("Bearer ")) {
+    token = req.headers.authorization.split(" ")[1];
+  }
+
   if (!token) {
     return res.status(401).json({ error: "অননুমোদিত প্রবেশ। দয়া করে লগইন করুন।" });
   }
@@ -359,6 +363,7 @@ app.post("/api/auth/login", async (req, res) => {
 
     res.json({
       message: "লগইন সফল হয়েছে।",
+      token,
       user: {
         id: user.id,
         email: user.email,
