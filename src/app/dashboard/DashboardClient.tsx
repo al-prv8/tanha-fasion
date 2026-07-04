@@ -24,7 +24,9 @@ import {
   Activity,
   ChevronRight,
   UserCheck,
-  PhoneCall
+  PhoneCall,
+  Menu,
+  X
 } from "lucide-react";
 import Navbar from "@/components/layout/Navbar";
 import { WhatsAppIcon } from "@/components/ui/whatsapp-icon";
@@ -43,8 +45,24 @@ export default function CustomerDashboardPage() {
 
   // Navigation states
   const [activeTab, setActiveTab] = useState<DashboardTabType>("overview");
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [menuDrawerOpen, setMenuDrawerOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+
+  const getActiveTabLabel = () => {
+    switch (activeTab) {
+      case "overview":
+        return "অ্যাকাউন্ট ওভারভিউ";
+      case "orders":
+        return `অর্ডার ইতিহাস (${toBanglaNumber(orders.length)})`;
+      case "profile":
+        return "ঠিকানা ও প্রোফাইল";
+      case "password":
+        return "পাসওয়ার্ড পরিবর্তন";
+      default:
+        return "ড্যাশবোর্ড";
+    }
+  };
 
   // Data states
   const [orders, setOrders] = useState<any[]>([]);
@@ -400,8 +418,28 @@ export default function CustomerDashboardPage() {
         {/* Two Column Workspace */}
         <div className="flex flex-col lg:flex-row gap-8">
           
+          {/* Mobile Navigation Header Trigger (lg:hidden) */}
+          <div className="lg:hidden flex items-center justify-between bg-card border border-border/80 rounded-2xl p-4 shadow-3xs mb-1 w-full box-border">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-primary/10 text-primary border border-primary/20 rounded-xl flex items-center justify-center font-display font-extrabold text-sm flex-shrink-0">
+                {user.name ? user.name.slice(0, 1) : "T"}
+              </div>
+              <div className="text-left">
+                <span className="text-[9px] text-muted-foreground font-black uppercase tracking-wider block">বর্তমান পেজ</span>
+                <span className="text-xs font-black text-foreground">{getActiveTabLabel()}</span>
+              </div>
+            </div>
+            <button
+              onClick={() => setIsMobileSidebarOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-2 bg-secondary/80 text-foreground border border-border rounded-xl text-xs font-bold cursor-pointer transition-all hover:bg-secondary active:scale-95"
+            >
+              <Menu size={14} className="text-primary" />
+              <span>মেনু</span>
+            </button>
+          </div>
+
           {/* Redesigned Sidebar Navigation Panel */}
-          <aside className="w-full lg:w-72 flex-shrink-0">
+          <aside className="w-full lg:w-72 flex-shrink-0 hidden lg:block">
             <div className="bg-card border border-border/80 rounded-3xl p-6 shadow-xs space-y-6">
               
               {/* Short profile header */}
@@ -953,6 +991,132 @@ export default function CustomerDashboardPage() {
         </div>
       </div>
       <ToastNotification isActive={toastActive} message={toastMsg} />
+
+      {/* Mobile Drawer Navigation (lg:hidden) */}
+      {isMobileSidebarOpen && (
+        <div 
+          className="lg:hidden fixed inset-0 bg-slate-950/40 backdrop-blur-xs z-50 flex transition-all duration-300"
+          onClick={() => setIsMobileSidebarOpen(false)}
+        >
+          <div 
+            className="w-72 max-w-[85vw] h-full bg-card border-r border-border/80 p-6 flex flex-col justify-between shadow-2xl animate-in slide-in-from-left duration-200 text-left"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="space-y-6">
+              {/* Close & Title */}
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black text-primary tracking-widest uppercase">ড্যাশবোর্ড মেনু</span>
+                <button 
+                  onClick={() => setIsMobileSidebarOpen(false)}
+                  className="w-8 h-8 rounded-xl bg-secondary/50 border border-border flex items-center justify-center hover:bg-secondary active:scale-95 cursor-pointer text-foreground"
+                >
+                  <X size={15} />
+                </button>
+              </div>
+
+              {/* Short profile header */}
+              <div className="flex items-center gap-4 pb-5 border-b border-border/60">
+                <div className="w-12 h-12 bg-primary/10 text-primary border border-primary/20 rounded-2xl flex items-center justify-center font-display font-extrabold text-xl flex-shrink-0">
+                  {user.name ? user.name.slice(0, 1) : "T"}
+                </div>
+                <div className="text-left truncate min-w-0">
+                  <h3 className="text-sm font-bold text-foreground truncate">{user.name}</h3>
+                  <p className="text-[10px] text-muted-foreground truncate">{user.email}</p>
+                </div>
+              </div>
+
+              {/* Sidebar Menu options */}
+              <nav className="flex flex-col gap-1.5 list-none m-0 p-0 select-none">
+                <button
+                  onClick={() => {
+                    setActiveTab("overview");
+                    setErrorMsg("");
+                    setSuccessMsg("");
+                    setIsMobileSidebarOpen(false);
+                  }}
+                  className={`flex items-center gap-3 px-4 py-3 text-xs font-bold rounded-xl border cursor-pointer transition-all text-left w-full border-solid ${
+                    activeTab === "overview"
+                      ? "bg-primary border-primary text-white shadow-xs"
+                      : "bg-transparent border-transparent text-foreground hover:bg-secondary/40"
+                  }`}
+                >
+                  <User size={15} />
+                  <span>অ্যাকাউন্ট ওভারভিউ</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setActiveTab("orders");
+                    setErrorMsg("");
+                    setSuccessMsg("");
+                    fetchMyOrders();
+                    setIsMobileSidebarOpen(false);
+                  }}
+                  className={`flex items-center gap-3 px-4 py-3 text-xs font-bold rounded-xl border cursor-pointer transition-all text-left w-full border-solid ${
+                    activeTab === "orders"
+                      ? "bg-primary border-primary text-white shadow-xs"
+                      : "bg-transparent border-transparent text-foreground hover:bg-secondary/40"
+                  }`}
+                >
+                  <ShoppingBag size={15} />
+                  <span>অর্ডার ইতিহাস ({toBanglaNumber(totalOrdersCount)})</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setActiveTab("profile");
+                    setErrorMsg("");
+                    setSuccessMsg("");
+                    setIsMobileSidebarOpen(false);
+                  }}
+                  className={`flex items-center gap-3 px-4 py-3 text-xs font-bold rounded-xl border cursor-pointer transition-all text-left w-full border-solid ${
+                    activeTab === "profile"
+                      ? "bg-primary border-primary text-white shadow-xs"
+                      : "bg-transparent border-transparent text-foreground hover:bg-secondary/40"
+                  }`}
+                >
+                  <MapPin size={15} />
+                  <span>ঠিকানা ও প্রোফাইল</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setActiveTab("password");
+                    setErrorMsg("");
+                    setSuccessMsg("");
+                    setIsMobileSidebarOpen(false);
+                  }}
+                  className={`flex items-center gap-3 px-4 py-3 text-xs font-bold rounded-xl border cursor-pointer transition-all text-left w-full border-solid ${
+                    activeTab === "password"
+                      ? "bg-primary border-primary text-white shadow-xs"
+                      : "bg-transparent border-transparent text-foreground hover:bg-secondary/40"
+                  }`}
+                >
+                  <Key size={15} />
+                  <span>পাসওয়ার্ড পরিবর্তন</span>
+                </button>
+              </nav>
+            </div>
+
+            {/* Footer / Logout */}
+            <div className="border-t border-border/60 pt-4 flex flex-col gap-2">
+              <button
+                onClick={() => {
+                  setIsMobileSidebarOpen(false);
+                  handleLogoutClick();
+                }}
+                className="w-full bg-secondary hover:bg-primary/10 hover:text-primary hover:border-primary/30 border border-border text-foreground py-2 px-4 rounded-xl text-xs font-bold cursor-pointer transition-all flex items-center justify-center gap-2"
+              >
+                <LogOut size={13} />
+                <span>লগআউট করুন</span>
+              </button>
+              <div className="text-[9px] text-muted-foreground/60 font-mono text-center">
+                v1.1.0 © তানহা ফ্যাশন
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

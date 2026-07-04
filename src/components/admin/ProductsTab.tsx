@@ -402,6 +402,112 @@ export default function ProductsTab({
     }
   };
 
+  const handleMultipleUploads = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    for (let i = 0; i < files.length; i++) {
+      if (files[i].size > 5 * 1024 * 1024) {
+        setUploadError(`"${files[i].name}" ফাইলের সাইজ ৫ মেগাবাইটের বেশি।`);
+        return;
+      }
+      if (!files[i].type.startsWith("image/")) {
+        setUploadError(`"${files[i].name}" ফাইলটি ছবি নয়।`);
+        return;
+      }
+    }
+
+    setIsUploading(true);
+    setUploadError("");
+
+    const uploadedUrls: string[] = [];
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const formData = new FormData();
+      formData.append("image", file);
+
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/upload`, {
+          method: "POST",
+          body: formData,
+          credentials: "include"
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data.url) {
+            uploadedUrls.push(data.url);
+          }
+        }
+      } catch (err) {
+        console.error("Upload failed for file:", file.name, err);
+      }
+    }
+
+    if (uploadedUrls.length > 0) {
+      setProductForm(prev => {
+        let mainImg = prev.imgUrl;
+        let secondaryStartIdx = 0;
+
+        if (!mainImg || mainImg === "" || mainImg.startsWith("/assets/cotton_") || mainImg === "/assets/cotton_1.png") {
+          mainImg = uploadedUrls[0];
+          secondaryStartIdx = 1;
+        }
+
+        let existingSecs: string[] = [];
+        try {
+          existingSecs = JSON.parse(prev.imagesJson || "[]");
+        } catch (err) {}
+
+        const newSecs = [...existingSecs, ...uploadedUrls.slice(secondaryStartIdx)];
+
+        return {
+          ...prev,
+          imgUrl: mainImg,
+          imagesJson: JSON.stringify(newSecs.filter(Boolean))
+        };
+      });
+    }
+
+    setIsUploading(false);
+  };
+
+  const handleRemoveSecondaryImage = (idx: number) => {
+    let currentImagesList: string[] = [];
+    try {
+      currentImagesList = JSON.parse(productForm.imagesJson || "[]");
+    } catch (e) {}
+
+    const updated = currentImagesList.filter((_, i) => i !== idx);
+    setProductForm(prev => ({
+      ...prev,
+      imagesJson: JSON.stringify(updated)
+    }));
+  };
+
+  const handleMakeMainImage = (url: string, idx: number) => {
+    let currentImagesList: string[] = [];
+    try {
+      currentImagesList = JSON.parse(productForm.imagesJson || "[]");
+    } catch (e) {}
+
+    const oldMain = productForm.imgUrl;
+    const updated = [...currentImagesList];
+    
+    if (oldMain && !oldMain.startsWith("/assets/cotton_")) {
+      updated[idx] = oldMain;
+    } else {
+      updated.splice(idx, 1);
+    }
+
+    setProductForm(prev => ({
+      ...prev,
+      imgUrl: url,
+      imagesJson: JSON.stringify(updated.filter(Boolean))
+    }));
+  };
+
   // Synchronize preset vs custom dropdown selection mode when productForm.imgUrl changes
   useEffect(() => {
     const isPreset = STATIC_PRODUCT_ASSETS.some(a => a.value === productForm.imgUrl);
@@ -586,68 +692,88 @@ export default function ProductsTab({
                 />
               </div>
 
-              {/* Additional Images (Slots 2 to 5) */}
-              <div className="bg-secondary/20 p-4 rounded-xl border border-border mt-3">
-                <span className="text-xs font-bold text-foreground block mb-3">অতিরিক্ত ছবিসমূহ (Additional Images - সর্বোচ্চ ৪টি)</span>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {[2, 3, 4, 5].map((num) => {
-                    const idx = num - 2;
-                    let currentImagesList: string[] = [];
-                    try {
-                      currentImagesList = JSON.parse(productForm.imagesJson || "[]");
-                    } catch (e) {}
-                    const val = currentImagesList[idx] || "";
-                    
-                    const handleSlotChange = (newVal: string) => {
-                      const updated = [...currentImagesList];
-                      updated[idx] = newVal;
-                      setProductForm(prev => ({ ...prev, imagesJson: JSON.stringify(updated.filter(u => u !== undefined && u !== null && u.trim() !== "")) }));
-                    };
-                    
-                    const handleSlotUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-                      const file = e.target.files?.[0];
-                      if (!file) return;
-                      
-                      const formData = new FormData();
-                      formData.append("file", file);
-                      
-                      try {
-                        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/upload`, {
-                          method: "POST",
-                          body: formData,
-                          credentials: "include"
-                        });
-                        if (res.ok) {
-                          const data = await res.json();
-                          if (data.url) {
-                            handleSlotChange(data.url);
-                          }
-                        }
-                      } catch (err) {
-                        console.error("Slot upload failed:", err);
-                      }
-                    };
+              {/* Product Photo Gallery & Bulk Uploader */}
+              <div className="bg-secondary/20 p-4 rounded-xl border border-border mt-3 text-left">
+                <div className="flex justify-between items-center mb-3">
+                  <div>
+                    <span className="text-xs font-black text-foreground block">পোশাকের ফটো গ্যালারি (Product Photo Gallery)</span>
+                    <span className="text-[10px] text-muted-foreground block mt-0.5">সবচেয়ে চমৎকার ছবিটি মূল ছবি হিসেবে নির্বাচন করুন।</span>
+                  </div>
+                  <label className="py-1.5 px-3 bg-primary hover:bg-primary/95 text-white text-xs font-bold rounded-lg cursor-pointer transition-all flex items-center justify-center shrink-0 border-none shadow-2xs">
+                    <Upload size={12} className="mr-1" /> ফটো যোগ করুন
+                    <input type="file" multiple accept="image/*" className="hidden" onChange={handleMultipleUploads} />
+                  </label>
+                </div>
 
+                {(() => {
+                  let currentImagesList: string[] = [];
+                  try {
+                    currentImagesList = JSON.parse(productForm.imagesJson || "[]");
+                  } catch (e) {}
+
+                  const allImages = [
+                    ...(productForm.imgUrl && !productForm.imgUrl.startsWith("/assets/cotton_") ? [{ url: productForm.imgUrl, isMain: true, idx: -1 }] : []),
+                    ...currentImagesList.map((url: string, i: number) => ({ url, isMain: false, idx: i }))
+                  ];
+
+                  if (allImages.length === 0) {
                     return (
-                      <div key={num} className="flex flex-col gap-1">
-                        <label className="text-[10px] font-bold text-muted-foreground">ছবি {toBanglaNumber(num)} (URL বা ফাইল আপলোড)</label>
-                        <div className="flex gap-2">
-                          <input 
-                            type="text" 
-                            placeholder={`ছবি ${num} এর URL`}
-                            value={val}
-                            onChange={(e) => handleSlotChange(e.target.value)}
-                            className="flex-1 px-2.5 py-1.5 border border-border bg-white rounded-lg text-xs font-mono"
-                          />
-                          <label className="py-1.5 px-3 bg-white hover:bg-slate-200 border border-border text-foreground text-xs font-bold rounded-lg cursor-pointer transition-colors flex items-center justify-center shrink-0">
-                            <Upload size={12} className="mr-1" /> আপলোড
-                            <input type="file" accept="image/*" className="hidden" onChange={handleSlotUpload} />
-                          </label>
-                        </div>
+                      <div className="border border-dashed border-slate-200 rounded-xl p-6 text-center text-muted-foreground text-[10px] font-semibold bg-white/40">
+                        কোনো ফটো আপলোড করা হয়নি। উপরে "ফটো যোগ করুন" বাটনে ক্লিক করে এক বা একাধিক ছবি নির্বাচন করুন।
                       </div>
                     );
-                  })}
-                </div>
+                  }
+
+                  return (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      {allImages.map((img, index) => (
+                        <div key={index} className="relative aspect-square rounded-lg border border-border bg-white overflow-hidden group">
+                          <Image src={img.url} alt={`Product ${index}`} width={120} height={120} className="w-full h-full object-cover" />
+                          
+                          {/* Main Badge */}
+                          {img.isMain ? (
+                            <div className="absolute top-1 left-1 bg-emerald-600 text-white font-black px-1.5 py-0.5 rounded text-[8px] tracking-wide uppercase">
+                              মূল ছবি
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleMakeMainImage(img.url, img.idx)}
+                              className="absolute top-1 left-1 bg-slate-900/80 hover:bg-slate-900 text-white font-black px-1.5 py-0.5 rounded text-[8px] cursor-pointer border-none opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              মূল ছবি করুন
+                            </button>
+                          )}
+
+                          {/* Delete Button */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (img.isMain) {
+                                if (currentImagesList.length > 0) {
+                                  const nextMain = currentImagesList[0];
+                                  setProductForm(prev => ({
+                                    ...prev,
+                                    imgUrl: nextMain,
+                                    imagesJson: JSON.stringify(currentImagesList.slice(1))
+                                  }));
+                                } else {
+                                  setProductForm(prev => ({ ...prev, imgUrl: "" }));
+                                }
+                              } else {
+                                handleRemoveSecondaryImage(img.idx);
+                              }
+                            }}
+                            className="absolute top-1 right-1 w-5 h-5 bg-rose-500 hover:bg-rose-600 text-white rounded-md flex items-center justify-center cursor-pointer border-none opacity-0 group-hover:opacity-100 transition-opacity shadow-3xs"
+                            title="মুছে ফেলুন"
+                          >
+                            <Trash2 size={10} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* Facebook & TikTok Videos */}
@@ -1228,68 +1354,88 @@ export default function ProductsTab({
                                       />
                                     </div>
 
-                                    {/* Additional Images (Slots 2 to 5) - Edit */}
-                                    <div className="bg-slate-50 p-4 rounded-xl border border-border mt-3">
-                                      <span className="text-xs font-bold text-foreground block mb-3">অতিরিক্ত ছবিসমূহ (Additional Images - সর্বোচ্চ ৪টি)</span>
-                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                        {[2, 3, 4, 5].map((num) => {
-                                          const idx = num - 2;
-                                          let currentImagesList: string[] = [];
-                                          try {
-                                            currentImagesList = JSON.parse(productForm.imagesJson || "[]");
-                                          } catch (e) {}
-                                          const val = currentImagesList[idx] || "";
-                                          
-                                          const handleSlotChange = (newVal: string) => {
-                                            const updated = [...currentImagesList];
-                                            updated[idx] = newVal;
-                                            setProductForm(prev => ({ ...prev, imagesJson: JSON.stringify(updated.filter(u => u !== undefined && u !== null && u.trim() !== "")) }));
-                                          };
-                                          
-                                          const handleSlotUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-                                            const file = e.target.files?.[0];
-                                            if (!file) return;
-                                            
-                                            const formData = new FormData();
-                                            formData.append("file", file);
-                                            
-                                            try {
-                                              const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/upload`, {
-                                                method: "POST",
-                                                body: formData,
-                                                credentials: "include"
-                                              });
-                                              if (res.ok) {
-                                                const data = await res.json();
-                                                if (data.url) {
-                                                  handleSlotChange(data.url);
-                                                }
-                                              }
-                                            } catch (err) {
-                                              console.error("Slot upload failed:", err);
-                                            }
-                                          };
+                                    {/* Product Photo Gallery & Bulk Uploader - Edit */}
+                                    <div className="bg-slate-50 p-4 rounded-xl border border-border mt-3 text-left">
+                                      <div className="flex justify-between items-center mb-3">
+                                        <div>
+                                          <span className="text-xs font-black text-foreground block">পোশাকের ফটো গ্যালারি (Product Photo Gallery)</span>
+                                          <span className="text-[10px] text-muted-foreground block mt-0.5">সবচেয়ে চমৎকার ছবিটি মূল ছবি হিসেবে নির্বাচন করুন।</span>
+                                        </div>
+                                        <label className="py-1.5 px-3 bg-primary hover:bg-primary/95 text-white text-xs font-bold rounded-lg cursor-pointer transition-all flex items-center justify-center shrink-0 border-none shadow-2xs">
+                                          <Upload size={12} className="mr-1" /> ফটো যোগ করুন
+                                          <input type="file" multiple accept="image/*" className="hidden" onChange={handleMultipleUploads} />
+                                        </label>
+                                      </div>
 
+                                      {(() => {
+                                        let currentImagesList: string[] = [];
+                                        try {
+                                          currentImagesList = JSON.parse(productForm.imagesJson || "[]");
+                                        } catch (e) {}
+
+                                        const allImages = [
+                                          ...(productForm.imgUrl && !productForm.imgUrl.startsWith("/assets/cotton_") ? [{ url: productForm.imgUrl, isMain: true, idx: -1 }] : []),
+                                          ...currentImagesList.map((url: string, i: number) => ({ url, isMain: false, idx: i }))
+                                        ];
+
+                                        if (allImages.length === 0) {
                                           return (
-                                            <div key={num} className="flex flex-col gap-1">
-                                              <label className="text-[10px] font-bold text-muted-foreground">ছবি {toBanglaNumber(num)} (URL বা ফাইল আপলোড)</label>
-                                              <div className="flex gap-2">
-                                                <input 
-                                                  type="text" 
-                                                  placeholder={`ছবি ${num} এর URL`}
-                                                  value={val}
-                                                  onChange={(e) => handleSlotChange(e.target.value)}
-                                                  className="flex-1 px-2.5 py-1.5 border border-border bg-white rounded-lg text-xs font-mono"
-                                                />
-                                                <label className="py-1.5 px-3 bg-white hover:bg-slate-200 border border-border text-foreground text-xs font-bold rounded-lg cursor-pointer transition-colors flex items-center justify-center shrink-0">
-                                                  <Upload size={12} className="mr-1" /> আপলোড
-                                                  <input type="file" accept="image/*" className="hidden" onChange={handleSlotUpload} />
-                                                </label>
-                                              </div>
+                                            <div className="border border-dashed border-slate-200 rounded-xl p-6 text-center text-muted-foreground text-[10px] font-semibold bg-white/40">
+                                              কোনো ফটো আপলোড করা হয়নি। উপরে "ফটো যোগ করুন" বাটনে ক্লিক করে এক বা একাধিক ছবি নির্বাচন করুন।
                                             </div>
                                           );
-                                        })}
-                                      </div>
+                                        }
+
+                                        return (
+                                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                            {allImages.map((img, index) => (
+                                              <div key={index} className="relative aspect-square rounded-lg border border-border bg-white overflow-hidden group">
+                                                <Image src={img.url} alt={`Product ${index}`} width={120} height={120} className="w-full h-full object-cover" />
+                                                
+                                                {/* Main Badge */}
+                                                {img.isMain ? (
+                                                  <div className="absolute top-1 left-1 bg-emerald-600 text-white font-black px-1.5 py-0.5 rounded text-[8px] tracking-wide uppercase">
+                                                    মূল ছবি
+                                                  </div>
+                                                ) : (
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => handleMakeMainImage(img.url, img.idx)}
+                                                    className="absolute top-1 left-1 bg-slate-900/80 hover:bg-slate-900 text-white font-black px-1.5 py-0.5 rounded text-[8px] cursor-pointer border-none opacity-0 group-hover:opacity-100 transition-opacity"
+                                                  >
+                                                    মূল ছবি করুন
+                                                  </button>
+                                                )}
+
+                                                {/* Delete Button */}
+                                                <button
+                                                  type="button"
+                                                  onClick={() => {
+                                                    if (img.isMain) {
+                                                      if (currentImagesList.length > 0) {
+                                                        const nextMain = currentImagesList[0];
+                                                        setProductForm(prev => ({
+                                                          ...prev,
+                                                          imgUrl: nextMain,
+                                                          imagesJson: JSON.stringify(currentImagesList.slice(1))
+                                                        }));
+                                                      } else {
+                                                        setProductForm(prev => ({ ...prev, imgUrl: "" }));
+                                                      }
+                                                    } else {
+                                                      handleRemoveSecondaryImage(img.idx);
+                                                    }
+                                                  }}
+                                                  className="absolute top-1 right-1 w-5 h-5 bg-rose-500 hover:bg-rose-600 text-white rounded-md flex items-center justify-center cursor-pointer border-none opacity-0 group-hover:opacity-100 transition-opacity shadow-3xs"
+                                                  title="মুছে ফেলুন"
+                                                >
+                                                  <Trash2 size={10} />
+                                                </button>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        );
+                                      })()}
                                     </div>
 
                                     {/* Facebook & TikTok Videos - Edit */}
