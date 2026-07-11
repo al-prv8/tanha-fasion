@@ -1,4 +1,6 @@
 "use client";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
 
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { createPortal } from "react-dom";
@@ -642,6 +644,68 @@ export default function POSTab({ embedded = false, activeBranchId }: POSTabProps
       focusBarcodeField();
     }
   };
+
+    useEffect(() => {
+    if (!receiptOrder) return;
+
+    const generateAndUploadPOSInvoice = async () => {
+      // Wait for DOM to render the hidden A4 invoice sheet
+      await new Promise(resolve => setTimeout(resolve, 800));
+      
+      const el = document.getElementById(`pos-auto-invoice-sheet-${receiptOrder.id}`);
+      if (!el) {
+        console.error("POS Auto-invoice element not found!");
+        return;
+      }
+
+      try {
+        const canvas = await html2canvas(el, {
+          scale: 2,
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: "#ffffff"
+        });
+
+        const imgData = canvas.toDataURL("image/jpeg", 0.95);
+        const pdf = new jsPDF({
+          orientation: "portrait",
+          unit: "mm",
+          format: "a4"
+        });
+
+        const imgWidth = 210;
+        const pageHeight = 295;
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        let heightLeft = imgHeight;
+        let position = 0;
+
+        pdf.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight, undefined, "FAST");
+        heightLeft -= pageHeight;
+
+        while (heightLeft >= 0) {
+          position = heightLeft - imgHeight;
+          pdf.addPage();
+          pdf.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight, undefined, "FAST");
+          heightLeft -= pageHeight;
+        }
+
+        const pdfBlob = pdf.output("blob");
+        const formData = new FormData();
+        formData.append("invoice", pdfBlob, `invoice_${receiptOrder.orderNumber}.pdf`);
+
+        await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/orders/${receiptOrder.id}/invoice`, {
+          method: "POST",
+          body: formData,
+          credentials: "include"
+        });
+        console.log("Automated POS S3 invoice upload successful for order ID:", receiptOrder.id);
+      } catch (err) {
+        console.error("Failed to compile/upload automated POS invoice PDF:", err);
+      }
+    };
+
+    generateAndUploadPOSInvoice();
+  }, [receiptOrder]);
 
   const handleSearchOrderForExchange = async () => {
     if (!exchangeSearchQuery.trim()) return;
@@ -1897,6 +1961,111 @@ export default function POSTab({ embedded = false, activeBranchId }: POSTabProps
         </div>,
         document.body
       )}
-    </div>
+          {/* Hidden A4 Invoice Sheet for Automated S3 Upload */}
+      {receiptOrder && (
+        <div style={{ position: "absolute", left: "-9999px", top: "-9999px", width: "794px" }}>
+          <div 
+            id={`pos-auto-invoice-sheet-${receiptOrder.id}`}
+            style={{
+              background: "#ffffff",
+              padding: "40px",
+              fontFamily: "sans-serif",
+              color: "#1e293b",
+              borderRadius: "8px",
+              border: "1px solid #e2e8f0"
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", borderBottom: "2px solid #0f172a", paddingBottom: "20px", marginBottom: "20px" }}>
+              <div style={{ flex: 1 }}>
+                <h1 style={{ fontSize: "20px", fontWeight: "800", color: "#0f172a", margin: 0 }}>তানহা ফ্যাশন</h1>
+                <p style={{ fontSize: "10px", color: "#64748b", marginTop: "4px", fontWeight: "600" }}>তানহা ফ্যাশন — অনন্য কালেকশন</p>
+                <p style={{ fontSize: "9px", color: "#94a3b8", marginTop: "2px" }}>Mirpur, Dhaka, Bangladesh | মোবাইল: ০১৮৬৩-৬৯৪০২৭</p>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontSize: "9px", fontWeight: "900", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "1px" }}>রসিদ / ইনভয়েস</div>
+                <div style={{ fontSize: "16px", fontFamily: "monospace", fontWeight: "900", color: "#0f172a", marginTop: "4px" }}>#{receiptOrder.orderNumber}</div>
+                <div style={{ fontSize: "10px", color: "#64748b", marginTop: "4px" }}>
+                  তারিখ: {new Date(receiptOrder.createdAt).toLocaleDateString("bn-BD", { year: "numeric", month: "long", day: "numeric" })}
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px", fontSize: "11px", marginBottom: "24px" }}>
+              <div>
+                <h4 style={{ fontWeight: "800", color: "#0f172a", borderBottom: "1px solid #e2e8f0", paddingBottom: "6px", marginBottom: "8px", textTransform: "uppercase", fontSize: "9px" }}>ডেলিভারি ঠিকানা</h4>
+                <div style={{ fontWeight: "900", color: "#0f172a", fontSize: "12px", marginBottom: "4px" }}>{receiptOrder.customerName || receiptOrder.name}</div>
+                <div style={{ color: "#475569", fontWeight: "600" }}>{receiptOrder.address}</div>
+                <div style={{ color: "#475569", fontWeight: "700", marginTop: "4px" }}>{receiptOrder.city} - {receiptOrder.postcode}</div>
+              </div>
+              <div>
+                <h4 style={{ fontWeight: "800", color: "#0f172a", borderBottom: "1px solid #e2e8f0", paddingBottom: "6px", marginBottom: "8px", textTransform: "uppercase", fontSize: "9px" }}>পেমেন্ট ও কন্টাক্ট</h4>
+                <div style={{ fontWeight: "700", color: "#334155" }}>মোবাইল: {receiptOrder.phone}</div>
+                {receiptOrder.email && <div style={{ color: "#334155", marginTop: "4px" }}>ইমেইল: {receiptOrder.email}</div>}
+                <div style={{ marginTop: "10px" }}>
+                  <span style={{ fontSize: "9px", fontWeight: "900", color: "#94a3b8", textTransform: "uppercase", display: "block" }}>পেমেন্ট পদ্ধতি:</span>
+                  <span style={{ fontWeight: "800", color: "#0f172a", fontSize: "10px", marginTop: "2px", display: "block" }}>
+                    {receiptOrder.paymentMethod === "bkash" ? "বিকাশ" : receiptOrder.paymentMethod === "nagad" ? "নগদ" : receiptOrder.paymentMethod === "cod" ? "ক্যাশ অন ডেলিভারি" : receiptOrder.paymentMethod}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ border: "1px solid #e2e8f0", borderRadius: "8px", overflow: "hidden", marginBottom: "24px", fontSize: "11px", backgroundColor: "#f8fafc" }}>
+              <table style={{ width: "100%", textAlign: "left", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr style={{ backgroundColor: "#f1f5f9", borderBottom: "1px solid #e2e8f0", fontSize: "9px", fontWeight: "900", color: "#64748b", textTransform: "uppercase" }}>
+                    <th style={{ padding: "8px 12px" }}>আইটেম বিবরণ</th>
+                    <th style={{ padding: "8px 12px", textAlign: "center" }}>সাইজ</th>
+                    <th style={{ padding: "8px 12px", textAlign: "center" }}>পরিমাণ</th>
+                    <th style={{ padding: "8px 12px", textAlign: "right" }}>মোট মূল্য</th>
+                  </tr>
+                </thead>
+                <tbody style={{ color: "#334155" }}>
+                  {receiptOrder.items && receiptOrder.items.map((item: any, idx: number) => (
+                    <tr key={idx} style={{ borderBottom: "1px solid #e2e8f0" }}>
+                      <td style={{ padding: "10px 12px", fontWeight: "600", color: "#0f172a" }}>
+                        <div>{item.name || "ডিজাইনার ড্রেস"}</div>
+                        <div style={{ fontSize: "9px", color: "#94a3b8", fontFamily: "monospace", marginTop: "2px" }}>ID/SKU: {item.product?.sku || item.productId}</div>
+                      </td>
+                      <td style={{ padding: "10px 12px", textAlign: "center", fontWeight: "700" }}>{item.size}</td>
+                      <td style={{ padding: "10px 12px", textAlign: "center", fontWeight: "700" }}>{item.quantity}</td>
+                      <td style={{ padding: "10px 12px", textAlign: "right", fontWeight: "700", fontFamily: "monospace" }}>৳ {item.price * item.quantity}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div style={{ maxWidth: "240px", marginLeft: "auto", fontSize: "11px", display: "flex", flexDirection: "column", gap: "6px", borderTop: "1px solid #e2e8f0", paddingTop: "12px", marginBottom: "16px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", color: "#64748b", fontWeight: "600" }}>
+                <span>উপমোট:</span>
+                <span style={{ fontWeight: "700", color: "#1e293b" }}>৳ {receiptOrder.subtotal}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", color: "#64748b", fontWeight: "600" }}>
+                <span>ডেলিভারি খরচ:</span>
+                <span style={{ fontWeight: "700", color: "#1e293b" }}>৳ {receiptOrder.shippingCost}</span>
+              </div>
+              {receiptOrder.discount > 0 && (
+                <div style={{ display: "flex", justifyContent: "space-between", color: "#e11d48", fontWeight: "700" }}>
+                  <span>ছাড় (কুপন):</span>
+                  <span>-৳ {receiptOrder.discount}</span>
+                </div>
+              )}
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", fontWeight: "900", borderTop: "1px dashed #cbd5e1", paddingTop: "8px", color: "#0f172a" }}>
+                <span>সর্বমোট পরিশোধযোগ্য:</span>
+                <span style={{ color: "#8b5cf6" }}>৳ {receiptOrder.grandTotal}</span>
+              </div>
+            </div>
+
+            {receiptOrder.trxId && (
+              <div style={{ backgroundColor: "#f8fafc", border: "1px solid #e2e8f0", padding: "10px", borderRadius: "8px", fontSize: "9px", fontWeight: "700", color: "#475569", textAlign: "center", fontFamily: "monospace" }}>
+                লেনদেন আইডি (TrxID): <span style={{ color: "#0f172a", fontWeight: "900" }}>{receiptOrder.trxId}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+</div>
   );
 }

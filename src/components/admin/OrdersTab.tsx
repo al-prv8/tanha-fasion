@@ -1038,7 +1038,7 @@ export default function OrdersTab({
                                           আউটলেট: {o.branch.name} | {o.branch.address || o.branch.city} | হটলাইন: {o.branch.phone}
                                         </p>
                                       ) : (
-                                        <p className="text-[9px] text-slate-400 mt-0.5">Mirpur, Dhaka, Bangladesh | Hotline: ০৯৬১২-৩৪৫৬৭৮</p>
+                                        <p className="text-[9px] text-slate-400 mt-0.5">Mirpur, Dhaka, Bangladesh | মোবাইল: ০১৮৬৩-৬৯৪০২৭</p>
                                       )}
                                     </div>
                                     <div className="text-right">
@@ -1483,7 +1483,7 @@ export default function OrdersTab({
                   আউটলেট: {activeOrderToPrint.branch.name} | {activeOrderToPrint.branch.address || activeOrderToPrint.branch.city} | হটলাইন: {activeOrderToPrint.branch.phone}
                 </p>
               ) : (
-                <p className="text-[9px] text-slate-400 mt-0.5">Mirpur, Dhaka, Bangladesh | Hotline: ০৯৬১২-৩৪৫৬৭৮</p>
+                <p className="text-[9px] text-slate-400 mt-0.5">Mirpur, Dhaka, Bangladesh | মোবাইল: ০১৮৬৩-৬৯৪০২৭</p>
               )}
             </div>
             <div className="text-right">
