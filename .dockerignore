@@ -24,6 +24,4 @@ server/.env
 bun.lock
 bunfig.toml
 tsconfig.tsbuildinfo
-package-lock.json
-server/package-lock.json
 *.log
