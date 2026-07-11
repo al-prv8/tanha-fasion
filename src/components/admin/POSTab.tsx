@@ -1979,7 +1979,7 @@ export default function POSTab({ embedded = false, activeBranchId }: POSTabProps
               <div style={{ flex: 1 }}>
                 <h1 style={{ fontSize: "20px", fontWeight: "800", color: "#0f172a", margin: 0 }}>তানহা ফ্যাশন</h1>
                 <p style={{ fontSize: "10px", color: "#64748b", marginTop: "4px", fontWeight: "600" }}>তানহা ফ্যাশন — অনন্য কালেকশন</p>
-                <p style={{ fontSize: "9px", color: "#94a3b8", marginTop: "2px" }}>Mirpur, Dhaka, Bangladesh | মোবাইল: ০১৮৬৩-৬৯৪০২৭</p>
+                <p style={{ fontSize: "9px", color: "#94a3b8", marginTop: "2px" }}>Mirpur, Dhaka, Bangladesh | মোবাইল: 01863-694027</p>
               </div>
               <div style={{ textAlign: "right" }}>
                 <div style={{ fontSize: "9px", fontWeight: "900", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "1px" }}>রসিদ / ইনভয়েস</div>

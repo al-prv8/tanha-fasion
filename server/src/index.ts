@@ -30,6 +30,7 @@ function clearCache() {
 }
 
 const app = express();
+app.set("trust proxy", 1);
 app.use(compression());
 
 // Configure local SMTP transport (Postfix running on localhost:25)
