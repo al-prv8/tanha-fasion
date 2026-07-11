@@ -1,0 +1,29 @@
+# Ignore dependencies
+node_modules
+server/node_modules
+
+# Ignore build outputs
+.next
+server/dist
+
+# Ignore local config and environment files
+.env
+.env*.local
+.env.production
+server/.env
+
+# Ignore version control and IDE folders
+.git
+.gitignore
+.agents
+.gemini
+.idea
+.vscode
+
+# Ignore lockfiles and temporary files
+bun.lock
+bunfig.toml
+tsconfig.tsbuildinfo
+package-lock.json
+server/package-lock.json
+*.log
