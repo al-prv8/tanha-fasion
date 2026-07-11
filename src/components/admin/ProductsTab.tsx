@@ -775,35 +775,6 @@ export default function ProductsTab({
                   );
                 })()}
 
-                {/* Custom URL or Preset inputs as fallbacks */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4 pt-3 border-t border-border/40">
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-bold text-muted-foreground">কাস্টম ছবি লিংক (Custom Image URL - ঐচ্ছিক)</label>
-                    <input
-                      type="text"
-                      placeholder="যেমন: https://example.com/image.jpg"
-                      value={productForm.imgUrl && !productForm.imgUrl.startsWith("/assets/cotton_") && !productForm.imgUrl.includes("/uploads/") ? productForm.imgUrl : ""}
-                      onChange={(e) => {
-                        const url = e.target.value.trim();
-                        setProductForm(prev => ({ ...prev, imgUrl: url }));
-                      }}
-                      className="px-2.5 py-1.5 border border-border bg-white rounded-lg text-[10px] font-mono focus:outline-none"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-bold text-muted-foreground">স্টক ইমেজ প্রিসেট (Stock Image Presets - ঐচ্ছিক)</label>
-                    <select
-                      value={STATIC_PRODUCT_ASSETS.some(a => a.value === productForm.imgUrl) ? productForm.imgUrl : ""}
-                      onChange={(e) => handlePresetSelect(e.target.value)}
-                      className="px-2.5 py-1.5 border border-border bg-white rounded-lg text-[10px] font-bold focus:outline-none"
-                    >
-                      <option value="">নির্বাচন করুন</option>
-                      {STATIC_PRODUCT_ASSETS.map((asset) => (
-                        <option key={asset.value} value={asset.value}>{asset.label}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
               </div>
 
               {/* Facebook & TikTok Videos */}
@@ -1374,35 +1345,6 @@ export default function ProductsTab({
                                         );
                                       })()}
 
-                                      {/* Custom URL or Preset inputs as fallbacks - Edit */}
-                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4 pt-3 border-t border-border/40">
-                                        <div className="flex flex-col gap-1">
-                                          <label className="text-[10px] font-bold text-muted-foreground">কাস্টম ছবি লিংক (Custom Image URL - ঐচ্ছিক)</label>
-                                          <input
-                                            type="text"
-                                            placeholder="যেমন: https://example.com/image.jpg"
-                                            value={productForm.imgUrl && !productForm.imgUrl.startsWith("/assets/cotton_") && !productForm.imgUrl.includes("/uploads/") ? productForm.imgUrl : ""}
-                                            onChange={(e) => {
-                                              const url = e.target.value.trim();
-                                              setProductForm(prev => ({ ...prev, imgUrl: url }));
-                                            }}
-                                            className="px-2.5 py-1.5 border border-border bg-white rounded-lg text-[10px] font-mono focus:outline-none"
-                                          />
-                                        </div>
-                                        <div className="flex flex-col gap-1">
-                                          <label className="text-[10px] font-bold text-muted-foreground">স্টক ইমেজ প্রিসেট (Stock Image Presets - ঐচ্ছিক)</label>
-                                          <select
-                                            value={STATIC_PRODUCT_ASSETS.some(a => a.value === productForm.imgUrl) ? productForm.imgUrl : ""}
-                                            onChange={(e) => handlePresetSelect(e.target.value)}
-                                            className="px-2.5 py-1.5 border border-border bg-white rounded-lg text-[10px] font-bold focus:outline-none"
-                                          >
-                                            <option value="">নির্বাচন করুন</option>
-                                            {STATIC_PRODUCT_ASSETS.map((asset) => (
-                                              <option key={asset.value} value={asset.value}>{asset.label}</option>
-                                            ))}
-                                          </select>
-                                        </div>
-                                      </div>
                                     </div>
 
                                     {/* Facebook & TikTok Videos - Edit */}
