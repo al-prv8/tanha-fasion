@@ -87,7 +87,7 @@ export default function HomeClient() {
     fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/products`)
       .then((res) => res.json())
       .then((data) => {
-        if (data && data.length > 0) {
+        if (Array.isArray(data)) {
           const mapped = data.map((p: any) => {
             let sizesObj: { [sz: string]: number } = {};
             try {
@@ -97,7 +97,8 @@ export default function HomeClient() {
             const totalStock = Object.values(sizesObj).reduce((acc: number, val: any) => acc + Number(val || 0), 0);
             return {
               id: p.id,
-              sku: p.sku,
+              numericId: Number(p.id) || 0,
+              title: p.name,
               name: p.name,
               price: p.price,
               originalPrice: p.originalPrice,
