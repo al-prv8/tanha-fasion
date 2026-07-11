@@ -191,6 +191,11 @@ export default function CategoriesTab({
 
     const isPresetBanner = PRESET_BANNERS.some(b => b.value === cat.bannerUrl);
     setBannerMode(isPresetBanner ? "preset" : cat.bannerUrl ? "custom" : "preset");
+
+    // Smooth scroll to top of window so the edit form is immediately visible
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
   };
 
   const handleSaveEdit = async (id: string) => {
