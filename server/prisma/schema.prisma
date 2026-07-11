@@ -55,6 +55,7 @@ model Order {
   courierConsignmentId String?
   courierTrackingCode  String?
   courierStatus        String?
+  invoiceUrl           String?
   createdAt            DateTime    @default(now())
 
   @@index([phone])

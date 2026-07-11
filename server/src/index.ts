@@ -4,6 +4,8 @@ import dotenv from "dotenv";
 import path from "path";
 import fs from "fs";
 import multer from "multer";
+import { S3Client } from "@aws-sdk/client-s3";
+import multerS3 from "multer-s3";
 import prisma from "./db";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
@@ -98,26 +100,64 @@ if (!fs.existsSync(UPLOADS_DIR)) {
   fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 }
 
-// Multer Storage Configuration
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, UPLOADS_DIR);
-  },
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, `${uniqueSuffix}${ext}`);
-  }
-});
+// S3 / MinIO Storage Configuration
+const hasS3Config = !!(
+  process.env.S3_ENDPOINT &&
+  process.env.S3_ACCESS_KEY_ID &&
+  process.env.S3_SECRET_ACCESS_KEY &&
+  process.env.S3_BUCKET_NAME
+);
+
+let s3Client: S3Client | null = null;
+let multerStorage: multer.StorageEngine;
+
+if (hasS3Config) {
+  console.log("Initializing S3/MinIO Storage Engine...");
+  s3Client = new S3Client({
+    endpoint: process.env.S3_ENDPOINT,
+    credentials: {
+      accessKeyId: process.env.S3_ACCESS_KEY_ID!,
+      secretAccessKey: process.env.S3_SECRET_ACCESS_KEY!,
+    },
+    forcePathStyle: true, // Essential for MinIO
+    region: "us-east-1",  // Dummy region required by S3 SDK
+  });
+
+  multerStorage = multerS3({
+    s3: s3Client,
+    bucket: process.env.S3_BUCKET_NAME!,
+    acl: "public-read",
+    metadata: (req, file, cb) => {
+      cb(null, { fieldName: file.fieldname });
+    },
+    key: (req, file, cb) => {
+      const ext = path.extname(file.originalname);
+      const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+      cb(null, `uploads/${uniqueSuffix}${ext}`);
+    }
+  });
+} else {
+  console.log("S3 configuration not found. Falling back to Local Disk Storage Engine...");
+  multerStorage = multer.diskStorage({
+    destination: (req, file, cb) => {
+      cb(null, UPLOADS_DIR);
+    },
+    filename: (req, file, cb) => {
+      const ext = path.extname(file.originalname);
+      const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+      cb(null, `${uniqueSuffix}${ext}`);
+    }
+  });
+}
 
 const upload = multer({
-  storage,
+  storage: multerStorage,
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB Limit
   fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith("image/")) {
+    if (file.mimetype.startsWith("image/") || file.mimetype === "application/pdf") {
       cb(null, true);
     } else {
-      cb(new Error("শুধুমাত্র ইমেজ ফাইল আপলোড করা যাবে।"));
+      cb(new Error("শুধুমাত্র ইমেজ ও পিডিএফ ফাইল আপলোড করা যাবে।"));
     }
   }
 });
@@ -929,10 +969,60 @@ app.post("/api/upload", authenticateToken, requireRole(["ADMIN"]), (req, res) =>
     if (!req.file) {
       return res.status(400).json({ error: "কোনো ফাইল সিলেক্ট করা হয়নি।" });
     }
-    const filename = req.file.filename;
-    const imageUrl = `${req.protocol}://${req.get("host")}/uploads/${filename}`;
-    logAdminActivity(req, "IMAGE_UPLOAD", `Uploaded image file: ${filename}`);
+    const imageUrl = (req.file as any).location || `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
+    logAdminActivity(req, "IMAGE_UPLOAD", `Uploaded file: ${req.file.filename || req.file.originalname}`);
     res.json({ url: imageUrl });
+  });
+});
+
+// 1.6. Order Invoice Upload Endpoint
+app.post("/api/orders/:id/invoice", authenticateToken, (req, res) => {
+  upload.single("invoice")(req, res, async (err) => {
+    if (err) {
+      return res.status(400).json({ error: err.message || "ইনভয়েস ফাইল আপলোড করতে সমস্যা হয়েছে।" });
+    }
+    if (!req.file) {
+      return res.status(400).json({ error: "কোনো ইনভয়েস ফাইল সিলেক্ট করা হয়নি।" });
+    }
+    
+    const orderId = req.params.id;
+    
+    try {
+      // Find order to check authorization
+      const existingOrder = await prisma.order.findUnique({
+        where: { id: orderId },
+        select: { id: true, email: true, phone: true, orderNumber: true }
+      });
+      
+      if (!existingOrder) {
+        return res.status(404).json({ error: "অর্ডারটি পাওয়া যায়নি।" });
+      }
+      
+      // Allow only ADMIN/SUPER_ADMIN or the customer who placed the order
+      const userRole = (req as any).user.role;
+      const userEmail = (req as any).user.email;
+      const userPhone = (req as any).user.phone;
+      
+      const isOwner = (userEmail && existingOrder.email === userEmail) || (userPhone && existingOrder.phone === userPhone);
+      const isAdmin = userRole === "ADMIN" || userRole === "SUPER_ADMIN";
+      
+      if (!isAdmin && !isOwner) {
+        return res.status(403).json({ error: "এই কাজটির জন্য আপনার অনুমতি নেই।" });
+      }
+      
+      const invoiceUrl = (req.file as any).location || `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
+      
+      const order = await prisma.order.update({
+        where: { id: orderId },
+        data: { invoiceUrl }
+      });
+      
+      logAdminActivity(req, "INVOICE_UPLOAD", `Uploaded invoice PDF for order #${order.orderNumber}`);
+      res.json({ success: true, invoiceUrl });
+    } catch (dbErr: any) {
+      console.error("Failed to save invoice URL to order:", dbErr);
+      res.status(500).json({ error: "ডাটাবেজে ইনভয়েস লিংক সংরক্ষণ করা যায়নি।" });
+    }
   });
 });
 

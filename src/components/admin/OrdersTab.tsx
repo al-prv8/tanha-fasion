@@ -18,8 +18,13 @@ import {
   AlertTriangle,
   ChevronDown,
   ShoppingBag,
-  RefreshCw
+  RefreshCw,
+  Cloud,
+  Check,
+  Download
 } from "lucide-react";
+import html2canvas from "html2canvas";
+import { jsPDF } from "jspdf";
 import { formatBanglaPriceWithCommas, toBanglaNumber } from "@/lib/products";
 
 interface OrdersTabProps {
@@ -125,6 +130,78 @@ export default function OrdersTab({
   const itemsPerPage = 10;
 
   const [isClient, setIsClient] = useState(false);
+  const [isUploadingInvoice, setIsUploadingInvoice] = useState<string | null>(null);
+
+  const handleSaveInvoiceToCloud = async (orderId: string, orderNumber: string) => {
+    // Look for preview invoice sheet in the DOM
+    const el = document.getElementById(`preview-invoice-sheet-${orderId}`);
+    if (!el) {
+      alert("ইনভয়েস টেমপ্লেট লোড করা যায়নি। অনুগ্রহ করে রোটি এক্সপ্যান্ড করে ইনভয়েস ভিউ লোড করুন।");
+      return;
+    }
+
+    setIsUploadingInvoice(orderId);
+    try {
+      // Convert the DOM element to a high-res canvas (scale 2 for readability)
+      const canvas = await html2canvas(el, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: "#ffffff"
+      });
+
+      const imgData = canvas.toDataURL("image/jpeg", 0.95);
+      
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4"
+      });
+
+      const imgWidth = 210; // A4 width in mm
+      const pageHeight = 295; // A4 height in mm
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      let heightLeft = imgHeight;
+      let position = 0;
+
+      pdf.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight, undefined, "FAST");
+      heightLeft -= pageHeight;
+
+      while (heightLeft >= 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight, undefined, "FAST");
+        heightLeft -= pageHeight;
+      }
+
+      const pdfBlob = pdf.output("blob");
+      
+      const formData = new FormData();
+      formData.append("invoice", pdfBlob, `invoice_${orderNumber}.pdf`);
+
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/orders/${orderId}/invoice`, {
+        method: "POST",
+        body: formData,
+        credentials: "include"
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || "ইনভয়েস ক্লাউড স্টোরেজে আপলোড ব্যর্থ হয়েছে।");
+      }
+
+      const data = await res.json();
+      if (data.success && data.invoiceUrl) {
+        alert("ইনভয়েসটি সফলভাবে ক্লাউডে সংরক্ষণ করা হয়েছে!");
+        if (onRefresh) onRefresh();
+      }
+    } catch (err: any) {
+      console.error("Failed to compile/upload invoice PDF:", err);
+      alert(err.message || "ইনভয়েস পিডিএফ জেনারেট ও আপলোড করতে সমস্যা হয়েছে।");
+    } finally {
+      setIsUploadingInvoice(null);
+    }
+  };
 
   useEffect(() => {
     setIsClient(true);
@@ -1283,6 +1360,58 @@ export default function OrdersTab({
                                     )}
                                   </div>
                                 )}
+
+                                {/* Cloud S3 Invoice Storage Card */}
+                                <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-2xs flex flex-col gap-3">
+                                  <h4 className="font-bold text-xs text-foreground font-display flex items-center gap-1.5 border-b border-border/40 pb-2 mb-1">
+                                    <Cloud size={13} className="text-primary" />
+                                    <span>ইনভয়েস ক্লাউড স্টোরেজ (S3 Storage)</span>
+                                  </h4>
+
+                                  {o.invoiceUrl ? (
+                                    <div className="flex flex-col gap-2.5">
+                                      <div className="flex items-center gap-2 bg-[#F4F9F4] text-emerald-800 border border-emerald-150 p-2.5 rounded-lg text-[10px] font-black">
+                                        <Check size={12} />
+                                        <span>ইনভয়েস পিডিএফ ক্লাউড-এ সংরক্ষিত রয়েছে</span>
+                                      </div>
+                                      <div className="flex gap-2">
+                                        <a
+                                          href={o.invoiceUrl}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                          className="flex-1 py-2 px-3 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-lg no-underline text-center text-xs flex items-center justify-center gap-1 shadow-xs font-sans cursor-pointer"
+                                        >
+                                          <Download size={12} />
+                                          <span>ইনভয়েস ডাউনলোড করুন</span>
+                                        </a>
+                                        <button
+                                          type="button"
+                                          disabled={isUploadingInvoice === o.id}
+                                          onClick={() => handleSaveInvoiceToCloud(o.id, o.orderNumber)}
+                                          className="py-2 px-3 bg-secondary hover:bg-slate-100 border border-border text-foreground font-bold rounded-lg cursor-pointer text-xs flex items-center justify-center gap-1"
+                                          title="ইনভয়েস নতুন করে তৈরি ও আপলোড করুন"
+                                        >
+                                          <RefreshCw size={12} className={isUploadingInvoice === o.id ? "animate-spin" : ""} />
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div className="flex flex-col gap-3">
+                                      <div className="bg-amber-500/5 text-amber-600 border border-amber-500/10 p-2.5 rounded-lg text-[10px] font-black text-center">
+                                        কোনো ইনভয়েস পিডিএফ ফাইল ক্লাউড-এ সংরক্ষণ করা হয়নি।
+                                      </div>
+                                      <button
+                                        type="button"
+                                        disabled={isUploadingInvoice === o.id}
+                                        onClick={() => handleSaveInvoiceToCloud(o.id, o.orderNumber)}
+                                        className="w-full py-2.5 px-4 bg-primary hover:bg-primary/95 text-white font-bold text-xs rounded-lg border-none cursor-pointer flex items-center justify-center gap-2 transition-all shadow-xs disabled:opacity-50"
+                                      >
+                                        <Cloud size={14} className={isUploadingInvoice === o.id ? "animate-spin" : ""} />
+                                        <span>{isUploadingInvoice === o.id ? "পিডিএফ তৈরি ও আপলোড হচ্ছে..." : "ইনভয়েস তৈরি করে ক্লাউডে সংরক্ষণ করুন"}</span>
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
  
                                 {/* Danger Zone (Delete Order) */}
                                 <div className="bg-rose-50/50 border border-rose-200/80 rounded-xl p-5 shadow-2xs">

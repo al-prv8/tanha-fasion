@@ -801,17 +801,29 @@ export default function CustomerDashboardPage() {
 
                                 {/* Expanded Card Actions Footer */}
                                 <div className="border-t border-border/40 pt-4 flex flex-wrap justify-between items-center gap-3 w-full">
-                                  {order.orderStatus === "PENDING" ? (
-                                    <button
-                                      onClick={() => handleCancelOrderClick(order.id)}
-                                      disabled={isSubmitting}
-                                      className="bg-primary/5 hover:bg-primary/10 text-primary border border-primary/20 text-[10px] font-bold py-2.5 px-5 rounded-xl cursor-pointer transition-all active:scale-95 disabled:opacity-70"
-                                    >
-                                      {isSubmitting ? "বাতিল হচ্ছে..." : "অর্ডার বাতিল করুন"}
-                                    </button>
-                                  ) : (
-                                    <div />
-                                  )}
+                                  <div className="flex gap-2 font-sans font-semibold">
+                                    {order.orderStatus === "PENDING" && (
+                                      <button
+                                        onClick={() => handleCancelOrderClick(order.id)}
+                                        disabled={isSubmitting}
+                                        className="bg-primary/5 hover:bg-primary/10 text-primary border border-primary/20 text-[10px] font-bold py-2.5 px-5 rounded-xl cursor-pointer transition-all active:scale-95 disabled:opacity-70 font-sans"
+                                      >
+                                        {isSubmitting ? "বাতিল হচ্ছে..." : "অর্ডার বাতিল করুন"}
+                                      </button>
+                                    )}
+
+                                    {order.invoiceUrl && (
+                                      <a
+                                        href={order.invoiceUrl}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="bg-slate-900 hover:bg-slate-800 text-white border-none text-[10px] font-bold py-2.5 px-5 rounded-xl cursor-pointer transition-all flex items-center gap-1.5 active:scale-95 no-underline font-sans"
+                                      >
+                                        <ShoppingBag size={12} />
+                                        <span>রসিদ ডাউনলোড করুন (PDF)</span>
+                                      </a>
+                                    )}
+                                  </div>
 
                                   <button
                                     onClick={() => {
